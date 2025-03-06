@@ -21,6 +21,10 @@ struct Cli {
 enum Commands {
     /// Fetch the latest data from the server
     Fetch {
+        /// Display all information
+        #[arg(long, default_value = "false")]
+        all: bool,
+
         /// If specified, cache will be ignored
         #[arg(long, default_value = "false")]
         force: bool,
@@ -70,8 +74,8 @@ async fn command_init() -> anyhow::Result<()> {
 
     eprintln!("Config path: '{style}{}{style:#}'", cfg_path.display());
 
-    let username = read_line("Username: ", false)?;
-    let password = read_line("Password: ", true)?;
+    let username = read_line("PKU IAAA Username: ", false)?;
+    let password = read_line("PKU IAAA Password: ", true)?;
 
     let cfg = config::Config { username, password };
     config::write_cfg(&cfg_path, &cfg).await?;
@@ -106,14 +110,17 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
     format!("{s}{}{s:#}", res)
 }
 
-async fn command_fetch(force: bool) -> anyhow::Result<()> {
+async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
+    println!("Fetching Courses...");
+    use utils::style::*;
+
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)
         .await
         .context("read config file")?;
 
     let client = api::Client::new(if force { None } else { Some(ONE_HOUR) });
-    eprintln!("Cache TTL: {:?}", client.cache_ttl());
+    // eprintln!("Cache TTL: {:?}", client.cache_ttl());
     let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
 
     let courses = blackboard.get_courses().await?;
@@ -126,16 +133,23 @@ async fn command_fetch(force: bool) -> anyhow::Result<()> {
         let h1 = Style::new().bold().underline();
         let h2 = Style::new().underline();
         let h3 = Style::new().italic();
-        let s = Style::new().dimmed();
         let gr = Style::new().fg_color(Some(AnsiColor::Green.into()));
+        let mg = Style::new().fg_color(Some(AnsiColor::BrightMagenta.into()));
+        let bl = Style::new().fg_color(Some(AnsiColor::Cyan.into()));
         if !assignments.is_empty() {
-            println!("{h1}[{}]{h1:#}\n", c.name());
+            println!("{bl}{h1}[{}]{h1:#}{bl:#}\n", c.name());
             for a in assignments {
                 let att = a.get_current_attempt().await?;
                 let a = a.get().await?;
+
+                // skip finished assignments if not in full mode
+                if att.is_some() && !all {
+                    continue;
+                }
+
                 if let Some(att) = att {
                     println!(
-                        "{h2}{}{h2:#} ({gr}finished{gr:#}) {s}{att}{s:#}\n",
+                        "{mg}{h2}{}{h2:#}{mg:#} ({gr}finished{gr:#}) {D}{att}{D:#}\n",
                         a.title()
                     );
                 } else {
@@ -143,12 +157,16 @@ async fn command_fetch(force: bool) -> anyhow::Result<()> {
                         .deadline()
                         .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
                     let delta = t - chrono::Local::now();
-                    println!("{h2}{}{h2:#} ({})\n", a.title(), fmt_time_delta(delta),);
+                    println!(
+                        "{mg}{h2}{}{h2:#}{mg:#} ({})\n",
+                        a.title(),
+                        fmt_time_delta(delta),
+                    );
                 }
                 if !a.attachments().is_empty() {
                     println!("{h3}Attachments{h3:#}");
                     for (name, uri) in a.attachments() {
-                        println!("{s}•{s:#} {}: {s}{}{s:#}", name, uri);
+                        println!("{D}•{D:#} {name}: {D}{uri}{D:#}");
                     }
                     println!();
                 }
@@ -167,12 +185,12 @@ async fn command_fetch(force: bool) -> anyhow::Result<()> {
 }
 
 pub async fn start() -> anyhow::Result<()> {
-    let cli = Cli::try_parse().context("parse CLI arguments")?;
+    let cli = Cli::try_parse()?;
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
             Commands::Init => command_init().await?,
-            Commands::Fetch { force } => command_fetch(force).await?,
+            Commands::Fetch { force, all } => command_fetch(force, all).await?,
         }
     } else {
         Cli::command().print_help()?;

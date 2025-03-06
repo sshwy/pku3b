@@ -65,11 +65,10 @@ impl Client {
             .context("property 'token' not found on object")?
             .to_owned();
 
-        eprintln!("iaaa oauth token: {token}");
+        // eprintln!("iaaa oauth token: {token}");
 
         let _rand: f64 = rng.sample(Open01);
         let _rand = &format!("{_rand:.20}");
-        eprintln!("_rand: {_rand}");
 
         let res = c
             .get(SSO_LOGIN)?
@@ -239,7 +238,7 @@ pub struct Course {
 
 impl Course {
     pub fn name(&self) -> &str {
-        &self.handle.0.title
+        &self.handle.0.title.split(": ").nth(1).unwrap()
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
         let Some(uri) = self.entries.get("课程作业") else {
@@ -527,7 +526,7 @@ impl CourseAssignmentDetail {
             None
         }
     }
-    
+
     pub fn deadline_raw(&self) -> &str {
         &self.data.deadline
     }

@@ -1,3 +1,9 @@
+pub mod style {
+    use clap::builder::styling::Style;
+
+    pub const D: Style = Style::new().dimmed();
+}
+
 pub fn projectdir() -> dirs::ProjectDirs {
     dirs::ProjectDirs::from("org", "sshwy", "pku3b").expect("could not find project directories")
 }
