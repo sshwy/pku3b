@@ -8,7 +8,11 @@ pub fn default_config_path() -> std::path::PathBuf {
 
 /// If the cache file exists and is not expired, return the deserialized content.
 /// Otherwise, execute the future, serialize the result to the cache file, and return the result.
-pub async fn with_cache<T, F>(name: &str, ttl: std::time::Duration, fut: F) -> anyhow::Result<T>
+pub async fn with_cache<T, F>(
+    name: &str,
+    ttl: Option<&std::time::Duration>,
+    fut: F,
+) -> anyhow::Result<T>
 where
     F: std::future::Future<Output = anyhow::Result<T>>,
     T: serde::de::DeserializeOwned + serde::Serialize + 'static,
@@ -26,9 +30,11 @@ where
     let path = &projectdir().cache_dir().join(name);
     // dbg!(path.display());
     if let Ok(f) = std::fs::File::open(path) {
-        if f.metadata()?.modified()?.elapsed()? < ttl {
-            if let Ok(r) = serde_json::from_reader(f) {
-                return Ok(r);
+        if let Some(ttl) = ttl {
+            if f.metadata()?.modified()?.elapsed()? < *ttl {
+                if let Ok(r) = serde_json::from_reader(f) {
+                    return Ok(r);
+                }
             }
         }
     }

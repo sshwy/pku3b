@@ -1,30 +1,30 @@
 use std::io::Write as _;
 
 use anyhow::Context as _;
-use clap::{CommandFactory, Parser, Subcommand, builder::styling::Style};
+use clap::{
+    CommandFactory, Parser, Subcommand,
+    builder::styling::{AnsiColor, Style},
+};
 
 use crate::{api, config, utils};
+
+const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    // /// Optional name to operate on
-    // name: Option<String>,
-
-    // /// Sets a custom config file
-    // #[arg(short, long, value_name = "FILE")]
-    // config: Option<PathBuf>,
-
-    // /// Turn debugging information on
-    // #[arg(short, long, action = clap::ArgAction::Count)]
-    // debug: u8,
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    Run,
+    /// Fetch the latest data from the server
+    Fetch {
+        /// If specified, cache will be ignored
+        #[arg(long, default_value = "false")]
+        force: bool,
+    },
     /// Reinitialize the configuration
     Init,
     /// Display or modify the configuration
@@ -80,51 +80,99 @@ async fn command_init() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
+    if delta < chrono::TimeDelta::zero() {
+        let s = Style::new().fg_color(Some(AnsiColor::Red.into()));
+        return format!("{s}due{s:#}");
+    }
+
+    let s = Style::new().fg_color(Some(AnsiColor::Yellow.into()));
+    let mut delta = delta.to_std().unwrap();
+    let mut res = String::new();
+    res.push_str("in ");
+    if delta.as_secs() >= 86400 {
+        res.push_str(&format!("{}d ", delta.as_secs() / 86400));
+        delta = std::time::Duration::from_secs(delta.as_secs() % 86400);
+    }
+    if delta.as_secs() >= 3600 {
+        res.push_str(&format!("{}h ", delta.as_secs() / 3600));
+        delta = std::time::Duration::from_secs(delta.as_secs() % 3600);
+    }
+    if delta.as_secs() >= 60 {
+        res.push_str(&format!("{}m ", delta.as_secs() / 60));
+        delta = std::time::Duration::from_secs(delta.as_secs() % 60);
+    }
+    res.push_str(&format!("{}s", delta.as_secs()));
+    format!("{s}{}{s:#}", res)
+}
+
+async fn command_fetch(force: bool) -> anyhow::Result<()> {
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+
+    let client = api::Client::new(if force { None } else { Some(ONE_HOUR) });
+    eprintln!("Cache TTL: {:?}", client.cache_ttl());
+    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+
+    let courses = blackboard.get_courses().await?;
+    // dbg!(&courses);
+
+    for c in courses {
+        let c = c.get().await?;
+        let assignments = c.get_assignments().await?;
+        // dbg!();
+        let h1 = Style::new().bold().underline();
+        let h2 = Style::new().underline();
+        let h3 = Style::new().italic();
+        let s = Style::new().dimmed();
+        let gr = Style::new().fg_color(Some(AnsiColor::Green.into()));
+        if !assignments.is_empty() {
+            println!("{h1}[{}]{h1:#}\n", c.name());
+            for a in assignments {
+                let att = a.get_current_attempt().await?;
+                let a = a.get().await?;
+                if let Some(att) = att {
+                    println!(
+                        "{h2}{}{h2:#} ({gr}finished{gr:#}) {s}{att}{s:#}\n",
+                        a.title()
+                    );
+                } else {
+                    let t = a
+                        .deadline()
+                        .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
+                    let delta = t - chrono::Local::now();
+                    println!("{h2}{}{h2:#} ({})\n", a.title(), fmt_time_delta(delta),);
+                }
+                if !a.attachments().is_empty() {
+                    println!("{h3}Attachments{h3:#}");
+                    for (name, uri) in a.attachments() {
+                        println!("{s}•{s:#} {}: {s}{}{s:#}", name, uri);
+                    }
+                    println!();
+                }
+                if !a.descriptions().is_empty() {
+                    println!("{h3}Descriptions{h3:#}");
+                    for p in a.descriptions() {
+                        println!("{p}");
+                    }
+                }
+                println!();
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn start() -> anyhow::Result<()> {
     let cli = Cli::try_parse().context("parse CLI arguments")?;
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
             Commands::Init => command_init().await?,
-            Commands::Run => {
-                let cfg_path = utils::default_config_path();
-                let cfg = config::read_cfg(cfg_path)
-                    .await
-                    .context("read config file")?;
-
-                let blackboard = api::Blackboard::oauth_login(&cfg.username, &cfg.password).await?;
-
-                let courses = blackboard.get_courses().await?;
-                // dbg!(&courses);
-
-                for c in courses {
-                    let c = c.get().await?;
-                    let assignments = c.get_assignments().await?;
-                    // dbg!();
-                    if !assignments.is_empty() {
-                        println!("Course: {}\n", c.name());
-                        for a in assignments {
-                            let att = a.get_current_attempt().await?;
-                            let a = a.get().await?;
-                            println!("{} [deadline: {}] {:?}\n", a.title(), a.deadline(), att);
-                            if !a.attachments().is_empty() {
-                                println!("Attachments:");
-                                for (name, uri) in a.attachments() {
-                                    println!("- {}: {}", name, uri);
-                                }
-                                println!();
-                            }
-                            if !a.descriptions().is_empty() {
-                                println!("Descriptions:");
-                                for p in a.descriptions() {
-                                    println!("{p}");
-                                }
-                            }
-                            println!();
-                        }
-                    }
-                }
-            }
+            Commands::Fetch { force } => command_fetch(force).await?,
         }
     } else {
         Cli::command().print_help()?;
