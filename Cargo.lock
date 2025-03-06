@@ -596,7 +596,8 @@ dependencies = [
 [[package]]
 name = "cyper"
 version = "0.2.0"
-source = "git+https://github.com/compio-rs/cyper.git?rev=c4b569d408b540b2d8d84c1b68396bfe6fb18798#c4b569d408b540b2d8d84c1b68396bfe6fb18798"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6eb7e6c3043f7f5dcb838725499c946a7a7bb467438195d30e6d87f30f5d676d"
 dependencies = [
  "async-stream",
  "base64",
@@ -620,7 +621,8 @@ dependencies = [
 [[package]]
 name = "cyper-core"
 version = "0.2.1"
-source = "git+https://github.com/compio-rs/cyper.git?rev=c4b569d408b540b2d8d84c1b68396bfe6fb18798#c4b569d408b540b2d8d84c1b68396bfe6fb18798"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad7182f57b1cc45e0f73050ba104e02571473e2dec95c3b8b3abeaaf86e93ddc"
 dependencies = [
  "cfg-if",
  "compio",
