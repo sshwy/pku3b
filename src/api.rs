@@ -65,7 +65,9 @@ impl Client {
             .context("property 'token' not found on object")?
             .to_owned();
 
-        // eprintln!("iaaa oauth token: {token}");
+        if std::env::var("PKU3B_DEBUG").is_ok() {
+            eprintln!("iaaa oauth token: {token}");
+        }
 
         let _rand: f64 = rng.sample(Open01);
         let _rand = &format!("{_rand:.20}");
@@ -147,6 +149,10 @@ impl Blackboard {
     pub async fn get_courses(&self) -> anyhow::Result<Vec<CourseHandle>> {
         let courses =
             with_cache("_get_courses", self.client.cache_ttl(), self._get_courses()).await?;
+
+        if std::env::var("PKU3B_DEBUG").is_ok() {
+            dbg!(&courses);
+        }
 
         let courses = courses
             .into_iter()
@@ -284,10 +290,15 @@ impl Course {
         )
         .await?;
 
-        // dbg!(&assignments);
+        if std::env::var("PKU3B_DEBUG").is_ok() {
+            eprintln!("key: {}", self.handle.0.key);
+            dbg!(&assignments);
+        }
 
         let assignments = assignments
             .into_iter()
+            // remove assignment answers
+            .filter(|(_, url)| !url.starts_with("/bbcswebdav"))
             .map(|(title, uri)| {
                 let uri = http::Uri::from_str(&uri).context("parse uri failed")?;
                 let qs = uri
