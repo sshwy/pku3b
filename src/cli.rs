@@ -207,7 +207,9 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
 
 async fn command_clean() -> anyhow::Result<()> {
     let dir = utils::projectdir();
-    std::fs::remove_dir_all(dir.cache_dir())?;
+    if dir.cache_dir().exists() {
+        std::fs::remove_dir_all(dir.cache_dir())?;
+    }
     println!("Cache cleaned.");
     Ok(())
 }
