@@ -38,6 +38,8 @@ enum Commands {
         /// If specified, set the value of the attribute
         value: Option<String>,
     },
+    /// Clean the cache
+    Clean,
 }
 
 async fn command_config(
@@ -144,7 +146,10 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
 
     for c in courses {
         let c = c.get().await?;
-        let assignments = c.get_assignments().await?;
+        let assignments = c
+            .get_assignments()
+            .await
+            .with_context(|| format!("get assignments of {}", c.name()))?;
         // dbg!();
         let h1 = Style::new().bold().underline();
         let h2 = Style::new().underline();
@@ -200,12 +205,20 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn command_clean() -> anyhow::Result<()> {
+    let dir = utils::projectdir();
+    std::fs::remove_dir_all(dir.cache_dir())?;
+    println!("Cache cleaned.");
+    Ok(())
+}
+
 pub async fn start(cli: Cli) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
             Commands::Init => command_init().await?,
             Commands::Fetch { force, all } => command_fetch(force, all).await?,
+            Commands::Clean => command_clean().await?,
         }
     } else {
         Cli::command().print_help()?;
