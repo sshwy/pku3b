@@ -12,14 +12,14 @@ const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Fetch the latest data from the server
+    /// Fetch the latest data from course.pku.edu.cn
     Fetch {
         /// Display all information
         #[arg(long, default_value = "false")]
@@ -29,22 +29,38 @@ enum Commands {
         #[arg(long, default_value = "false")]
         force: bool,
     },
-    /// Reinitialize the configuration
+    /// (Re)initialize the configuration
     Init,
     /// Display or modify the configuration
     Config {
         // Path of the attribute to display or modify
-        attr: config::ConfigAttrs,
+        attr: Option<config::ConfigAttrs>,
         /// If specified, set the value of the attribute
         value: Option<String>,
     },
 }
 
-async fn command_config(attr: config::ConfigAttrs, value: Option<String>) -> anyhow::Result<()> {
+async fn command_config(
+    attr: Option<config::ConfigAttrs>,
+    value: Option<String>,
+) -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
-    let mut cfg = config::read_cfg(&cfg_path)
-        .await
-        .context("read config file")?;
+    let cfg_res = config::read_cfg(&cfg_path).await;
+
+    let Some(attr) = attr else {
+        match cfg_res {
+            Ok(cfg) => {
+                let s = toml::to_string_pretty(&cfg)?;
+                println!("{}", s);
+            }
+            Err(_) => {
+                eprintln!("Fail to read config file. Run 'pku3b init' to initialize.");
+            }
+        }
+        return Ok(());
+    };
+
+    let mut cfg = cfg_res.context("read config file")?;
     if let Some(value) = value {
         cfg.update(attr, value)?;
         config::write_cfg(&cfg_path, &cfg).await?;
@@ -184,8 +200,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn start() -> anyhow::Result<()> {
-    let cli = Cli::try_parse()?;
+pub async fn start(cli: Cli) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
