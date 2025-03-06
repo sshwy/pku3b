@@ -2,6 +2,14 @@
 name = "pku3b"
 version = "0.1.0"
 edition = "2024"
+authors = ["Weiyao Huang <jy.cat@qq.com>"]
+license = "MIT"
+description = "A tool for PKU students to check their courses."
+readme = "README.md"
+homepage = "https://github.com/sshwy/pku3b"
+repository = "https://github.com/sshwy/pku3b"
+keywords = ["cli"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
