@@ -5,10 +5,17 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::utils::with_cache;
 
-#[derive(Debug)]
 struct ClientInner {
     http_client: cyper::Client,
     cache_ttl: Option<std::time::Duration>,
+}
+
+impl std::fmt::Debug for ClientInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientInner")
+            .field("cache_ttl", &self.cache_ttl)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -168,18 +175,10 @@ impl Blackboard {
     }
 }
 
+#[derive(Debug)]
 struct CourseMeta {
     key: String,
     title: String,
-}
-
-impl std::fmt::Debug for CourseMeta {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CourseMeta")
-            .field("key", &self.key)
-            .field("title", &self.title)
-            .finish()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -334,20 +333,11 @@ impl Course {
     }
 }
 
+#[derive(Debug)]
 pub struct CourseAssignmentsMeta {
     title: String,
     course_id: String,
     content_id: String,
-}
-
-impl std::fmt::Debug for CourseAssignmentsMeta {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CourseAssignmentsMeta")
-            .field("title", &self.title)
-            .field("course_id", &self.course_id)
-            .field("content_id", &self.content_id)
-            .finish()
-    }
 }
 
 #[derive(Debug, Clone)]

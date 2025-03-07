@@ -178,20 +178,22 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     // eprintln!("Cache TTL: {:?}", client.cache_ttl());
     let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
 
-    let courses = blackboard.get_courses().await?;
-    // dbg!(&courses);
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
 
     for c in courses {
-        let c = c.get().await?;
+        let c = c.get().await.context("fetch course")?;
         let assignments = c
             .get_assignments()
             .await
-            .with_context(|| format!("get assignments of {}", c.name()))?;
-        // dbg!();
+            .with_context(|| format!("fetch assignment handles of {}", c.name()))?;
+
         if !assignments.is_empty() {
             println!("{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name());
             for a in assignments {
-                let a = a.get().await?;
+                let a = a.get().await.context("fetch assignment")?;
 
                 // skip finished assignments if not in full mode
                 if a.last_attempt().is_some() && !all {
