@@ -4,6 +4,8 @@ use clap::{
     CommandFactory, Parser, Subcommand,
     builder::styling::{AnsiColor, Style},
 };
+use futures_util::{FutureExt, future::try_join_all};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::io::Write as _;
 use utils::style::*;
 
@@ -46,6 +48,10 @@ enum Commands {
     },
     /// 清除缓存
     Clean,
+
+    #[cfg(feature = "dev")]
+    #[command(hide(true))]
+    Debug,
 }
 
 async fn command_config(
@@ -174,48 +180,107 @@ fn write_course_assignments(
     Ok(())
 }
 
+struct TickerHandle {
+    tx: futures_channel::oneshot::Sender<()>,
+    handle: compio::runtime::JoinHandle<()>,
+}
+
+impl TickerHandle {
+    async fn stop(self) {
+        let _ = self.tx.send(());
+        self.handle.await.unwrap()
+    }
+}
+
+fn spawn_pb_ticker(pb: ProgressBar, interval: std::time::Duration) -> TickerHandle {
+    let (tx, mut rx) = futures_channel::oneshot::channel::<()>();
+    let h = compio::runtime::spawn(async move {
+        loop {
+            pb.tick();
+            let wait = compio::time::sleep(interval);
+            let mut wait = std::pin::pin!(wait.fuse());
+            futures_util::select! {
+                _ = rx => break,
+                _ = wait => (),
+            }
+        }
+    });
+
+    TickerHandle { tx, handle: h }
+}
+
+fn pb_style() -> ProgressStyle {
+    ProgressStyle::with_template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}")
+        .unwrap()
+        .progress_chars("=> ")
+}
+
 async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
+    let client = api::Client::new(
+        if force { None } else { Some(ONE_HOUR) },
+        if force { None } else { Some(ONE_DAY) },
+    );
+
+    let pb = ProgressBar::new_spinner();
+    let ticker = spawn_pb_ticker(pb.clone(), std::time::Duration::from_millis(100));
+
+    pb.set_message("reading config...");
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)
         .await
         .context("read config file")?;
 
-    let mut outbuf = Vec::new();
-    let title = if all {
-        "所有作业 (包括已完成)"
-    } else {
-        "未完成作业"
-    };
-
-    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
-
-    let client = api::Client::new(
-        if force { None } else { Some(ONE_HOUR) },
-        if force { None } else { Some(ONE_DAY) },
-    );
+    pb.set_message("logging in to blackboard...");
     let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
 
+    pb.set_message("fetching courses...");
     let courses = blackboard
         .get_courses()
         .await
         .context("fetch course handles")?;
 
-    // fetch each course and prepare output statements
-    for c in courses {
+    ticker.stop().await;
+    pb.finish_and_clear();
+
+    // fetch each course concurrently
+    let pb = ProgressBar::new(courses.len() as u64).with_style(pb_style());
+    let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let assignments = c
             .get_assignments()
             .await
             .with_context(|| format!("fetch assignment handles of {}", c.name()))?;
 
+        pb.inc_length(assignments.len() as u64);
+        let futs = assignments.into_iter().map(async |a| {
+            let r = a.get().await.context("fetch assignment");
+            pb.inc(1);
+            r
+        });
+        let assignments = try_join_all(futs).await?;
+
+        pb.inc(1);
+        Ok((c, assignments))
+    });
+    let courses = try_join_all(futs).await?;
+    pb.finish_and_clear();
+
+    // prepare output statements
+    let mut outbuf = Vec::new();
+    let title = if all {
+        "所有作业 (包括已完成)"
+    } else {
+        "未完成作业"
+    };
+    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
+
+    for (c, assignments) in courses {
         if assignments.is_empty() {
             continue;
         }
 
         writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
         for a in assignments {
-            let a = a.get().await.context("fetch assignment")?;
-
             // skip finished assignments if not in full mode
             if a.last_attempt().is_some() && !all {
                 continue;
@@ -241,29 +306,54 @@ async fn command_clean() -> anyhow::Result<()> {
 }
 
 async fn command_video() -> anyhow::Result<()> {
+    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+
+    let pb = ProgressBar::new_spinner();
+    let ticker = spawn_pb_ticker(pb.clone(), std::time::Duration::from_millis(100));
+
+    pb.set_message("reading config...");
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)
         .await
         .context("read config file")?;
+
+    pb.set_message("logging in to blackboard...");
+    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+
+    pb.set_message("fetching courses...");
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
+
+    ticker.stop().await;
+    pb.finish_and_clear();
+
+    let pb = ProgressBar::new(courses.len() as u64).with_style(pb_style());
+    let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
+        let c = c.get().await.context("fetch course")?;
+        let vs = c.get_video_list().await.context("fetch video list")?;
+
+        pb.inc_length(vs.len() as u64);
+        let futs = vs.into_iter().map(async |v| {
+            let v = v.get().await.context("fetch video");
+            pb.inc(1);
+            v
+        });
+        let vs = try_join_all(futs).await?;
+
+        pb.inc(1);
+        Ok((c, vs))
+    });
+    let courses = try_join_all(futs).await?;
+    pb.finish_and_clear();
 
     let mut outbuf = Vec::new();
     let title = "课程回放";
 
     writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
 
-    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
-
-    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
-
-    let courses = blackboard
-        .get_courses()
-        .await
-        .context("fetch course handles")?;
-
-    for c in courses {
-        let c = c.get().await.context("fetch course")?;
-        let vs = c.get_video_list().await.context("fetch video list")?;
-
+    for (c, vs) in courses {
         if vs.is_empty() {
             continue;
         }
@@ -271,7 +361,6 @@ async fn command_video() -> anyhow::Result<()> {
         writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
 
         for v in vs {
-            let v = v.get().await.context("fetch video")?;
             writeln!(outbuf, "{D}•{D:#} {} ({})", v.title(), v.time())?;
         }
 
@@ -290,9 +379,47 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             Commands::Clean => command_clean().await?,
             Commands::Assignment { force, all } => command_fetch(force, all).await?,
             Commands::Video => command_video().await?,
+
+            #[cfg(feature = "dev")]
+            Commands::Debug => command_debug().await?,
         }
     } else {
         Cli::command().print_help()?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "dev")]
+async fn command_debug() -> anyhow::Result<()> {
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+
+    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+
+    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
+
+    for c in courses {
+        let c = c.get().await.context("fetch course")?;
+
+        if c.name() == "算法设计与分析（实验班）(24-25学年第2学期)" {
+            dbg!(c.entries());
+            let v = c.get_video_list().await?;
+            let v = &v[0];
+            let v = v.get().await?;
+            eprintln!("title: {}", v.title());
+
+            let bytes = v.download_segment(0).await?;
+            println!("len: {:?}", bytes.len());
+            std::fs::write("test.ts", bytes)?;
+        }
     }
 
     Ok(())
