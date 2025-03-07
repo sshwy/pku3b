@@ -157,14 +157,10 @@ impl Blackboard {
         let courses = courses
             .into_iter()
             .map(|(key, title)| {
-                Ok(CourseHandle(
-                    CourseHandleInner {
-                        client: self.client.clone(),
-                        key,
-                        title,
-                    }
-                    .into(),
-                ))
+                Ok(CourseHandle {
+                    client: self.client.clone(),
+                    meta: CourseMeta { key, title }.into(),
+                })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
@@ -172,15 +168,14 @@ impl Blackboard {
     }
 }
 
-struct CourseHandleInner {
-    client: Client,
+struct CourseMeta {
     key: String,
     title: String,
 }
 
-impl std::fmt::Debug for CourseHandleInner {
+impl std::fmt::Debug for CourseMeta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CourseHandleInner")
+        f.debug_struct("CourseMeta")
             .field("key", &self.key)
             .field("title", &self.title)
             .finish()
@@ -188,18 +183,20 @@ impl std::fmt::Debug for CourseHandleInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct CourseHandle(Arc<CourseHandleInner>);
+pub struct CourseHandle {
+    client: Client,
+    meta: Arc<CourseMeta>,
+}
 
 impl CourseHandle {
     pub async fn _get(&self) -> anyhow::Result<HashMap<String, String>> {
         let res = self
-            .0
             .client
             .get(COURSE_INFO_PAGE)?
             .query(&[
                 ("method", "search"),
                 ("context", "course_entry"),
-                ("course_id", &self.0.key),
+                ("course_id", &self.meta.key),
                 ("handle", "announcements_entry"),
                 ("mode", "view"),
             ])?
@@ -223,14 +220,15 @@ impl CourseHandle {
 
     pub async fn get(&self) -> anyhow::Result<Course> {
         let entries = with_cache(
-            &format!("CourseHandle::_get_{}", self.0.key),
-            self.0.client.cache_ttl(),
+            &format!("CourseHandle::_get_{}", self.meta.key),
+            self.client.cache_ttl(),
             self._get(),
         )
         .await?;
 
         Ok(Course {
-            handle: self.clone(),
+            client: self.client.clone(),
+            meta: self.meta.clone(),
             entries,
         })
     }
@@ -238,13 +236,14 @@ impl CourseHandle {
 
 #[derive(Debug)]
 pub struct Course {
-    handle: CourseHandle,
+    client: Client,
+    meta: Arc<CourseMeta>,
     entries: HashMap<String, String>,
 }
 
 impl Course {
     pub fn name(&self) -> &str {
-        &self.handle.0.title.split(": ").nth(1).unwrap()
+        &self.meta.title.split(": ").nth(1).unwrap()
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
         let Some(uri) = self.entries.get("课程作业") else {
@@ -252,8 +251,6 @@ impl Course {
         };
 
         let res = self
-            .handle
-            .0
             .client
             .get(format!("https://course.pku.edu.cn{}", uri))
             .context("create request failed")?
@@ -284,14 +281,14 @@ impl Course {
     }
     pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentsHandle>> {
         let assignments = with_cache(
-            &format!("Course::_get_assignments_{}", self.handle.0.key),
-            self.handle.0.client.cache_ttl(),
+            &format!("Course::_get_assignments_{}", self.meta.key),
+            self.client.cache_ttl(),
             self._get_assignments(),
         )
         .await?;
 
         if std::env::var("PKU3B_DEBUG").is_ok() {
-            eprintln!("key: {}", self.handle.0.key);
+            eprintln!("key: {}", self.meta.key);
             dbg!(&assignments);
         }
 
@@ -321,15 +318,15 @@ impl Course {
                     .context("content_id not found")?
                     .to_owned();
 
-                Ok(CourseAssignmentsHandle(
-                    CourseAssignmentsHandleInner {
-                        client: self.handle.0.client.clone(),
+                Ok(CourseAssignmentsHandle {
+                    client: self.client.clone(),
+                    meta: CourseAssignmentsMeta {
                         title,
                         course_id,
                         content_id,
                     }
                     .into(),
-                ))
+                })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
@@ -337,16 +334,15 @@ impl Course {
     }
 }
 
-pub struct CourseAssignmentsHandleInner {
-    client: Client,
+pub struct CourseAssignmentsMeta {
     title: String,
     course_id: String,
     content_id: String,
 }
 
-impl std::fmt::Debug for CourseAssignmentsHandleInner {
+impl std::fmt::Debug for CourseAssignmentsMeta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CourseAssignmentsHandleInner")
+        f.debug_struct("CourseAssignmentsMeta")
             .field("title", &self.title)
             .field("course_id", &self.course_id)
             .field("content_id", &self.content_id)
@@ -355,18 +351,20 @@ impl std::fmt::Debug for CourseAssignmentsHandleInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct CourseAssignmentsHandle(Arc<CourseAssignmentsHandleInner>);
+pub struct CourseAssignmentsHandle {
+    client: Client,
+    meta: Arc<CourseAssignmentsMeta>,
+}
 
 impl CourseAssignmentsHandle {
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
         let res = self
-            .0
             .client
             .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
             .query(&[
                 ("action", "newAttempt"),
-                ("content_id", &self.0.content_id),
-                ("course_id", &self.0.course_id),
+                ("content_id", &self.meta.content_id),
+                ("course_id", &self.meta.course_id),
             ])?
             .send()
             .await?;
@@ -422,28 +420,28 @@ impl CourseAssignmentsHandle {
         let data = with_cache(
             &format!(
                 "CourseAssignmentsHandle::_get_{}_{}",
-                self.0.content_id, self.0.course_id
+                self.meta.content_id, self.meta.course_id
             ),
-            self.0.client.cache_ttl(),
+            self.client.cache_ttl(),
             self._get(),
         )
         .await?;
 
         Ok(CourseAssignments {
-            handle: self.clone(),
+            _client: self.client.clone(),
+            meta: self.meta.clone(),
             data,
         })
     }
 
     async fn _get_current_attempt(&self) -> anyhow::Result<Option<String>> {
         let res = self
-            .0
             .client
             .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
             .query(&[
                 ("mode", "view"),
-                ("content_id", &self.0.content_id),
-                ("course_id", &self.0.course_id),
+                ("content_id", &self.meta.content_id),
+                ("course_id", &self.meta.course_id),
             ])?
             .send()
             .await?;
@@ -478,13 +476,14 @@ struct CourseAssignmentData {
 }
 
 pub struct CourseAssignments {
-    handle: CourseAssignmentsHandle,
+    _client: Client,
+    meta: Arc<CourseAssignmentsMeta>,
     data: CourseAssignmentData,
 }
 
 impl CourseAssignments {
     pub fn title(&self) -> &str {
-        &self.handle.0.title
+        &self.meta.title
     }
 
     pub fn descriptions(&self) -> &[String] {
