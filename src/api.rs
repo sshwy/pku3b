@@ -377,6 +377,7 @@ impl Course {
                 Ok(CourseVideoHandle {
                     client: self.client.clone(),
                     meta: meta.into(),
+                    course: self.meta.clone(),
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -637,13 +638,35 @@ pub struct CourseVideoMeta {
     url: String,
 }
 
+impl CourseVideoMeta {
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+    pub fn time(&self) -> &str {
+        &self.time
+    }
+}
+
 #[derive(Debug)]
 pub struct CourseVideoHandle {
     client: Client,
     meta: Arc<CourseVideoMeta>,
+    course: Arc<CourseMeta>,
 }
 
 impl CourseVideoHandle {
+    /// Course video identifier computed from hash.
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.key.hash(&mut hasher);
+        self.meta.title.hash(&mut hasher);
+        self.meta.time.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+    pub fn meta(&self) -> &CourseVideoMeta {
+        &self.meta
+    }
     async fn get_iframe_url(&self) -> anyhow::Result<String> {
         let res = self.client.get(&self.meta.url)?.send().await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
@@ -766,12 +789,7 @@ impl CourseVideoHandle {
     }
 
     pub async fn get(&self) -> anyhow::Result<CourseVideo> {
-        let (pl_url, pl_raw) = with_cache(
-            &format!("CourseVideoHandle::_get_{}", self.meta.url),
-            self.client.cache_ttl(),
-            self._get(),
-        )
-        .await?;
+        let (pl_url, pl_raw) = self._get().await?;
 
         let (_, pl) = m3u8_rs::parse_playlist(pl_raw.as_bytes())
             .map_err(|e| anyhow::anyhow!("{:#}", e))
@@ -798,21 +816,19 @@ pub struct CourseVideo {
 }
 
 impl CourseVideo {
-    /// Course video identifier computed from hash.
-    pub fn id(&self) -> u64 {
-        let mut hasher = std::hash::DefaultHasher::new();
-        self.meta.url.hash(&mut hasher);
-        hasher.finish()
-    }
-    pub fn title(&self) -> &str {
-        &self.meta.title
-    }
-    pub fn time(&self) -> &str {
-        &self.meta.time
+    pub fn total_segments(&self) -> usize {
+        self.pl.segments.len()
     }
 
-    pub async fn download_segment(&self, index: usize) -> anyhow::Result<bytes::Bytes> {
-        let seg = &self.pl.segments[0];
+    pub async fn get_segment_data(&self, index: usize) -> anyhow::Result<(String, bytes::Bytes)> {
+        log::info!(
+            "downloading segment {}/{} for video {}",
+            index,
+            self.total_segments(),
+            self.meta.title()
+        );
+
+        let seg = &self.pl.segments[index];
 
         let seg_url = self.pl_url.join(&seg.uri).context("join seg url").unwrap();
         let seg_url = seg_url.as_str();
@@ -831,7 +847,7 @@ impl CourseVideo {
             bytes = self.decode_segment(key, bytes, seq).await?;
         }
 
-        Ok(bytes)
+        Ok((seg.uri.clone(), bytes))
     }
 
     async fn _download_segment(&self, seg_url: &str) -> anyhow::Result<bytes::Bytes> {
@@ -856,7 +872,7 @@ impl CourseVideo {
         .to_vec();
 
         if r.len() != 16 {
-            anyhow::bail!("key length not 16: {:?}", r);
+            anyhow::bail!("key length not 16: {:?}", String::from_utf8(r));
         }
 
         // convert to array

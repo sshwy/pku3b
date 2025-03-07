@@ -333,15 +333,6 @@ async fn command_video() -> anyhow::Result<()> {
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let vs = c.get_video_list().await.context("fetch video list")?;
-
-        pb.inc_length(vs.len() as u64);
-        let futs = vs.into_iter().map(async |v| {
-            let v = v.get().await.context("fetch video");
-            pb.inc(1);
-            v
-        });
-        let vs = try_join_all(futs).await?;
-
         pb.inc(1);
         Ok((c, vs))
     });
@@ -361,12 +352,12 @@ async fn command_video() -> anyhow::Result<()> {
         writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
 
         for v in vs {
-            let id = format!("{:x}", v.id());
             writeln!(
                 outbuf,
-                "{D}•{D:#} {} ({}) {D}{id}{D:#}",
-                v.title(),
-                v.time()
+                "{D}•{D:#} {} ({}) {D}{}{D:#}",
+                v.meta().title(),
+                v.meta().time(),
+                v.id()
             )?;
         }
 
@@ -396,8 +387,45 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn download_segments(
+    v: &api::CourseVideo,
+    dir: impl AsRef<std::path::Path>,
+) -> anyhow::Result<()> {
+    let dir = dir.as_ref();
+    compio::fs::create_dir_all(dir)
+        .await
+        .context("create dir failed")?;
+
+    let tot = v.total_segments();
+    let pb = ProgressBar::new(tot as u64).with_style(pb_style());
+    pb.tick();
+    let futs = (0..tot).into_iter().map(async |i| -> anyhow::Result<_> {
+        let (name, seg) = v.get_segment_data(i).await?;
+
+        let path = dir.join(name).with_extension("ts");
+        log::debug!("writing segment to {:?}", path);
+        compio::fs::write(path, seg)
+            .await
+            .0
+            .context("write segment failed")?;
+
+        pb.inc(1);
+        Ok(())
+    });
+
+    // faster than try_join_all
+    for fut in futs {
+        fut.await?;
+    }
+    pb.finish_and_clear();
+
+    Ok(())
+}
+
 #[cfg(feature = "dev")]
 async fn command_debug() -> anyhow::Result<()> {
+    let id = "32fc3d139a4c22f7";
+
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)
         .await
@@ -415,16 +443,13 @@ async fn command_debug() -> anyhow::Result<()> {
     for c in courses {
         let c = c.get().await.context("fetch course")?;
 
-        if c.name() == "算法设计与分析（实验班）(24-25学年第2学期)" {
-            dbg!(c.entries());
-            let v = c.get_video_list().await?;
-            let v = &v[0];
-            let v = v.get().await?;
-            eprintln!("title: {}", v.title());
-
-            let bytes = v.download_segment(0).await?;
-            println!("len: {:?}", bytes.len());
-            std::fs::write("test.ts", bytes)?;
+        let vs = c.get_video_list().await?;
+        for v in vs {
+            if v.id() == id {
+                let v = v.get().await?;
+                let dir = "test";
+                download_segments(&v, dir).await?;
+            }
         }
     }
 
