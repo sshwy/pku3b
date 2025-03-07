@@ -1,12 +1,11 @@
-use std::io::Write as _;
-
+use crate::{api, config, utils};
 use anyhow::Context as _;
 use clap::{
     CommandFactory, Parser, Subcommand,
     builder::styling::{AnsiColor, Style},
 };
-
-use crate::{api, config, utils};
+use std::io::Write as _;
+use utils::style::*;
 
 const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
@@ -20,26 +19,32 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Fetch the latest data from course.pku.edu.cn
-    Fetch {
-        /// Display all information
-        #[arg(long, default_value = "false")]
+    /// 获取作业信息
+    #[command(visible_alias("a"))]
+    Assignment {
+        /// 显示所有作业，包括已完成的
+        #[arg(short, long, default_value = "false")]
         all: bool,
 
-        /// If specified, cache will be ignored
-        #[arg(long, default_value = "false")]
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
         force: bool,
     },
-    /// (Re)initialize the configuration
+
+    /// 获取课程回放
+    #[command(visible_alias("v"))]
+    Video,
+
+    /// (重新) 初始化配置选项
     Init,
-    /// Display or modify the configuration
+    /// 显示或修改配置项
     Config {
-        // Path of the attribute to display or modify
+        // 属性名称
         attr: Option<config::ConfigAttrs>,
-        /// If specified, set the value of the attribute
+        /// 属性值
         value: Option<String>,
     },
-    /// Clean the cache
+    /// 清除缓存
     Clean,
 }
 
@@ -133,12 +138,10 @@ fn write_course_assignments(
     writer: &mut impl std::io::Write,
     a: &api::CourseAssignment,
 ) -> anyhow::Result<()> {
-    use utils::style::*;
-
     if let Some(att) = a.last_attempt() {
         writeln!(
             writer,
-            "{MG}{H2}{}{H2:#}{MG:#} ({GR}finished{GR:#}) {D}{att}{D:#}\n",
+            "{MG}{H2}{}{H2:#}{MG:#} ({GR}已完成{GR:#}) {D}{att}{D:#}\n",
             a.title()
         )?;
     } else {
@@ -154,14 +157,14 @@ fn write_course_assignments(
         )?;
     }
     if !a.attachments().is_empty() {
-        writeln!(writer, "{H3}Attachments{H3:#}")?;
+        writeln!(writer, "{H3}附件{H3:#}")?;
         for (name, uri) in a.attachments() {
             writeln!(writer, "{D}•{D:#} {name}: {D}{uri}{D:#}")?;
         }
         writeln!(writer,)?;
     }
     if !a.descriptions().is_empty() {
-        writeln!(writer, "{H3}Descriptions{H3:#}")?;
+        writeln!(writer, "{H3}描述{H3:#}")?;
         for p in a.descriptions() {
             writeln!(writer, "{p}")?;
         }
@@ -172,15 +175,19 @@ fn write_course_assignments(
 }
 
 async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
-    println!("Fetching Courses...");
-    use utils::style::*;
-
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)
         .await
         .context("read config file")?;
 
     let mut outbuf = Vec::new();
+    let title = if all {
+        "所有作业 (包括已完成)"
+    } else {
+        "未完成作业"
+    };
+
+    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
 
     let client = api::Client::new(
         if force { None } else { Some(ONE_HOUR) },
@@ -201,18 +208,20 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
             .await
             .with_context(|| format!("fetch assignment handles of {}", c.name()))?;
 
-        if !assignments.is_empty() {
-            writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
-            for a in assignments {
-                let a = a.get().await.context("fetch assignment")?;
+        if assignments.is_empty() {
+            continue;
+        }
 
-                // skip finished assignments if not in full mode
-                if a.last_attempt().is_some() && !all {
-                    continue;
-                }
+        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
+        for a in assignments {
+            let a = a.get().await.context("fetch assignment")?;
 
-                write_course_assignments(&mut outbuf, &a)?;
+            // skip finished assignments if not in full mode
+            if a.last_attempt().is_some() && !all {
+                continue;
             }
+
+            write_course_assignments(&mut outbuf, &a)?;
         }
     }
 
@@ -231,13 +240,56 @@ async fn command_clean() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn command_video() -> anyhow::Result<()> {
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+
+    let mut outbuf = Vec::new();
+    let title = "课程回放";
+
+    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
+
+    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+
+    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
+
+    for c in courses {
+        let c = c.get().await.context("fetch course")?;
+        let vs = c.get_video_list().await.context("fetch video list")?;
+
+        if vs.is_empty() {
+            continue;
+        }
+
+        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
+
+        for v in vs {
+            let v = v.get().await.context("fetch video")?;
+            writeln!(outbuf, "{D}•{D:#} {} ({})", v.title(), v.time())?;
+        }
+
+        writeln!(outbuf)?;
+    }
+
+    std::io::stdout().write_all(&outbuf)?;
+    Ok(())
+}
+
 pub async fn start(cli: Cli) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
             Commands::Init => command_init().await?,
-            Commands::Fetch { force, all } => command_fetch(force, all).await?,
             Commands::Clean => command_clean().await?,
+            Commands::Assignment { force, all } => command_fetch(force, all).await?,
+            Commands::Video => command_video().await?,
         }
     } else {
         Cli::command().print_help()?;

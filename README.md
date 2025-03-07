@@ -8,10 +8,12 @@ A tool for PKU students to check their courses.
 Usage: pku3b [COMMAND]
 
 Commands:
-  fetch   Fetch the latest data from the server
-  init    Reinitialize the configuration
-  config  Display or modify the configuration
-  help    Print this message or the help of the given subcommand(s)
+  assignment  获取作业信息 [aliases: a]
+  video       获取课程回放 [aliases: v]
+  init        (重新) 初始化配置选项
+  config      显示或修改配置项
+  clean       清除缓存
+  help        Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help

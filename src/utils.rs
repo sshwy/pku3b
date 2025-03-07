@@ -4,9 +4,11 @@ pub mod style {
     use clap::builder::styling::{AnsiColor, Color, Style};
 
     pub const D: Style = Style::new().dimmed();
+    pub const B: Style = Style::new().bold();
     pub const H1: Style = Style::new().bold().underline();
     pub const H2: Style = Style::new().underline();
-    pub const H3: Style = Style::new().italic();
+    pub const H3: Style = EM;
+    pub const EM: Style = Style::new().italic();
     pub const GR: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
     pub const MG: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightMagenta)));
     pub const BL: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));

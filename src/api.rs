@@ -357,6 +357,8 @@ impl Course {
         Ok(loc)
     }
     pub async fn get_video_list(&self) -> anyhow::Result<Vec<CourseVideoHandle>> {
+        log::info!("fetching video list for course {}", self.meta.title);
+
         let videos = with_cache(
             &format!("Course::get_video_list_{}", self.meta.key),
             self.client.cache_ttl(),
@@ -793,6 +795,9 @@ pub struct CourseVideo {
 impl CourseVideo {
     pub fn title(&self) -> &str {
         &self.meta.title
+    }
+    pub fn time(&self) -> &str {
+        &self.meta.time
     }
 
     pub async fn download_segment(&self, index: usize) -> anyhow::Result<bytes::Bytes> {
