@@ -1,14 +1,19 @@
+use aes::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7, generic_array::GenericArray};
 use anyhow::Context;
 use chrono::TimeZone;
 use cyper::IntoUrl;
 use rand::{distr::Open01, prelude::*};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use crate::{qs, utils::with_cache};
+use crate::{
+    qs,
+    utils::{with_cache, with_cache_bytes},
+};
 
 struct ClientInner {
     http_client: cyper::Client,
     cache_ttl: Option<std::time::Duration>,
+    download_artifact_ttl: Option<std::time::Duration>,
 }
 
 impl std::fmt::Debug for ClientInner {
@@ -31,7 +36,10 @@ impl std::ops::Deref for Client {
 }
 
 impl Client {
-    pub fn new(cache_ttl: Option<std::time::Duration>) -> Self {
+    pub fn new(
+        cache_ttl: Option<std::time::Duration>,
+        download_artifact_ttl: Option<std::time::Duration>,
+    ) -> Self {
         let mut default_headers = http::HeaderMap::new();
         default_headers.insert("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36".parse().unwrap());
         let http_client = cyper::Client::builder()
@@ -42,6 +50,7 @@ impl Client {
             ClientInner {
                 http_client,
                 cache_ttl,
+                download_artifact_ttl,
             }
             .into(),
         )
@@ -96,6 +105,10 @@ impl Client {
 
     pub fn cache_ttl(&self) -> Option<&std::time::Duration> {
         self.0.cache_ttl.as_ref()
+    }
+
+    pub fn download_artifact_ttl(&self) -> Option<&std::time::Duration> {
+        self.0.download_artifact_ttl.as_ref()
     }
 }
 
@@ -321,6 +334,100 @@ impl Course {
 
         Ok(assignments)
     }
+    pub fn entries(&self) -> &HashMap<String, String> {
+        &self.entries
+    }
+    pub async fn query_launch_link(&self, uri: &str) -> anyhow::Result<String> {
+        let res = self
+            .client
+            .get(format!("https://course.pku.edu.cn{}", uri))?
+            .send()
+            .await?;
+
+        let st = res.status();
+        anyhow::ensure!(st.as_u16() == 302, "invalid status: {}", st);
+        let loc = res
+            .headers()
+            .get("location")
+            .context("location header not found")?
+            .to_str()
+            .context("location header not str")?
+            .to_owned();
+
+        Ok(loc)
+    }
+    pub async fn get_video_list(&self) -> anyhow::Result<Vec<CourseVideoHandle>> {
+        let videos = with_cache(
+            &format!("Course::get_video_list_{}", self.meta.key),
+            self.client.cache_ttl(),
+            self._get_video_list(),
+        )
+        .await?;
+
+        let videos = videos
+            .into_iter()
+            .map(|meta| {
+                Ok(CourseVideoHandle {
+                    client: self.client.clone(),
+                    meta: meta.into(),
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(videos)
+    }
+    async fn _get_video_list(&self) -> anyhow::Result<Vec<CourseVideoMeta>> {
+        let Some(uri) = self.entries().get("课堂实录") else {
+            anyhow::bail!("课堂实录 entry not found");
+        };
+
+        let uri = self.query_launch_link(uri).await?;
+        let url = format!("https://course.pku.edu.cn{}", uri);
+
+        let res = self.client.get(&url)?.send().await?;
+
+        let u = url.into_url()?;
+
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+        let videos = dom
+            .select(&scraper::Selector::parse("tbody#listContainer_databody > tr").unwrap())
+            .map(|tr| {
+                let title = tr
+                    .child_elements()
+                    .nth(0)
+                    .unwrap()
+                    .text()
+                    .collect::<String>();
+                let s = scraper::Selector::parse("span.table-data-cell-value").unwrap();
+                let mut values = tr.select(&s);
+                let time = values
+                    .next()
+                    .context("time not found")?
+                    .text()
+                    .collect::<String>();
+                let _ = values.next().context("teacher not found")?;
+                let link = values.next().context("video link not found")?;
+                let a = link
+                    .child_elements()
+                    .next()
+                    .context("video link anchor not found")?;
+                let link = a
+                    .value()
+                    .attr("href")
+                    .context("video link not found")?
+                    .to_owned();
+
+                Ok(CourseVideoMeta {
+                    title,
+                    time,
+                    url: u.join(&link)?.to_string(),
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(videos)
+    }
 }
 
 #[derive(Debug)]
@@ -513,5 +620,268 @@ impl CourseAssignments {
 
     pub fn deadline_raw(&self) -> &str {
         &self.data.deadline
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CourseVideoMeta {
+    title: String,
+    time: String,
+    url: String,
+}
+
+#[derive(Debug)]
+pub struct CourseVideoHandle {
+    client: Client,
+    meta: Arc<CourseVideoMeta>,
+}
+
+impl CourseVideoHandle {
+    async fn get_iframe_url(&self) -> anyhow::Result<String> {
+        let res = self.client.get(&self.meta.url)?.send().await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+        let iframe = dom
+            .select(&scraper::Selector::parse("#content iframe").unwrap())
+            .next()
+            .context("iframe not found")?;
+        let src = iframe
+            .value()
+            .attr("src")
+            .context("src not found")?
+            .to_owned();
+
+        let res = self.client.get(&src)?.send().await?;
+        anyhow::ensure!(res.status().as_u16() == 302, "status not 302");
+        let loc = res
+            .headers()
+            .get("location")
+            .context("location header not found")?
+            .to_str()
+            .context("location header not str")?
+            .to_owned();
+
+        Ok(loc)
+    }
+
+    async fn get_sub_info(&self, loc: &str) -> anyhow::Result<serde_json::Value> {
+        let qs = qs::Query::from_str(&loc).context("parse loc qs failed")?;
+        let course_id = qs
+            .get("course_id")
+            .context("course_id not found")?
+            .to_owned();
+        let sub_id = qs.get("sub_id").context("sub_id not found")?.to_owned();
+        let app_id = qs.get("app_id").context("app_id not found")?.to_owned();
+        let auth_data = qs
+            .get("auth_data")
+            .context("auth_data not found")?
+            .to_owned();
+
+        let res = self
+            .client
+            .get("https://yjapise.pku.edu.cn/courseapi/v2/schedule/get-sub-info-by-auth-data")?
+            .query(&[
+                ("all", "1"),
+                ("course_id", &course_id),
+                ("sub_id", &sub_id),
+                ("with_sub_data", "1"),
+                ("app_id", &app_id),
+                ("auth_data", &auth_data),
+            ])?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "status not success");
+        let rbody = res.text().await?;
+        let value = serde_json::Value::from_str(&rbody)?;
+
+        Ok(value)
+    }
+
+    fn get_m3u8_path(&self, sub_info: serde_json::Value) -> anyhow::Result<String> {
+        let sub_content = sub_info
+            .as_object()
+            .context("sub_info not object")?
+            .get("list")
+            .context("sub_info.list not found")?
+            .as_array()
+            .context("sub_info.list not array")?
+            .get(0)
+            .context("sub_info.list empty")?
+            .as_object()
+            .context("sub_info.list[0] not object")?
+            .get("sub_content")
+            .context("sub_info.list[0].sub_content not found")?
+            .as_str()
+            .context("sub_info.list[0].sub_content not string")?;
+
+        let sub_content = serde_json::Value::from_str(sub_content)?;
+
+        let save_playback = sub_content
+            .as_object()
+            .context("sub_content not object")?
+            .get("save_playback")
+            .context("sub_content.save_playback not found")?
+            .as_object()
+            .context("sub_content.save_playback not object")?;
+
+        let is_m3u8 = save_playback
+            .get("is_m3u8")
+            .context("sub_content.save_playback.is_m3u8 not found")?
+            .as_str()
+            .context("sub_content.save_playback.is_m3u8 not string")?;
+
+        anyhow::ensure!(is_m3u8 == "yes", "not m3u8");
+
+        let url = save_playback
+            .get("contents")
+            .context("save_playback.contents not found")?
+            .as_str()
+            .context("save_playback.contents not string")?;
+
+        Ok(url.to_owned())
+    }
+
+    async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<String> {
+        let res = self.client.get(url)?.send().await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+        let rbody = res.text().await?;
+        Ok(rbody)
+    }
+
+    async fn _get(&self) -> anyhow::Result<(String, String)> {
+        let loc = self.get_iframe_url().await?;
+        let info = self.get_sub_info(&loc).await?;
+        let pl_url = self.get_m3u8_path(info)?;
+        let pl_raw = self.get_m3u8_playlist(&pl_url).await?;
+        Ok((pl_url, pl_raw))
+    }
+
+    pub async fn get(&self) -> anyhow::Result<CourseVideo> {
+        let (pl_url, pl_raw) = with_cache(
+            &format!("CourseVideoHandle::_get_{}", self.meta.url),
+            self.client.cache_ttl(),
+            self._get(),
+        )
+        .await?;
+
+        let (_, pl) = m3u8_rs::parse_playlist(pl_raw.as_bytes())
+            .map_err(|e| anyhow::anyhow!("{:#}", e))
+            .context("parse m3u8 failed")?;
+
+        match pl {
+            m3u8_rs::Playlist::MasterPlaylist(_) => anyhow::bail!("master playlist not supported"),
+            m3u8_rs::Playlist::MediaPlaylist(pl) => Ok(CourseVideo {
+                client: self.client.clone(),
+                meta: self.meta.clone(),
+                pl_url: pl_url.into_url().context("parse pl_url failed")?,
+                pl,
+            }),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CourseVideo {
+    client: Client,
+    meta: Arc<CourseVideoMeta>,
+    pl_url: url::Url,
+    pl: m3u8_rs::MediaPlaylist,
+}
+
+impl CourseVideo {
+    pub async fn download_segment(&self, index: usize) -> anyhow::Result<bytes::Bytes> {
+        let seg = &self.pl.segments[0];
+
+        let seg_url = self.pl_url.join(&seg.uri).context("join seg url").unwrap();
+        let seg_url = seg_url.as_str();
+
+        // get maybe encrypted segment data
+        let mut bytes = with_cache_bytes(
+            &format!("CourseVideo::download_segment_{}", seg_url),
+            self.client.download_artifact_ttl(),
+            self._download_segment(seg_url),
+        )
+        .await?;
+
+        // decrypt if needed
+        let seq = (self.pl.media_sequence as usize + index) as u128;
+        if let Some(key) = &seg.key {
+            bytes = self.decode_segment(key, bytes, seq).await?;
+        }
+
+        Ok(bytes)
+    }
+
+    async fn _download_segment(&self, seg_url: &str) -> anyhow::Result<bytes::Bytes> {
+        let res = self.client.get(seg_url)?.send().await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let bytes = res.bytes().await?;
+        Ok(bytes)
+    }
+
+    async fn get_aes128_key(&self, uri: &str) -> anyhow::Result<[u8; 16]> {
+        // fetch aes128 key from uri
+        let r = with_cache_bytes(
+            &format!("CourseVideo::get_aes128_uri"),
+            self.client.download_artifact_ttl(),
+            async {
+                let r = self.client.get(uri)?.send().await?.bytes().await?;
+                Ok(r)
+            },
+        )
+        .await?
+        .to_vec();
+
+        if r.len() != 16 {
+            anyhow::bail!("key length not 16: {:?}", r);
+        }
+
+        // convert to array
+        let mut key = [0; 16];
+        key.copy_from_slice(&r);
+        Ok(key)
+    }
+
+    async fn decode_segment(
+        &self,
+        key: &m3u8_rs::Key,
+        bytes: bytes::Bytes,
+        seq: u128,
+    ) -> anyhow::Result<bytes::Bytes> {
+        // ref: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.4
+        match &key.method {
+            // An encryption method of AES-128 signals that Media Segments are
+            // completely encrypted using [AES_128] with a 128-bit key, Cipher
+            // Block Chaining, and PKCS7 padding [RFC5652].  CBC is restarted
+            // on each segment boundary, using either the IV attribute value
+            // or the Media Sequence Number as the IV; see Section 5.2.  The
+            // URI attribute is REQUIRED for this METHOD.
+            m3u8_rs::KeyMethod::AES128 => {
+                let uri = key.uri.as_ref().context("key uri not found")?;
+                let iv = if let Some(iv) = &key.iv {
+                    let iv = iv.to_ascii_uppercase();
+                    let hx = iv.strip_prefix("0x").context("iv not start with 0x")?;
+                    u128::from_str_radix(hx, 16).context("parse iv failed")?
+                } else {
+                    seq
+                }
+                .to_be_bytes();
+
+                let aes_key = self.get_aes128_key(uri).await?;
+
+                let aes_key = GenericArray::from(aes_key);
+                let iv = GenericArray::from(iv);
+
+                let de = cbc::Decryptor::<aes::Aes128>::new(&aes_key, &iv)
+                    .decrypt_padded_vec_mut::<Pkcs7>(&mut bytes.to_vec())
+                    .context("decrypt failed")?;
+
+                Ok(de.into())
+            }
+            r => unimplemented!("m3u8 key: {:?}", r),
+        }
     }
 }

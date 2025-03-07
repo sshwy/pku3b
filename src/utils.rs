@@ -1,3 +1,5 @@
+use std::io::{Read, Write};
+
 pub mod style {
     use clap::builder::styling::{AnsiColor, Color, Style};
 
@@ -55,6 +57,43 @@ where
     std::fs::create_dir_all(path.parent().unwrap())?;
     let f = std::fs::File::create(path)?;
     serde_json::to_writer(f, &r)?;
+
+    Ok(r)
+}
+
+pub async fn with_cache_bytes<F>(
+    name: &str,
+    ttl: Option<&std::time::Duration>,
+    fut: F,
+) -> anyhow::Result<bytes::Bytes>
+where
+    F: std::future::Future<Output = anyhow::Result<bytes::Bytes>>,
+{
+    let name_hash = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        name.hash(&mut hasher);
+        hasher.finish()
+    };
+    let name = format!("with_cache_bytes-{:x}", name_hash);
+
+    let path = &projectdir().cache_dir().join(name);
+
+    if let Ok(mut f) = std::fs::File::open(path) {
+        if let Some(ttl) = ttl {
+            if f.metadata()?.modified()?.elapsed()? < *ttl {
+                let mut buf = Vec::new();
+                if let Ok(_) = f.read_to_end(&mut buf) {
+                    return Ok(bytes::Bytes::from(buf));
+                }
+            }
+        }
+    }
+
+    let r = fut.await?;
+    std::fs::create_dir_all(path.parent().unwrap())?;
+    let mut f = std::fs::File::create(path)?;
+    f.write_all(&r)?;
 
     Ok(r)
 }

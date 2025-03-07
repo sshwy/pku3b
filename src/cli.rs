@@ -9,6 +9,7 @@ use clap::{
 use crate::{api, config, utils};
 
 const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
+const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -174,7 +175,10 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
         .await
         .context("read config file")?;
 
-    let client = api::Client::new(if force { None } else { Some(ONE_HOUR) });
+    let client = api::Client::new(
+        if force { None } else { Some(ONE_HOUR) },
+        if force { None } else { Some(ONE_DAY) },
+    );
     // eprintln!("Cache TTL: {:?}", client.cache_ttl());
     let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
 
