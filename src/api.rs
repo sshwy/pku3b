@@ -282,7 +282,7 @@ impl Course {
 
         Ok(assignments)
     }
-    pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentHandle>> {
+    pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentsHandle>> {
         let assignments = with_cache(
             &format!("Course::_get_assignments_{}", self.handle.0.key),
             self.handle.0.client.cache_ttl(),
@@ -321,8 +321,8 @@ impl Course {
                     .context("content_id not found")?
                     .to_owned();
 
-                Ok(CourseAssignmentHandle(
-                    CourseAssignmentInner {
+                Ok(CourseAssignmentsHandle(
+                    CourseAssignmentsHandleInner {
                         client: self.handle.0.client.clone(),
                         title,
                         course_id,
@@ -337,16 +337,16 @@ impl Course {
     }
 }
 
-pub struct CourseAssignmentInner {
+pub struct CourseAssignmentsHandleInner {
     client: Client,
     title: String,
     course_id: String,
     content_id: String,
 }
 
-impl std::fmt::Debug for CourseAssignmentInner {
+impl std::fmt::Debug for CourseAssignmentsHandleInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CourseAssignmentInner")
+        f.debug_struct("CourseAssignmentsHandleInner")
             .field("title", &self.title)
             .field("course_id", &self.course_id)
             .field("content_id", &self.content_id)
@@ -355,10 +355,10 @@ impl std::fmt::Debug for CourseAssignmentInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct CourseAssignmentHandle(Arc<CourseAssignmentInner>);
+pub struct CourseAssignmentsHandle(Arc<CourseAssignmentsHandleInner>);
 
-impl CourseAssignmentHandle {
-    async fn _get(&self) -> anyhow::Result<CourseAssignmentDetailData> {
+impl CourseAssignmentsHandle {
+    async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
         let res = self
             .0
             .client
@@ -409,16 +409,19 @@ impl CourseAssignmentHandle {
         // replace consecutive whitespaces with a single space
         let deadline = deadline.split_whitespace().collect::<Vec<_>>().join(" ");
 
-        Ok(CourseAssignmentDetailData {
+        let attempt = self._get_current_attempt().await?;
+
+        Ok(CourseAssignmentData {
             descriptions: desc,
             attachments,
             deadline,
+            attempt,
         })
     }
-    pub async fn get(&self) -> anyhow::Result<CourseAssignmentDetail> {
+    pub async fn get(&self) -> anyhow::Result<CourseAssignments> {
         let data = with_cache(
             &format!(
-                "CourseAssignmentHandle::_get_{}_{}",
+                "CourseAssignmentsHandle::_get_{}_{}",
                 self.0.content_id, self.0.course_id
             ),
             self.0.client.cache_ttl(),
@@ -426,7 +429,7 @@ impl CourseAssignmentHandle {
         )
         .await?;
 
-        Ok(CourseAssignmentDetail {
+        Ok(CourseAssignments {
             handle: self.clone(),
             data,
         })
@@ -464,35 +467,22 @@ impl CourseAssignmentHandle {
 
         Ok(Some(attempt_label))
     }
-
-    pub async fn get_current_attempt(&self) -> anyhow::Result<Option<String>> {
-        let attempt_label = with_cache(
-            &format!(
-                "CourseAssignmentHandle::_get_current_attempt_{}_{}",
-                self.0.content_id, self.0.course_id
-            ),
-            self.0.client.cache_ttl(),
-            self._get_current_attempt(),
-        )
-        .await?;
-
-        Ok(attempt_label)
-    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct CourseAssignmentDetailData {
+struct CourseAssignmentData {
     descriptions: Vec<String>,
     attachments: Vec<(String, String)>,
     deadline: String,
+    attempt: Option<String>,
 }
 
-pub struct CourseAssignmentDetail {
-    handle: CourseAssignmentHandle,
-    data: CourseAssignmentDetailData,
+pub struct CourseAssignments {
+    handle: CourseAssignmentsHandle,
+    data: CourseAssignmentData,
 }
 
-impl CourseAssignmentDetail {
+impl CourseAssignments {
     pub fn title(&self) -> &str {
         &self.handle.0.title
     }
@@ -503,6 +493,10 @@ impl CourseAssignmentDetail {
 
     pub fn attachments(&self) -> &[(String, String)] {
         &self.data.attachments
+    }
+
+    pub fn last_attempt(&self) -> Option<&str> {
+        self.data.attempt.as_deref()
     }
 
     /// Try to parse the deadline string into a NaiveDateTime.

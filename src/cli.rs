@@ -128,6 +128,43 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
     format!("{s}{}{s:#}", res)
 }
 
+fn print_course_assignments(a: &api::CourseAssignments) -> anyhow::Result<()> {
+    use utils::style::*;
+
+    if let Some(att) = a.last_attempt() {
+        println!(
+            "{MG}{H2}{}{H2:#}{MG:#} ({GR}finished{GR:#}) {D}{att}{D:#}\n",
+            a.title()
+        );
+    } else {
+        let t = a
+            .deadline()
+            .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
+        let delta = t - chrono::Local::now();
+        println!(
+            "{MG}{H2}{}{H2:#}{MG:#} ({})\n",
+            a.title(),
+            fmt_time_delta(delta),
+        );
+    }
+    if !a.attachments().is_empty() {
+        println!("{H3}Attachments{H3:#}");
+        for (name, uri) in a.attachments() {
+            println!("{D}•{D:#} {name}: {D}{uri}{D:#}");
+        }
+        println!();
+    }
+    if !a.descriptions().is_empty() {
+        println!("{H3}Descriptions{H3:#}");
+        for p in a.descriptions() {
+            println!("{p}");
+        }
+    }
+    println!();
+
+    Ok(())
+}
+
 async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     println!("Fetching Courses...");
     use utils::style::*;
@@ -151,53 +188,17 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
             .await
             .with_context(|| format!("get assignments of {}", c.name()))?;
         // dbg!();
-        let h1 = Style::new().bold().underline();
-        let h2 = Style::new().underline();
-        let h3 = Style::new().italic();
-        let gr = Style::new().fg_color(Some(AnsiColor::Green.into()));
-        let mg = Style::new().fg_color(Some(AnsiColor::BrightMagenta.into()));
-        let bl = Style::new().fg_color(Some(AnsiColor::Cyan.into()));
         if !assignments.is_empty() {
-            println!("{bl}{h1}[{}]{h1:#}{bl:#}\n", c.name());
+            println!("{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name());
             for a in assignments {
-                let att = a.get_current_attempt().await?;
                 let a = a.get().await?;
 
                 // skip finished assignments if not in full mode
-                if att.is_some() && !all {
+                if a.last_attempt().is_some() && !all {
                     continue;
                 }
 
-                if let Some(att) = att {
-                    println!(
-                        "{mg}{h2}{}{h2:#}{mg:#} ({gr}finished{gr:#}) {D}{att}{D:#}\n",
-                        a.title()
-                    );
-                } else {
-                    let t = a
-                        .deadline()
-                        .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
-                    let delta = t - chrono::Local::now();
-                    println!(
-                        "{mg}{h2}{}{h2:#}{mg:#} ({})\n",
-                        a.title(),
-                        fmt_time_delta(delta),
-                    );
-                }
-                if !a.attachments().is_empty() {
-                    println!("{h3}Attachments{h3:#}");
-                    for (name, uri) in a.attachments() {
-                        println!("{D}•{D:#} {name}: {D}{uri}{D:#}");
-                    }
-                    println!();
-                }
-                if !a.descriptions().is_empty() {
-                    println!("{h3}Descriptions{h3:#}");
-                    for p in a.descriptions() {
-                        println!("{p}");
-                    }
-                }
-                println!();
+                print_course_assignments(&a)?;
             }
         }
     }
