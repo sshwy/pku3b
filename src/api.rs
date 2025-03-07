@@ -1,9 +1,10 @@
 use anyhow::Context;
 use chrono::TimeZone;
+use cyper::IntoUrl;
 use rand::{distr::Open01, prelude::*};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use crate::utils::with_cache;
+use crate::{qs, utils::with_cache};
 
 struct ClientInner {
     http_client: cyper::Client,
@@ -296,24 +297,13 @@ impl Course {
             // remove assignment answers
             .filter(|(_, url)| !url.starts_with("/bbcswebdav"))
             .map(|(title, uri)| {
-                let uri = http::Uri::from_str(&uri).context("parse uri failed")?;
-                let qs = uri
-                    .query()
-                    .context("uri has no query")?
-                    .split('&')
-                    .collect::<Vec<_>>();
+                let qs = qs::Query::from_str(&uri).context("parse uri qs failed")?;
                 let course_id = qs
-                    .iter()
-                    .find(|s| s.starts_with("course_id="))
-                    .context("course_id not found")?
-                    .strip_prefix("course_id=")
+                    .get("course_id")
                     .context("course_id not found")?
                     .to_owned();
                 let content_id = qs
-                    .iter()
-                    .find(|s| s.starts_with("content_id="))
-                    .context("content_id not found")?
-                    .strip_prefix("content_id=")
+                    .get("content_id")
                     .context("content_id not found")?
                     .to_owned();
 
