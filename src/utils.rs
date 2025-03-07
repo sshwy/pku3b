@@ -41,12 +41,13 @@ where
     };
     let name = format!("with_cache-{:x}", name_hash);
 
-    let path = &projectdir().cache_dir().join(name);
-    // dbg!(path.display());
+    let path = &projectdir().cache_dir().join(&name);
+
     if let Ok(f) = std::fs::File::open(path) {
         if let Some(ttl) = ttl {
             if f.metadata()?.modified()?.elapsed()? < *ttl {
                 if let Ok(r) = serde_json::from_reader(f) {
+                    log::trace!("cache hit: {}", name);
                     return Ok(r);
                 }
             }
@@ -77,13 +78,14 @@ where
     };
     let name = format!("with_cache_bytes-{:x}", name_hash);
 
-    let path = &projectdir().cache_dir().join(name);
+    let path = &projectdir().cache_dir().join(&name);
 
     if let Ok(mut f) = std::fs::File::open(path) {
         if let Some(ttl) = ttl {
             if f.metadata()?.modified()?.elapsed()? < *ttl {
                 let mut buf = Vec::new();
                 if let Ok(_) = f.read_to_end(&mut buf) {
+                    log::trace!("cache hit: {}", name);
                     return Ok(bytes::Bytes::from(buf));
                 }
             }

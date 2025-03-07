@@ -10,6 +10,14 @@ mod utils;
 
 #[compio::main]
 async fn main() {
+    env_logger::builder()
+        .filter_module("selectors::matching", log::LevelFilter::Info)
+        .filter_module("html5ever::tokenizer", log::LevelFilter::Info)
+        .filter_module("html5ever::tree_builder", log::LevelFilter::Info)
+        .init();
+
+    log::debug!("logger initialized...");
+
     let cli = cli::Cli::parse();
 
     match cli::start(cli).await {

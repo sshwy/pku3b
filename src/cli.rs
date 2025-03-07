@@ -129,7 +129,7 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
     format!("{s}{}{s:#}", res)
 }
 
-fn print_course_assignments(a: &api::CourseAssignments) -> anyhow::Result<()> {
+fn print_course_assignments(a: &api::CourseAssignment) -> anyhow::Result<()> {
     use utils::style::*;
 
     if let Some(att) = a.last_attempt() {

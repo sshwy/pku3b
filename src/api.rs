@@ -46,6 +46,10 @@ impl Client {
             .cookie_store(true)
             .default_headers(default_headers)
             .build();
+
+        log::info!("Cache TTL: {:?}", cache_ttl);
+        log::info!("Download Artifact TTL: {:?}", download_artifact_ttl);
+
         Self(
             ClientInner {
                 http_client,
@@ -74,7 +78,6 @@ impl Client {
             .send()
             .await?;
 
-        // dbg!(res.headers());
         let rbody = res.text().await?;
         let value = serde_json::Value::from_str(&rbody)?;
         let token = value.as_object().context("resp not an object")?["token"]
@@ -82,9 +85,7 @@ impl Client {
             .context("property 'token' not found on object")?
             .to_owned();
 
-        if std::env::var("PKU3B_DEBUG").is_ok() {
-            eprintln!("iaaa oauth token: {token}");
-        }
+        log::debug!("iaaa oauth token: {token}");
 
         let _rand: f64 = rng.sample(Open01);
         let _rand = &format!("{_rand:.20}");
@@ -96,7 +97,6 @@ impl Client {
             .await?;
 
         anyhow::ensure!(res.status().is_success(), "status not success");
-        // dbg!(res.headers());
 
         Ok(Blackboard {
             client: self.clone(),
@@ -168,12 +168,10 @@ impl Blackboard {
         Ok(courses)
     }
     pub async fn get_courses(&self) -> anyhow::Result<Vec<CourseHandle>> {
+        log::info!("fetching courses...");
+
         let courses =
             with_cache("_get_courses", self.client.cache_ttl(), self._get_courses()).await?;
-
-        if std::env::var("PKU3B_DEBUG").is_ok() {
-            dbg!(&courses);
-        }
 
         let courses = courses
             .into_iter()
@@ -232,6 +230,8 @@ impl CourseHandle {
     }
 
     pub async fn get(&self) -> anyhow::Result<Course> {
+        log::info!("fetching course {}", self.meta.title);
+
         let entries = with_cache(
             &format!("CourseHandle::_get_{}", self.meta.key),
             self.client.cache_ttl(),
@@ -292,7 +292,9 @@ impl Course {
 
         Ok(assignments)
     }
-    pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentsHandle>> {
+    pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentHandle>> {
+        log::info!("fetching assignments for course {}", self.meta.title);
+
         let assignments = with_cache(
             &format!("Course::_get_assignments_{}", self.meta.key),
             self.client.cache_ttl(),
@@ -300,10 +302,8 @@ impl Course {
         )
         .await?;
 
-        if std::env::var("PKU3B_DEBUG").is_ok() {
-            eprintln!("key: {}", self.meta.key);
-            dbg!(&assignments);
-        }
+        log::debug!("key: {}", self.meta.key);
+        log::debug!("assignments: {:?}", assignments);
 
         let assignments = assignments
             .into_iter()
@@ -320,9 +320,9 @@ impl Course {
                     .context("content_id not found")?
                     .to_owned();
 
-                Ok(CourseAssignmentsHandle {
+                Ok(CourseAssignmentHandle {
                     client: self.client.clone(),
-                    meta: CourseAssignmentsMeta {
+                    meta: CourseAssignmentMeta {
                         title,
                         course_id,
                         content_id,
@@ -431,19 +431,19 @@ impl Course {
 }
 
 #[derive(Debug)]
-pub struct CourseAssignmentsMeta {
+pub struct CourseAssignmentMeta {
     title: String,
     course_id: String,
     content_id: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct CourseAssignmentsHandle {
+pub struct CourseAssignmentHandle {
     client: Client,
-    meta: Arc<CourseAssignmentsMeta>,
+    meta: Arc<CourseAssignmentMeta>,
 }
 
-impl CourseAssignmentsHandle {
+impl CourseAssignmentHandle {
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
         let res = self
             .client
@@ -503,10 +503,10 @@ impl CourseAssignmentsHandle {
             attempt,
         })
     }
-    pub async fn get(&self) -> anyhow::Result<CourseAssignments> {
+    pub async fn get(&self) -> anyhow::Result<CourseAssignment> {
         let data = with_cache(
             &format!(
-                "CourseAssignmentsHandle::_get_{}_{}",
+                "CourseAssignmentHandle::_get_{}_{}",
                 self.meta.content_id, self.meta.course_id
             ),
             self.client.cache_ttl(),
@@ -514,7 +514,7 @@ impl CourseAssignmentsHandle {
         )
         .await?;
 
-        Ok(CourseAssignments {
+        Ok(CourseAssignment {
             _client: self.client.clone(),
             meta: self.meta.clone(),
             data,
@@ -562,13 +562,13 @@ struct CourseAssignmentData {
     attempt: Option<String>,
 }
 
-pub struct CourseAssignments {
+pub struct CourseAssignment {
     _client: Client,
-    meta: Arc<CourseAssignmentsMeta>,
+    meta: Arc<CourseAssignmentMeta>,
     data: CourseAssignmentData,
 }
 
-impl CourseAssignments {
+impl CourseAssignment {
     pub fn title(&self) -> &str {
         &self.meta.title
     }
@@ -791,6 +791,10 @@ pub struct CourseVideo {
 }
 
 impl CourseVideo {
+    pub fn title(&self) -> &str {
+        &self.meta.title
+    }
+
     pub async fn download_segment(&self, index: usize) -> anyhow::Result<bytes::Bytes> {
         let seg = &self.pl.segments[0];
 
