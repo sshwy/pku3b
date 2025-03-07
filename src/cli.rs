@@ -129,39 +129,44 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
     format!("{s}{}{s:#}", res)
 }
 
-fn print_course_assignments(a: &api::CourseAssignment) -> anyhow::Result<()> {
+fn write_course_assignments(
+    writer: &mut impl std::io::Write,
+    a: &api::CourseAssignment,
+) -> anyhow::Result<()> {
     use utils::style::*;
 
     if let Some(att) = a.last_attempt() {
-        println!(
+        writeln!(
+            writer,
             "{MG}{H2}{}{H2:#}{MG:#} ({GR}finished{GR:#}) {D}{att}{D:#}\n",
             a.title()
-        );
+        )?;
     } else {
         let t = a
             .deadline()
             .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
         let delta = t - chrono::Local::now();
-        println!(
+        writeln!(
+            writer,
             "{MG}{H2}{}{H2:#}{MG:#} ({})\n",
             a.title(),
             fmt_time_delta(delta),
-        );
+        )?;
     }
     if !a.attachments().is_empty() {
-        println!("{H3}Attachments{H3:#}");
+        writeln!(writer, "{H3}Attachments{H3:#}")?;
         for (name, uri) in a.attachments() {
-            println!("{D}•{D:#} {name}: {D}{uri}{D:#}");
+            writeln!(writer, "{D}•{D:#} {name}: {D}{uri}{D:#}")?;
         }
-        println!();
+        writeln!(writer,)?;
     }
     if !a.descriptions().is_empty() {
-        println!("{H3}Descriptions{H3:#}");
+        writeln!(writer, "{H3}Descriptions{H3:#}")?;
         for p in a.descriptions() {
-            println!("{p}");
+            writeln!(writer, "{p}")?;
         }
     }
-    println!();
+    writeln!(writer)?;
 
     Ok(())
 }
@@ -175,11 +180,12 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
         .await
         .context("read config file")?;
 
+    let mut outbuf = Vec::new();
+
     let client = api::Client::new(
         if force { None } else { Some(ONE_HOUR) },
         if force { None } else { Some(ONE_DAY) },
     );
-    // eprintln!("Cache TTL: {:?}", client.cache_ttl());
     let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
 
     let courses = blackboard
@@ -187,6 +193,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
         .await
         .context("fetch course handles")?;
 
+    // fetch each course and prepare output statements
     for c in courses {
         let c = c.get().await.context("fetch course")?;
         let assignments = c
@@ -195,7 +202,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
             .with_context(|| format!("fetch assignment handles of {}", c.name()))?;
 
         if !assignments.is_empty() {
-            println!("{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name());
+            writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
             for a in assignments {
                 let a = a.get().await.context("fetch assignment")?;
 
@@ -204,10 +211,13 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
                     continue;
                 }
 
-                print_course_assignments(&a)?;
+                write_course_assignments(&mut outbuf, &a)?;
             }
         }
     }
+
+    // write to stdout
+    std::io::stdout().write_all(&outbuf)?;
 
     Ok(())
 }
