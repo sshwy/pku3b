@@ -361,7 +361,13 @@ async fn command_video() -> anyhow::Result<()> {
         writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
 
         for v in vs {
-            writeln!(outbuf, "{D}•{D:#} {} ({})", v.title(), v.time())?;
+            let id = format!("{:x}", v.id());
+            writeln!(
+                outbuf,
+                "{D}•{D:#} {} ({}) {D}{id}{D:#}",
+                v.title(),
+                v.time()
+            )?;
         }
 
         writeln!(outbuf)?;

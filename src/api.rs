@@ -3,7 +3,12 @@ use anyhow::Context;
 use chrono::TimeZone;
 use cyper::IntoUrl;
 use rand::{distr::Open01, prelude::*};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+    str::FromStr,
+    sync::Arc,
+};
 
 use crate::{
     qs,
@@ -793,6 +798,12 @@ pub struct CourseVideo {
 }
 
 impl CourseVideo {
+    /// Course video identifier computed from hash.
+    pub fn id(&self) -> u64 {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.meta.url.hash(&mut hasher);
+        hasher.finish()
+    }
     pub fn title(&self) -> &str {
         &self.meta.title
     }
