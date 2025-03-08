@@ -773,14 +773,14 @@ impl CourseVideoHandle {
         Ok(url.to_owned())
     }
 
-    async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<String> {
+    async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<bytes::Bytes> {
         let res = self.client.get(url)?.send().await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
+        let rbody = res.bytes().await?;
         Ok(rbody)
     }
 
-    async fn _get(&self) -> anyhow::Result<(String, String)> {
+    async fn _get(&self) -> anyhow::Result<(String, bytes::Bytes)> {
         let loc = self.get_iframe_url().await?;
         let info = self.get_sub_info(&loc).await?;
         let pl_url = self.get_m3u8_path(info)?;
@@ -791,7 +791,8 @@ impl CourseVideoHandle {
     pub async fn get(&self) -> anyhow::Result<CourseVideo> {
         let (pl_url, pl_raw) = self._get().await?;
 
-        let (_, pl) = m3u8_rs::parse_playlist(pl_raw.as_bytes())
+        let pl_raw = pl_raw.to_vec();
+        let (_, pl) = m3u8_rs::parse_playlist(&pl_raw)
             .map_err(|e| anyhow::anyhow!("{:#}", e))
             .context("parse m3u8 failed")?;
 
@@ -801,6 +802,7 @@ impl CourseVideoHandle {
                 client: self.client.clone(),
                 meta: self.meta.clone(),
                 pl_url: pl_url.into_url().context("parse pl_url failed")?,
+                pl_raw: pl_raw.into(),
                 pl,
             }),
         }
@@ -811,43 +813,81 @@ impl CourseVideoHandle {
 pub struct CourseVideo {
     client: Client,
     meta: Arc<CourseVideoMeta>,
+    pl_raw: bytes::Bytes,
     pl_url: url::Url,
     pl: m3u8_rs::MediaPlaylist,
 }
 
 impl CourseVideo {
-    pub fn total_segments(&self) -> usize {
+    pub fn m3u8_raw(&self) -> bytes::Bytes {
+        self.pl_raw.clone()
+    }
+
+    pub fn len_segments(&self) -> usize {
         self.pl.segments.len()
     }
 
-    pub async fn get_segment_data(&self, index: usize) -> anyhow::Result<(String, bytes::Bytes)> {
+    /// Refresh the key for the given segment index. You should call this method before getting the segment data referenced by the index.
+    ///
+    /// The EXT-X-KEY tag specifies how to decrypt them.  It applies to every Media Segment and to every Media
+    /// Initialization Section declared by an EXT-X-MAP tag that appears
+    /// between it and the next EXT-X-KEY tag in the Playlist file with the
+    /// same KEYFORMAT attribute (or the end of the Playlist file).
+    pub fn refresh_key<'a>(
+        &'a self,
+        index: usize,
+        key: Option<&'a m3u8_rs::Key>,
+    ) -> Option<&'a m3u8_rs::Key> {
+        let seg = &self.pl.segments[index];
+        fn fallback_keyformat(key: &m3u8_rs::Key) -> &str {
+            key.keyformat.as_deref()
+                .unwrap_or("identity")
+        }
+
+        if let Some(newkey) = &seg.key {
+            if key.is_none_or(|k| fallback_keyformat(k) == fallback_keyformat(newkey)) {
+                return Some(newkey);
+            }
+        }
+        key
+    }
+
+    pub fn segment(&self, index: usize) -> &m3u8_rs::MediaSegment {
+        &self.pl.segments[index]
+    }
+
+    /// Fetch the segment data for the given index. If `key` is provided, the segment will be decrypted.
+    pub async fn get_segment_data<'a>(
+        &'a self,
+        index: usize,
+        key: Option<&'a m3u8_rs::Key>,
+    ) -> anyhow::Result<bytes::Bytes> {
         log::info!(
             "downloading segment {}/{} for video {}",
             index,
-            self.total_segments(),
+            self.len_segments(),
             self.meta.title()
         );
 
         let seg = &self.pl.segments[index];
 
-        let seg_url = self.pl_url.join(&seg.uri).context("join seg url").unwrap();
-        let seg_url = seg_url.as_str();
-
-        // get maybe encrypted segment data
+        // fetch maybe encrypted segment data
+        let seg_url: String = self.pl_url.join(&seg.uri).context("join seg url")?.into();
         let mut bytes = with_cache_bytes(
             &format!("CourseVideo::download_segment_{}", seg_url),
             self.client.download_artifact_ttl(),
-            self._download_segment(seg_url),
+            self._download_segment(&seg_url),
         )
         .await?;
 
-        // decrypt if needed
-        let seq = (self.pl.media_sequence as usize + index) as u128;
-        if let Some(key) = &seg.key {
+        // decrypt it if needed
+        if let Some(key) = key {
+            // sequence number may be used to construct IV
+            let seq = (self.pl.media_sequence as usize + index) as u128;
             bytes = self.decode_segment(key, bytes, seq).await?;
         }
 
-        Ok((seg.uri.clone(), bytes))
+        Ok(bytes)
     }
 
     async fn _download_segment(&self, seg_url: &str) -> anyhow::Result<bytes::Bytes> {

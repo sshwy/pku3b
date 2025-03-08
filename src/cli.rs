@@ -5,7 +5,6 @@ use clap::{
     builder::styling::{AnsiColor, Style},
 };
 use compio::{
-    BufResult,
     buf::buf_try,
     fs,
     io::{AsyncWrite, AsyncWriteAtExt, AsyncWriteExt},
@@ -395,54 +394,59 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
 async fn download_segments(
     v: &api::CourseVideo,
     dir: impl AsRef<std::path::Path>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<std::path::PathBuf>> {
     let dir = dir.as_ref();
     fs::create_dir_all(dir).await.context("create dir failed")?;
 
-    let tot = v.total_segments();
+    let tot = v.len_segments();
     let pb = ProgressBar::new(tot as u64).with_style(pb_style());
     pb.tick();
-    let futs = (0..tot).map(async |i| -> anyhow::Result<_> {
-        let (name, seg) = v.get_segment_data(i).await?;
 
-        let path = dir.join(name).with_extension("ts");
-        log::debug!("writing segment to {:?}", path);
-        fs::write(&path, seg)
-            .await
-            .0
-            .context("write segment failed")?;
-
-        pb.inc(1);
-        Ok(path)
-    });
-
+    let mut key = None;
     let mut paths = Vec::new();
     // faster than try_join_all
-    for fut in futs {
-        let path = fut.await?;
+    for i in 0..tot {
+        key = v.refresh_key(i, key);
+        let path = dir.join(&v.segment(i).uri).with_extension("ts");
+
+        if !path.exists() {
+            log::debug!("key: {:?}", key);
+            let seg = v.get_segment_data(i, key).await?;
+
+            // fs::write is not atomic, so we write to a tmp file first
+            let tmpath = path.with_extension("tmp");
+            buf_try!(@try fs::write(&tmpath, seg).await);
+            fs::rename(tmpath, &path).await.context("rename tmp file")?;
+        }
+
+        pb.inc(1);
         paths.push(path);
     }
     pb.finish_and_clear();
 
-    let merged = dir.join("merged").with_extension("ts");
-    let mut f = fs::File::create(&merged)
+    Ok(paths)
+}
+
+async fn merge_segments(
+    dest: impl AsRef<std::path::Path>,
+    paths: &[std::path::PathBuf],
+) -> anyhow::Result<()> {
+    let mut f = fs::File::create(&dest)
         .await
         .context("create merged file failed")?;
     let mut pos = 0;
 
-    let pb = ProgressBar::new(tot as u64)
+    let pb = ProgressBar::new(paths.len() as u64)
         .with_style(pb_style())
         .with_prefix("merging");
     pb.tick();
     for p in paths {
         let data = fs::read(p).await.context("read segments failed")?;
-        let BufResult(r, buf) = f.write_all_at(data, pos).await;
-        r?;
+        let (_, buf) = buf_try!(@try f.write_all_at(data, pos).await);
         pos += buf.len() as u64;
         pb.inc(1);
     }
     pb.finish_and_clear();
-    println!("Merged segments to {}", merged.display());
 
     Ok(())
 }
@@ -472,8 +476,19 @@ async fn command_debug() -> anyhow::Result<()> {
         for v in vs {
             if v.id() == id {
                 let v = v.get().await?;
-                let dir = "test";
-                download_segments(&v, dir).await?;
+                let dir: &std::path::Path = "cache".as_ref();
+                let paths = download_segments(&v, dir).await?;
+
+                let m3u8 = dir.join("playlist").with_extension("m3u8");
+                buf_try!(@try fs::write(&m3u8, v.m3u8_raw()).await);
+
+                // merge all segments into one file
+                let merged = dir.join("merged").with_extension("ts");
+                merge_segments(&merged, &paths).await?;
+                println!("Merged segments to {}", merged.display());
+                println!(
+                    "You may use `ffmpeg -i cache/merged.ts -c copy output.mp4` to convert it to mp4"
+                );
             }
         }
     }
