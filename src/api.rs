@@ -83,11 +83,17 @@ impl Client {
             .send()
             .await?;
 
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
         let rbody = res.text().await?;
         let value = serde_json::Value::from_str(&rbody)?;
-        let token = value.as_object().context("resp not an object")?["token"]
+        let token = value
+            .as_object()
+            .context("resp not an object")?
+            .get("token")
+            .context("password not correct")?
             .as_str()
-            .context("property 'token' not found on object")?
+            .context("property 'token' not string")?
             .to_owned();
 
         log::debug!("iaaa oauth token: {token}");

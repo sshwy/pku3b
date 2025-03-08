@@ -217,7 +217,10 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
         .context("read config file")?;
 
     pb.set_message("logging in to blackboard...");
-    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+    let blackboard = client
+        .blackboard(&cfg.username, &cfg.password)
+        .await
+        .context("login to blackboard")?;
 
     pb.set_message("fetching courses...");
     let courses = blackboard
