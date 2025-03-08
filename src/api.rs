@@ -175,15 +175,19 @@ impl Blackboard {
     pub async fn get_courses(&self) -> anyhow::Result<Vec<CourseHandle>> {
         log::info!("fetching courses...");
 
-        let courses =
-            with_cache("_get_courses", self.client.cache_ttl(), self._get_courses()).await?;
+        let courses = with_cache(
+            "Blackboard::_get_courses",
+            self.client.cache_ttl(),
+            self._get_courses(),
+        )
+        .await?;
 
         let courses = courses
             .into_iter()
-            .map(|(key, title)| {
+            .map(|(key, long_title)| {
                 Ok(CourseHandle {
                     client: self.client.clone(),
-                    meta: CourseMeta { key, title }.into(),
+                    meta: CourseMeta { key, long_title }.into(),
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -193,9 +197,28 @@ impl Blackboard {
 }
 
 #[derive(Debug)]
-struct CourseMeta {
+pub struct CourseMeta {
     key: String,
-    title: String,
+    long_title: String,
+}
+
+impl CourseMeta {
+    /// Course Name (semester)
+    pub fn title(&self) -> &str {
+        self.long_title.split_once(":").unwrap().1.trim()
+    }
+
+    /// Cousre Name
+    pub fn name(&self) -> &str {
+        let s = self.title();
+        let i = s
+            .char_indices()
+            .filter(|(_, c)| *c == '(')
+            .last()
+            .unwrap()
+            .0;
+        s.split_at(i).0.trim()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -235,7 +258,7 @@ impl CourseHandle {
     }
 
     pub async fn get(&self) -> anyhow::Result<Course> {
-        log::info!("fetching course {}", self.meta.title);
+        log::info!("fetching course {}", self.meta.title());
 
         let entries = with_cache(
             &format!("CourseHandle::_get_{}", self.meta.key),
@@ -260,8 +283,8 @@ pub struct Course {
 }
 
 impl Course {
-    pub fn name(&self) -> &str {
-        self.meta.title.split(": ").nth(1).unwrap()
+    pub fn meta(&self) -> &CourseMeta {
+        &self.meta
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
         let Some(uri) = self.entries.get("课程作业") else {
@@ -298,7 +321,7 @@ impl Course {
         Ok(assignments)
     }
     pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentHandle>> {
-        log::info!("fetching assignments for course {}", self.meta.title);
+        log::info!("fetching assignments for course {}", self.meta.title());
 
         let assignments = with_cache(
             &format!("Course::_get_assignments_{}", self.meta.key),
@@ -362,7 +385,7 @@ impl Course {
         Ok(loc)
     }
     pub async fn get_video_list(&self) -> anyhow::Result<Vec<CourseVideoHandle>> {
-        log::info!("fetching video list for course {}", self.meta.title);
+        log::info!("fetching video list for course {}", self.meta.title());
 
         let videos = with_cache(
             &format!("Course::get_video_list_{}", self.meta.key),
@@ -789,7 +812,13 @@ impl CourseVideoHandle {
     }
 
     pub async fn get(&self) -> anyhow::Result<CourseVideo> {
-        let (pl_url, pl_raw) = self._get().await?;
+        let (pl_url, pl_raw) = self._get().await.with_context(|| {
+            format!(
+                "get course video for {} {}",
+                self.course.title(),
+                self.meta().title()
+            )
+        })?;
 
         let pl_raw = pl_raw.to_vec();
         let (_, pl) = m3u8_rs::parse_playlist(&pl_raw)
@@ -800,6 +829,7 @@ impl CourseVideoHandle {
             m3u8_rs::Playlist::MasterPlaylist(_) => anyhow::bail!("master playlist not supported"),
             m3u8_rs::Playlist::MediaPlaylist(pl) => Ok(CourseVideo {
                 client: self.client.clone(),
+                course: self.course.clone(),
                 meta: self.meta.clone(),
                 pl_url: pl_url.into_url().context("parse pl_url failed")?,
                 pl_raw: pl_raw.into(),
@@ -812,6 +842,7 @@ impl CourseVideoHandle {
 #[derive(Debug)]
 pub struct CourseVideo {
     client: Client,
+    course: Arc<CourseMeta>,
     meta: Arc<CourseVideoMeta>,
     pl_raw: bytes::Bytes,
     pl_url: url::Url,
@@ -819,6 +850,14 @@ pub struct CourseVideo {
 }
 
 impl CourseVideo {
+    pub fn course_name(&self) -> &str {
+        &self.course.name()
+    }
+
+    pub fn meta(&self) -> &CourseVideoMeta {
+        &self.meta
+    }
+
     pub fn m3u8_raw(&self) -> bytes::Bytes {
         self.pl_raw.clone()
     }
@@ -840,8 +879,7 @@ impl CourseVideo {
     ) -> Option<&'a m3u8_rs::Key> {
         let seg = &self.pl.segments[index];
         fn fallback_keyformat(key: &m3u8_rs::Key) -> &str {
-            key.keyformat.as_deref()
-                .unwrap_or("identity")
+            key.keyformat.as_deref().unwrap_or("identity")
         }
 
         if let Some(newkey) = &seg.key {
@@ -884,7 +922,7 @@ impl CourseVideo {
         if let Some(key) = key {
             // sequence number may be used to construct IV
             let seq = (self.pl.media_sequence as usize + index) as u128;
-            bytes = self.decode_segment(key, bytes, seq).await?;
+            bytes = self.decrypt_segment(key, bytes, seq).await?;
         }
 
         Ok(bytes)
@@ -921,7 +959,7 @@ impl CourseVideo {
         Ok(key)
     }
 
-    async fn decode_segment(
+    async fn decrypt_segment(
         &self,
         key: &m3u8_rs::Key,
         bytes: bytes::Bytes,

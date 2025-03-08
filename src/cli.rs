@@ -1,3 +1,5 @@
+mod pbar;
+
 use crate::{api, config, utils};
 use anyhow::Context as _;
 use clap::{
@@ -9,8 +11,7 @@ use compio::{
     fs,
     io::{AsyncWrite, AsyncWriteAtExt, AsyncWriteExt},
 };
-use futures_util::{FutureExt, future::try_join_all};
-use indicatif::{ProgressBar, ProgressStyle};
+use futures_util::future::try_join_all;
 use std::io::Write as _;
 use utils::style::*;
 
@@ -40,7 +41,10 @@ enum Commands {
 
     /// 获取课程回放
     #[command(visible_alias("v"))]
-    Video,
+    Video {
+        #[command(subcommand)]
+        command: Option<VideoCommands>,
+    },
 
     /// (重新) 初始化配置选项
     Init,
@@ -57,6 +61,20 @@ enum Commands {
     #[cfg(feature = "dev")]
     #[command(hide(true))]
     Debug,
+}
+
+#[derive(Subcommand)]
+enum VideoCommands {
+    /// 获取课程回放列表
+    #[command(visible_alias("ls"))]
+    List,
+
+    /// 下载课程回放视频 (MP4 格式)，支持断点续传
+    #[command(visible_alias("down"))]
+    Download {
+        /// 课程回放 ID (可通过 `pku3b video list` 查看)
+        id: String,
+    },
 }
 
 async fn command_config(
@@ -184,49 +202,13 @@ fn write_course_assignments(buf: &mut Vec<u8>, a: &api::CourseAssignment) -> any
     Ok(())
 }
 
-struct TickerHandle {
-    tx: futures_channel::oneshot::Sender<()>,
-    handle: compio::runtime::JoinHandle<()>,
-}
-
-impl TickerHandle {
-    async fn stop(self) {
-        let _ = self.tx.send(());
-        self.handle.await.unwrap()
-    }
-}
-
-fn spawn_pb_ticker(pb: ProgressBar, interval: std::time::Duration) -> TickerHandle {
-    let (tx, mut rx) = futures_channel::oneshot::channel::<()>();
-    let h = compio::runtime::spawn(async move {
-        loop {
-            pb.tick();
-            let wait = compio::time::sleep(interval);
-            let mut wait = std::pin::pin!(wait.fuse());
-            futures_util::select! {
-                _ = rx => break,
-                _ = wait => (),
-            }
-        }
-    });
-
-    TickerHandle { tx, handle: h }
-}
-
-fn pb_style() -> ProgressStyle {
-    ProgressStyle::with_template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}")
-        .unwrap()
-        .progress_chars("=> ")
-}
-
 async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     let client = api::Client::new(
         if force { None } else { Some(ONE_HOUR) },
         if force { None } else { Some(ONE_DAY) },
     );
 
-    let pb = ProgressBar::new_spinner();
-    let ticker = spawn_pb_ticker(pb.clone(), std::time::Duration::from_millis(100));
+    let pb = pbar::new_spinner();
 
     pb.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -243,17 +225,16 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
         .await
         .context("fetch course handles")?;
 
-    ticker.stop().await;
-    pb.finish_and_clear();
+    pb.finish_and_clear().await;
 
     // fetch each course concurrently
-    let pb = ProgressBar::new(courses.len() as u64).with_style(pb_style());
+    let pb = pbar::new(courses.len() as u64);
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let assignments = c
             .get_assignments()
             .await
-            .with_context(|| format!("fetch assignment handles of {}", c.name()))?;
+            .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
 
         pb.inc_length(assignments.len() as u64);
         let futs = assignments.into_iter().map(async |a| {
@@ -283,7 +264,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
             continue;
         }
 
-        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
+        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.meta().title())?;
         for a in assignments {
             // skip finished assignments if not in full mode
             if a.last_attempt().is_some() && !all {
@@ -309,11 +290,10 @@ async fn command_clean() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn command_video() -> anyhow::Result<()> {
+async fn command_video_list() -> anyhow::Result<()> {
     let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
 
-    let pb = ProgressBar::new_spinner();
-    let ticker = spawn_pb_ticker(pb.clone(), std::time::Duration::from_millis(100));
+    let pb = pbar::new_spinner();
 
     pb.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -330,10 +310,9 @@ async fn command_video() -> anyhow::Result<()> {
         .await
         .context("fetch course handles")?;
 
-    ticker.stop().await;
-    pb.finish_and_clear();
+    pb.finish_and_clear().await;
 
-    let pb = ProgressBar::new(courses.len() as u64).with_style(pb_style());
+    let pb = pbar::new(courses.len() as u64);
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let vs = c.get_video_list().await.context("fetch video list")?;
@@ -353,7 +332,7 @@ async fn command_video() -> anyhow::Result<()> {
             continue;
         }
 
-        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.name())?;
+        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.meta().title())?;
 
         for v in vs {
             writeln!(
@@ -372,6 +351,102 @@ async fn command_video() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn command_video_download(id: String) -> anyhow::Result<()> {
+    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+
+    let pb = pbar::new_spinner();
+
+    pb.set_message("reading config...");
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+
+    pb.set_message("logging in to blackboard...");
+    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
+
+    pb.set_message("fetching courses...");
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
+
+    pb.set_message("finding video...");
+    let mut target_video = None;
+    for c in courses {
+        let c = c.get().await.context("fetch course")?;
+
+        let vs = c.get_video_list().await?;
+        for v in vs {
+            if v.id() == id {
+                target_video = Some(v);
+                break;
+            }
+        }
+
+        if target_video.is_some() {
+            break;
+        }
+    }
+    let Some(v) = target_video else {
+        pb.finish_and_clear().await;
+        anyhow::bail!("video with id {} not found", id);
+    };
+
+    pb.set_message("fetch video metadata...");
+    let v = v.get().await?;
+
+    pb.finish_and_clear().await;
+
+    println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
+
+    // prepare download dir
+    let dir = utils::projectdir()
+        .cache_dir()
+        .join("video_download")
+        .join(&id);
+    fs::create_dir_all(&dir)
+        .await
+        .context("create dir failed")?;
+
+    let paths = download_segments(&v, &dir).await?;
+
+    let m3u8 = dir.join("playlist").with_extension("m3u8");
+    buf_try!(@try fs::write(&m3u8, v.m3u8_raw()).await);
+
+    // merge all segments into one file
+    let merged = dir.join("merged").with_extension("ts");
+    merge_segments(&merged, &paths).await?;
+    let dest = format!("{}_{}.mp4", v.course_name(), v.meta().title());
+    log::info!("Merged segments to {}", merged.display());
+    log::info!(
+        r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
+        merged.display(),
+        dest,
+    );
+
+    // convert the merged ts file to mp4. overwrite existing file
+    let sp = pbar::new_spinner();
+    sp.set_message("Converting to mp4 file...");
+    let c = compio::process::Command::new("ffmpeg")
+        .args(["-y", "-hide_banner", "-loglevel", "quiet"])
+        .args(["-i", &merged.to_string_lossy().to_string()])
+        .args(["-c", "copy"])
+        .arg(&dest)
+        .output()
+        .await
+        .context("execute ffmpeg")?;
+    sp.finish_and_clear().await;
+
+    if c.status.success() {
+        println!("下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}", dest);
+    } else {
+        anyhow::bail!("ffmpeg failed with exit code {:?}", c.status.code());
+    }
+
+    Ok(())
+}
+
 pub async fn start(cli: Cli) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         match command {
@@ -379,7 +454,20 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             Commands::Init => command_init().await?,
             Commands::Clean => command_clean().await?,
             Commands::Assignment { force, all } => command_fetch(force, all).await?,
-            Commands::Video => command_video().await?,
+            Commands::Video { command } => {
+                if let Some(command) = command {
+                    match command {
+                        VideoCommands::List => command_video_list().await?,
+                        VideoCommands::Download { id } => command_video_download(id).await?,
+                    }
+                } else {
+                    Cli::command()
+                        .get_subcommands_mut()
+                        .find(|s| s.get_name() == "video")
+                        .unwrap()
+                        .print_help()?;
+                }
+            }
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
@@ -396,10 +484,12 @@ async fn download_segments(
     dir: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<Vec<std::path::PathBuf>> {
     let dir = dir.as_ref();
-    fs::create_dir_all(dir).await.context("create dir failed")?;
+    if !dir.exists() {
+        anyhow::bail!("dir {} not exists", dir.display());
+    }
 
     let tot = v.len_segments();
-    let pb = ProgressBar::new(tot as u64).with_style(pb_style());
+    let pb = pbar::new(tot as u64).with_prefix("download");
     pb.tick();
 
     let mut key = None;
@@ -436,9 +526,7 @@ async fn merge_segments(
         .context("create merged file failed")?;
     let mut pos = 0;
 
-    let pb = ProgressBar::new(paths.len() as u64)
-        .with_style(pb_style())
-        .with_prefix("merging");
+    let pb = pbar::new(paths.len() as u64).with_prefix("merge segments");
     pb.tick();
     for p in paths {
         let data = fs::read(p).await.context("read segments failed")?;
@@ -476,8 +564,14 @@ async fn command_debug() -> anyhow::Result<()> {
         for v in vs {
             if v.id() == id {
                 let v = v.get().await?;
-                let dir: &std::path::Path = "cache".as_ref();
-                let paths = download_segments(&v, dir).await?;
+                let dir = utils::projectdir()
+                    .cache_dir()
+                    .join("video_download")
+                    .join(id);
+                fs::create_dir_all(&dir)
+                    .await
+                    .context("create dir failed")?;
+                let paths = download_segments(&v, &dir).await?;
 
                 let m3u8 = dir.join("playlist").with_extension("m3u8");
                 buf_try!(@try fs::write(&m3u8, v.m3u8_raw()).await);
@@ -487,7 +581,8 @@ async fn command_debug() -> anyhow::Result<()> {
                 merge_segments(&merged, &paths).await?;
                 println!("Merged segments to {}", merged.display());
                 println!(
-                    "You may use `ffmpeg -i cache/merged.ts -c copy output.mp4` to convert it to mp4"
+                    "You may use `ffmpeg -i {} -c copy output.mp4` to convert it to mp4",
+                    merged.display()
                 );
             }
         }
