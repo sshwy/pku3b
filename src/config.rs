@@ -1,4 +1,4 @@
-use compio::io::{AsyncReadAtExt, AsyncWriteAtExt};
+use compio::fs;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Config {
@@ -10,11 +10,12 @@ impl Config {
     pub fn display(
         &self,
         attr: ConfigAttrs,
-        writer: &mut impl std::io::Write,
+        buf: &mut Vec<u8>,
     ) -> anyhow::Result<()> {
+        use std::io::Write as _;
         Ok(match attr {
-            ConfigAttrs::Username => writeln!(writer, "{}", self.username)?,
-            ConfigAttrs::Password => writeln!(writer, "{}", self.password)?,
+            ConfigAttrs::Username => writeln!(buf, "{}", self.username)?,
+            ConfigAttrs::Password => writeln!(buf, "{}", self.password)?,
         })
     }
 
@@ -64,11 +65,8 @@ pub async fn read_cfg(path: impl AsRef<std::path::Path>) -> anyhow::Result<Confi
         anyhow::bail!("config file not found");
     }
 
-    let f = compio::fs::File::open(path).await?;
-    let (read, buffer) = f.read_to_end_at(Vec::with_capacity(1024), 0).await.unwrap();
-    assert_eq!(read, buffer.len());
-
-    let content = String::from_utf8(buffer).unwrap();
+    let buffer = fs::read(path).await?;
+    let content = String::from_utf8(buffer)?; //.context("invalid UTF-8")?;
     let cfg: Config = toml::from_str(&content)?;
 
     Ok(cfg)
@@ -79,14 +77,11 @@ pub async fn write_cfg(path: impl AsRef<std::path::Path>, cfg: &Config) -> anyho
     // Create the parent directory if it does not exist
     if let Some(par) = path.parent() {
         if !par.exists() {
-            compio::fs::create_dir_all(par).await?;
+            fs::create_dir_all(par).await?;
         }
     }
 
     let content = toml::to_string(cfg)?;
-
-    let mut f = compio::fs::File::create(path).await?;
-    f.write_all_at(content, 0).await.unwrap();
-
+    fs::write(path, content).await.0?;
     Ok(())
 }

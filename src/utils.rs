@@ -1,4 +1,6 @@
-use std::io::{Read, Write};
+use compio::{buf::buf_try, fs, io, io::AsyncReadAtExt};
+use futures_util::lock::Mutex;
+use std::sync::OnceLock;
 
 pub mod style {
     use clap::builder::styling::{AnsiColor, Color, Style};
@@ -45,10 +47,13 @@ where
 
     let path = &projectdir().cache_dir().join(&name);
 
-    if let Ok(f) = std::fs::File::open(path) {
+    if let Ok(f) = fs::File::open(path).await {
         if let Some(ttl) = ttl {
-            if f.metadata()?.modified()?.elapsed()? < *ttl {
-                if let Ok(r) = serde_json::from_reader(f) {
+            if f.metadata().await?.modified()?.elapsed()? < *ttl {
+                let r = f.read_to_end_at(Vec::new(), 0).await;
+                let (_, buf) = buf_try!(@try r);
+                // ignore deserialization error
+                if let Ok(r) = serde_json::from_slice(&buf) {
                     log::trace!("cache hit: {}", name);
                     return Ok(r);
                 }
@@ -57,9 +62,9 @@ where
     }
 
     let r = fut.await?;
-    std::fs::create_dir_all(path.parent().unwrap())?;
-    let f = std::fs::File::create(path)?;
-    serde_json::to_writer(f, &r)?;
+    fs::create_dir_all(path.parent().unwrap()).await?;
+    let buf = serde_json::to_vec(&r)?;
+    buf_try!(@try fs::write(path, buf).await);
 
     Ok(r)
 }
@@ -82,22 +87,74 @@ where
 
     let path = &projectdir().cache_dir().join(&name);
 
-    if let Ok(mut f) = std::fs::File::open(path) {
+    if let Ok(f) = fs::File::open(path).await {
         if let Some(ttl) = ttl {
-            if f.metadata()?.modified()?.elapsed()? < *ttl {
-                let mut buf = Vec::new();
-                if let Ok(_) = f.read_to_end(&mut buf) {
-                    log::trace!("cache hit: {}", name);
-                    return Ok(bytes::Bytes::from(buf));
-                }
+            if f.metadata().await?.modified()?.elapsed()? < *ttl {
+                let r = f.read_to_end_at(Vec::new(), 0).await;
+                let (_, buf) = buf_try!(@try r);
+                log::trace!("cache hit: {}", name);
+                return Ok(bytes::Bytes::from(buf));
             }
         }
     }
 
     let r = fut.await?;
-    std::fs::create_dir_all(path.parent().unwrap())?;
-    let mut f = std::fs::File::create(path)?;
-    f.write_all(&r)?;
+    fs::create_dir_all(path.parent().unwrap()).await?;
+    let (_, r) = buf_try!(@try fs::write(path, r).await);
 
     Ok(r)
+}
+
+/// A simple wrapper around [`fs::Stdin`] which use async-aware mutex and async buf reader, in order to provide async read_line functionality.
+pub struct Stdin {
+    inner: &'static Mutex<io::BufReader<fs::Stdin>>,
+}
+
+impl Stdin {
+    pub async fn read_line(&self, buf: &mut String) -> std::io::Result<usize> {
+        let mut vec_buf = Vec::new();
+        let mut inner = self.inner.lock().await;
+        read_until(&mut *inner, b'\n', &mut vec_buf).await?;
+        *buf = String::from_utf8(vec_buf).unwrap();
+        Ok(buf.len())
+    }
+}
+
+pub fn stdin() -> Stdin {
+    static INSTANCE: OnceLock<Mutex<io::BufReader<fs::Stdin>>> = OnceLock::new();
+    Stdin {
+        inner: INSTANCE.get_or_init(|| Mutex::new(io::BufReader::new(fs::stdin()))),
+    }
+}
+
+async fn read_until<R: io::AsyncBufRead + ?Sized>(
+    r: &mut R,
+    delim: u8,
+    buf: &mut Vec<u8>,
+) -> std::io::Result<usize> {
+    let mut read = 0;
+    loop {
+        let (done, used) = {
+            let available = match r.fill_buf().await {
+                Ok(n) => n,
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            };
+            match memchr::memchr(delim, available) {
+                Some(i) => {
+                    buf.extend_from_slice(&available[..=i]);
+                    (true, i + 1)
+                }
+                None => {
+                    buf.extend_from_slice(available);
+                    (false, available.len())
+                }
+            }
+        };
+        r.consume(used);
+        read += used;
+        if done || used == 0 {
+            return Ok(read);
+        }
+    }
 }

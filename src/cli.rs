@@ -4,6 +4,12 @@ use clap::{
     CommandFactory, Parser, Subcommand,
     builder::styling::{AnsiColor, Style},
 };
+use compio::{
+    BufResult,
+    buf::buf_try,
+    fs,
+    io::{AsyncWrite, AsyncWriteAtExt, AsyncWriteExt},
+};
 use futures_util::{FutureExt, future::try_join_all};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::Write as _;
@@ -79,21 +85,23 @@ async fn command_config(
         cfg.update(attr, value)?;
         config::write_cfg(&cfg_path, &cfg).await?;
     } else {
-        cfg.display(attr, &mut std::io::stdout())?;
+        let mut buf = Vec::new();
+        cfg.display(attr, &mut buf)?;
+        buf_try!(@try fs::stdout().write_all(buf).await);
     }
     Ok(())
 }
 
-fn read_line(prompt: &str, is_password: bool) -> anyhow::Result<String> {
+async fn read_line(prompt: &str, is_password: bool) -> anyhow::Result<String> {
     if is_password {
         // use tricks to hide password
         let pass = rpassword::prompt_password(prompt.to_owned()).context("read password")?;
         Ok(pass)
     } else {
-        print!("{}", prompt);
-        let _ = std::io::stdout().flush();
+        buf_try!(@try fs::stdout().write_all(prompt.to_owned()).await);
+        fs::stdout().flush().await?;
         let mut s = String::new();
-        std::io::stdin().read_line(&mut s)?;
+        utils::stdin().read_line(&mut s).await?;
         Ok(s.trim().to_string())
     }
 }
@@ -104,8 +112,8 @@ async fn command_init() -> anyhow::Result<()> {
 
     eprintln!("Config path: '{style}{}{style:#}'", cfg_path.display());
 
-    let username = read_line("PKU IAAA Username: ", false)?;
-    let password = read_line("PKU IAAA Password: ", true)?;
+    let username = read_line("PKU IAAA Username: ", false).await?;
+    let password = read_line("PKU IAAA Password: ", true).await?;
 
     let cfg = config::Config { username, password };
     config::write_cfg(&cfg_path, &cfg).await?;
@@ -140,13 +148,10 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
     format!("{s}{}{s:#}", res)
 }
 
-fn write_course_assignments(
-    writer: &mut impl std::io::Write,
-    a: &api::CourseAssignment,
-) -> anyhow::Result<()> {
+fn write_course_assignments(buf: &mut Vec<u8>, a: &api::CourseAssignment) -> anyhow::Result<()> {
     if let Some(att) = a.last_attempt() {
         writeln!(
-            writer,
+            buf,
             "{MG}{H2}{}{H2:#}{MG:#} ({GR}已完成{GR:#}) {D}{att}{D:#}\n",
             a.title()
         )?;
@@ -156,26 +161,26 @@ fn write_course_assignments(
             .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
         let delta = t - chrono::Local::now();
         writeln!(
-            writer,
+            buf,
             "{MG}{H2}{}{H2:#}{MG:#} ({})\n",
             a.title(),
             fmt_time_delta(delta),
         )?;
     }
     if !a.attachments().is_empty() {
-        writeln!(writer, "{H3}附件{H3:#}")?;
+        writeln!(buf, "{H3}附件{H3:#}")?;
         for (name, uri) in a.attachments() {
-            writeln!(writer, "{D}•{D:#} {name}: {D}{uri}{D:#}")?;
+            writeln!(buf, "{D}•{D:#} {name}: {D}{uri}{D:#}")?;
         }
-        writeln!(writer,)?;
+        writeln!(buf,)?;
     }
     if !a.descriptions().is_empty() {
-        writeln!(writer, "{H3}描述{H3:#}")?;
+        writeln!(buf, "{H3}描述{H3:#}")?;
         for p in a.descriptions() {
-            writeln!(writer, "{p}")?;
+            writeln!(buf, "{p}")?;
         }
     }
-    writeln!(writer)?;
+    writeln!(buf)?;
 
     Ok(())
 }
@@ -291,7 +296,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     }
 
     // write to stdout
-    std::io::stdout().write_all(&outbuf)?;
+    buf_try!(@try fs::stdout().write_all(outbuf).await);
 
     Ok(())
 }
@@ -364,7 +369,7 @@ async fn command_video() -> anyhow::Result<()> {
         writeln!(outbuf)?;
     }
 
-    std::io::stdout().write_all(&outbuf)?;
+    buf_try!(@try fs::stdout().write_all(outbuf).await);
     Ok(())
 }
 
@@ -392,9 +397,7 @@ async fn download_segments(
     dir: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<()> {
     let dir = dir.as_ref();
-    compio::fs::create_dir_all(dir)
-        .await
-        .context("create dir failed")?;
+    fs::create_dir_all(dir).await.context("create dir failed")?;
 
     let tot = v.total_segments();
     let pb = ProgressBar::new(tot as u64).with_style(pb_style());
@@ -404,20 +407,42 @@ async fn download_segments(
 
         let path = dir.join(name).with_extension("ts");
         log::debug!("writing segment to {:?}", path);
-        compio::fs::write(path, seg)
+        fs::write(&path, seg)
             .await
             .0
             .context("write segment failed")?;
 
         pb.inc(1);
-        Ok(())
+        Ok(path)
     });
 
+    let mut paths = Vec::new();
     // faster than try_join_all
     for fut in futs {
-        fut.await?;
+        let path = fut.await?;
+        paths.push(path);
     }
     pb.finish_and_clear();
+
+    let merged = dir.join("merged").with_extension("ts");
+    let mut f = fs::File::create(&merged)
+        .await
+        .context("create merged file failed")?;
+    let mut pos = 0;
+
+    let pb = ProgressBar::new(tot as u64)
+        .with_style(pb_style())
+        .with_prefix("merging");
+    pb.tick();
+    for p in paths {
+        let data = fs::read(p).await.context("read segments failed")?;
+        let BufResult(r, buf) = f.write_all_at(data, pos).await;
+        r?;
+        pos += buf.len() as u64;
+        pb.inc(1);
+    }
+    pb.finish_and_clear();
+    println!("Merged segments to {}", merged.display());
 
     Ok(())
 }

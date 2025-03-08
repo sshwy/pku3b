@@ -1740,6 +1740,7 @@ dependencies = [
  "indicatif",
  "log",
  "m3u8-rs",
+ "memchr",
  "rand 0.9.0",
  "regex",
  "rpassword",
