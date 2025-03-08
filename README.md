@@ -20,6 +20,8 @@ Options:
   -V, --version  Print version
 ```
 
+如果需要使用下载课程回放的功能 (使用 `pku3b help v down` 查看用法)，你需要安装 `ffmpeg`。在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`.
+
 ## Motivation
 
 众所周知 PKU 的教学网 UI 长得非常次时代，信息获取效率奇低。对此已有的解决方案是借助 [PKU-Art](https://github.com/zhuozhiyongde/PKU-Art) 把 UI 变得赏心悦目一点。

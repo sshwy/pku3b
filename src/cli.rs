@@ -72,7 +72,7 @@ enum VideoCommands {
     /// 下载课程回放视频 (MP4 格式)，支持断点续传
     #[command(visible_alias("down"))]
     Download {
-        /// 课程回放 ID (可通过 `pku3b video list` 查看)
+        /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
         id: String,
     },
 }
