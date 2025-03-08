@@ -7,6 +7,7 @@ mod cli;
 mod config;
 mod qs;
 mod utils;
+mod walkdir;
 
 #[compio::main]
 async fn main() {

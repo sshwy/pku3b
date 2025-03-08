@@ -857,7 +857,7 @@ pub struct CourseVideo {
 
 impl CourseVideo {
     pub fn course_name(&self) -> &str {
-        &self.course.name()
+        self.course.name()
     }
 
     pub fn meta(&self) -> &CourseVideoMeta {

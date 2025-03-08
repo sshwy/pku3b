@@ -18,7 +18,10 @@ bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
 clap = { version = "4.5.31", features = ["derive"] }
-compio = { version = "0.13", features = ["macros", "process"], default-features = false }
+compio = { version = "0.13", features = [
+    "macros",
+    "process",
+], default-features = false }
 cyper = { version = "0.2", default-features = false, features = [
     "cookies",
     "native-tls",
@@ -55,7 +58,7 @@ dev = []
 default = ["video_download"]
 
 # support for downloading videos
-video_download = ["m3u8-rs", "aes", "cbc"]
 aes = ["dep:aes"]
-m3u8-rs = ["dep:m3u8-rs"]
 cbc = ["dep:cbc"]
+m3u8-rs = ["dep:m3u8-rs"]
+video_download = ["m3u8-rs", "aes", "cbc"]

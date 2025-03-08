@@ -12,7 +12,7 @@ pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大�
 
 基本用法如下：
 
-```
+```text
 A tool for PKU students to check their courses.
 
 Usage: pku3b [COMMAND]
@@ -22,7 +22,7 @@ Commands:
   video       获取课程回放 [aliases: v]
   init        (重新) 初始化配置选项
   config      显示或修改配置项
-  clean       清除缓存
+  cache       查看缓存大小/清除缓存
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -30,15 +30,31 @@ Options:
   -V, --version  Print version
 ```
 
-## Installation
+## Getting Started
 
 该工具目前只在 MacOS 上测试过，按理支持 Linux，Windows 目前尚不支持。你需要使用 cargo 安装/更新:
 
-```
+```bash
 cargo install pku3b
 ```
 
 如果需要使用下载课程回放的功能 (使用 `pku3b help v down` 查看用法)，你需要安装 `ffmpeg`。在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`.
+
+首次执行命令前你需要登陆教学网。执行以下命令，然后根据提示输入教学网账号密码来完成初始化设置（只需要执行一次，如果想要更改配置，只需要再执行一次；如果想要进行细粒度的修改，也可以使用 `pku3b config <key> <value>` 修改配置项）:
+
+```bash
+pku3b init
+```
+
+示例：
+
+- 查看未完成的作业: `pku3b a`
+- 查看全部作业: `pku3b a -a`
+- 查看课程回放列表: `pku3b v ls`
+- 下载课程回放: `pku3b v down <ID>` (ID 请在课程回放列表中复制)
+- 查看缓存占用: `pku3b cache`
+- 清空缓存: `pku3b cache clean`
+- 查看某个命令的使用方法 (以下载课程回放的命令为例): `pku3b help v down`
 
 ## Motivation
 

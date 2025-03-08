@@ -1,6 +1,6 @@
 mod pbar;
 
-use crate::{api, config, utils};
+use crate::{api, config, utils, walkdir};
 use anyhow::Context as _;
 use clap::{
     CommandFactory, Parser, Subcommand,
@@ -11,8 +11,8 @@ use compio::{
     fs,
     io::{AsyncWrite, AsyncWriteAtExt, AsyncWriteExt},
 };
-use futures_util::future::try_join_all;
-use std::io::Write as _;
+use futures_util::{StreamExt, future::try_join_all};
+use std::{io::Write as _, os::unix::fs::MetadataExt};
 use utils::style::*;
 
 const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
@@ -39,7 +39,7 @@ enum Commands {
         force: bool,
     },
 
-    /// 获取课程回放
+    /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"))]
     Video {
         #[command(subcommand)]
@@ -55,8 +55,11 @@ enum Commands {
         /// 属性值
         value: Option<String>,
     },
-    /// 清除缓存
-    Clean,
+    /// 查看缓存大小/清除缓存
+    Cache {
+        #[command(subcommand)]
+        command: Option<CacheCommands>,
+    },
 
     #[cfg(feature = "dev")]
     #[command(hide(true))]
@@ -75,6 +78,15 @@ enum VideoCommands {
         /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
         id: String,
     },
+}
+
+#[derive(Subcommand)]
+enum CacheCommands {
+    /// 查看缓存大小
+    Show,
+
+    /// 清除缓存
+    Clean,
 }
 
 async fn command_config(
@@ -284,12 +296,33 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn command_clean() -> anyhow::Result<()> {
+async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     let dir = utils::projectdir();
+    let sp = pbar::new_spinner();
+    sp.set_message("scanning cache dir...");
+
+    let mut total_bytes = 0;
     if dir.cache_dir().exists() {
-        std::fs::remove_dir_all(dir.cache_dir())?;
+        let d = std::fs::read_dir(dir.cache_dir())?;
+
+        let mut s = walkdir::walkdir(d, false);
+        while let Some(e) = s.next().await {
+            let e = e?;
+            total_bytes += e.metadata()?.size();
+        }
+
+        if !dry_run {
+            std::fs::remove_dir_all(dir.cache_dir())?;
+        }
     }
-    println!("Cache cleaned.");
+    sp.finish_and_clear().await;
+
+    let sizenum = total_bytes as f64 / 1024.0f64.powi(3);
+    if dry_run {
+        println!("缓存大小: {B}{:.2}GB{B:#}", sizenum);
+    } else {
+        println!("缓存已清空 (释放 {B}{:.2}GB{B:#}GB)", sizenum);
+    }
     Ok(())
 }
 
@@ -433,7 +466,7 @@ async fn command_video_download(id: String) -> anyhow::Result<()> {
     sp.set_message("Converting to mp4 file...");
     let c = compio::process::Command::new("ffmpeg")
         .args(["-y", "-hide_banner", "-loglevel", "quiet"])
-        .args(["-i", &merged.to_string_lossy().to_string()])
+        .args(["-i", merged.to_string_lossy().as_ref()])
         .args(["-c", "copy"])
         .arg(&dest)
         .output()
@@ -455,7 +488,16 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
             Commands::Init => command_init().await?,
-            Commands::Clean => command_clean().await?,
+            Commands::Cache { command } => {
+                if let Some(command) = command {
+                    match command {
+                        CacheCommands::Clean => command_cache_clean(false).await?,
+                        CacheCommands::Show => command_cache_clean(true).await?,
+                    }
+                } else {
+                    command_cache_clean(true).await?
+                }
+            }
             Commands::Assignment { force, all } => command_fetch(force, all).await?,
             Commands::Video { command } => {
                 if let Some(command) = command {
