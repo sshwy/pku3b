@@ -19,7 +19,7 @@ impl FromStr for Query {
     type Err = <http::Uri as FromStr>::Err;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = http::Uri::from_str(&s)?;
+        let uri = http::Uri::from_str(s)?;
         let qs = uri
             .query()
             .map(|q| q.split('&').map(ToOwned::to_owned).collect::<Vec<_>>())

@@ -402,7 +402,7 @@ async fn download_segments(
     let tot = v.total_segments();
     let pb = ProgressBar::new(tot as u64).with_style(pb_style());
     pb.tick();
-    let futs = (0..tot).into_iter().map(async |i| -> anyhow::Result<_> {
+    let futs = (0..tot).map(async |i| -> anyhow::Result<_> {
         let (name, seg) = v.get_segment_data(i).await?;
 
         let path = dir.join(name).with_extension("ts");

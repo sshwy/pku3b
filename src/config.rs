@@ -7,16 +7,13 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn display(
-        &self,
-        attr: ConfigAttrs,
-        buf: &mut Vec<u8>,
-    ) -> anyhow::Result<()> {
+    pub fn display(&self, attr: ConfigAttrs, buf: &mut Vec<u8>) -> anyhow::Result<()> {
         use std::io::Write as _;
-        Ok(match attr {
+        match attr {
             ConfigAttrs::Username => writeln!(buf, "{}", self.username)?,
             ConfigAttrs::Password => writeln!(buf, "{}", self.password)?,
-        })
+        };
+        Ok(())
     }
 
     pub fn update(&mut self, attr: ConfigAttrs, value: String) -> anyhow::Result<()> {

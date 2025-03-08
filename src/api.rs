@@ -261,7 +261,7 @@ pub struct Course {
 
 impl Course {
     pub fn name(&self) -> &str {
-        &self.meta.title.split(": ").nth(1).unwrap()
+        self.meta.title.split(": ").nth(1).unwrap()
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
         let Some(uri) = self.entries.get("课程作业") else {
@@ -696,7 +696,7 @@ impl CourseVideoHandle {
     }
 
     async fn get_sub_info(&self, loc: &str) -> anyhow::Result<serde_json::Value> {
-        let qs = qs::Query::from_str(&loc).context("parse loc qs failed")?;
+        let qs = qs::Query::from_str(loc).context("parse loc qs failed")?;
         let course_id = qs
             .get("course_id")
             .context("course_id not found")?
@@ -737,7 +737,7 @@ impl CourseVideoHandle {
             .context("sub_info.list not found")?
             .as_array()
             .context("sub_info.list not array")?
-            .get(0)
+            .first()
             .context("sub_info.list empty")?
             .as_object()
             .context("sub_info.list[0] not object")?
@@ -861,7 +861,7 @@ impl CourseVideo {
     async fn get_aes128_key(&self, uri: &str) -> anyhow::Result<[u8; 16]> {
         // fetch aes128 key from uri
         let r = with_cache_bytes(
-            &format!("CourseVideo::get_aes128_uri"),
+            &format!("CourseVideo::get_aes128_uri_{}", uri),
             self.client.download_artifact_ttl(),
             async {
                 let r = self.client.get(uri)?.send().await?.bytes().await?;
@@ -912,7 +912,7 @@ impl CourseVideo {
                 let iv = GenericArray::from(iv);
 
                 let de = cbc::Decryptor::<aes::Aes128>::new(&aes_key, &iv)
-                    .decrypt_padded_vec_mut::<Pkcs7>(&mut bytes.to_vec())
+                    .decrypt_padded_vec_mut::<Pkcs7>(&bytes)
                     .context("decrypt failed")?;
 
                 Ok(de.into())
