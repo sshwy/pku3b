@@ -1,6 +1,16 @@
 # PKU3b: A Better Black Board for PKUers
 
-pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大学教学网的信息。它的用法如下：
+[![Crates.io](https://img.shields.io/crates/v/pku3b)](https://crates.io/crates/pku3b)
+
+pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大学教学网的信息。目前它可以
+
+- [x] 查看课程作业信息（未完成/全部）
+- [ ] 下载课程作业详细要求及附件
+- [ ] 提交课程作业
+- [x] 查看课程回放列表
+- [x] 下载课程回放（需要 ffmpeg）
+
+基本用法如下：
 
 ```
 A tool for PKU students to check their courses.
@@ -18,6 +28,12 @@ Commands:
 Options:
   -h, --help     Print help
   -V, --version  Print version
+```
+
+目前你需要使用 cargo 安装/更新:
+
+```
+cargo install pku3b
 ```
 
 如果需要使用下载课程回放的功能 (使用 `pku3b help v down` 查看用法)，你需要安装 `ffmpeg`。在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`.
