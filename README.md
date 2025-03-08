@@ -30,7 +30,9 @@ Options:
   -V, --version  Print version
 ```
 
-目前你需要使用 cargo 安装/更新:
+## Installation
+
+该工具目前只在 MacOS 上测试过，按理支持 Linux，Windows 目前尚不支持。你需要使用 cargo 安装/更新:
 
 ```
 cargo install pku3b
