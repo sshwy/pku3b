@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    qs,
+    multipart, qs,
     utils::{with_cache, with_cache_bytes},
 };
 
@@ -645,6 +645,131 @@ impl CourseAssignment {
         self.data.attempt.as_deref()
     }
 
+    pub async fn get_submit_formfields(&self) -> anyhow::Result<HashMap<String, String>> {
+        let res = self
+            .client
+            .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
+            .query(&[
+                ("action", "newAttempt"),
+                ("content_id", &self.meta.content_id),
+                ("course_id", &self.meta.course_id),
+            ])?
+            .send()
+            .await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+
+        let extract_field = |input: scraper::ElementRef<'_>| {
+            let name = input.value().attr("name")?.to_owned();
+            let value = input.value().attr("value")?.to_owned();
+            Some((name, value))
+        };
+
+        let submitformfields = dom
+            .select(&scraper::Selector::parse("form#uploadAssignmentFormId input").unwrap())
+            .map(extract_field)
+            .chain(
+                dom.select(&scraper::Selector::parse("div.field input").unwrap())
+                    .map(extract_field),
+            )
+            .flatten()
+            .collect::<HashMap<_, _>>();
+
+        Ok(submitformfields)
+    }
+
+    pub async fn submit_file(&self, path: &std::path::Path) -> anyhow::Result<()> {
+        log::info!("submitting file: {}", path.display());
+
+        let ext = path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let content_type = get_mime_type(&ext);
+        log::info!("content type: {}", content_type);
+
+        let filename = path
+            .file_name()
+            .context("file name not found")?
+            .to_string_lossy()
+            .to_string();
+
+        let map = self.get_submit_formfields().await?;
+
+        let body = multipart::MultipartBuilder::new();
+        let boundary = body.boundary().to_owned();
+        macro_rules! add_field_from_map {
+            ($body:ident, $name:expr) => {
+                let $body = $body.add_field(
+                    $name,
+                    map.get($name)
+                        .with_context(|| format!("field '{}' not found", $name))?
+                        .as_bytes(),
+                );
+            };
+        }
+
+        log::debug!("map: {:#?}", map);
+
+        add_field_from_map!(body, "attempt_id");
+        add_field_from_map!(body, "blackboard.platform.security.NonceUtil.nonce");
+        add_field_from_map!(body, "blackboard.platform.security.NonceUtil.nonce.ajax");
+        add_field_from_map!(body, "content_id");
+        add_field_from_map!(body, "course_id");
+        add_field_from_map!(body, "isAjaxSubmit");
+        add_field_from_map!(body, "lu_link_id");
+        add_field_from_map!(body, "mode");
+        add_field_from_map!(body, "recallUrl");
+        add_field_from_map!(body, "remove_file_id");
+        add_field_from_map!(body, "studentSubmission.text_f");
+        add_field_from_map!(body, "studentSubmission.text_w");
+        add_field_from_map!(body, "studentSubmission.type");
+        add_field_from_map!(body, "student_commentstext_f");
+        add_field_from_map!(body, "student_commentstext_w");
+        add_field_from_map!(body, "student_commentstype");
+        add_field_from_map!(body, "textbox_prefix");
+        let body = body
+            .add_field("studentSubmission.text", b"")
+            .add_field("student_commentstext", b"")
+            .add_field("dispatch", b"submit")
+            .add_field("newFile_artifactFileId", b"undefined")
+            .add_field("newFile_artifactType", b"undefined")
+            .add_field("newFile_artifactTypeResourceKey", b"undefined")
+            .add_field("newFile_attachmentType", b"L") // not sure
+            .add_field("newFile_fileId", b"new")
+            .add_field("newFile_linkTitle", filename.as_bytes())
+            .add_field("newFilefilePickerLastInput", b"dummyValue")
+            .add_file(
+                "newFile_LocalFile0",
+                &filename,
+                content_type,
+                std::fs::File::open(path)?,
+            )
+            .build()
+            .context("build multipart form body")?;
+        log::info!("body built: {}", body.len());
+
+        // .header("referer", format!("https://course.pku.edu.cn/webapps/assignment/uploadAssignment?action=newAttempt&course_id={}&content_id={}", map["course_id"], map["content_id"]))?
+        let res = self
+            .client
+            .post("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
+            .header("origin", "https://course.pku.edu.cn")?
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={}", boundary),
+            )?
+            .query(&[("action", "submit")])?
+            .body(body)
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "invalid status {}", res.status());
+
+        Ok(())
+    }
+
     /// Try to parse the deadline string into a NaiveDateTime.
     pub fn deadline(&self) -> Option<chrono::DateTime<chrono::Local>> {
         let re = regex::Regex::new(
@@ -978,13 +1103,17 @@ impl CourseVideo {
             self.client.download_artifact_ttl(),
             self._download_segment(&seg_url),
         )
-        .await?;
+        .await
+        .context("download segment data")?;
 
         // decrypt it if needed
         if let Some(key) = key {
             // sequence number may be used to construct IV
             let seq = (self.pl.media_sequence as usize + index) as u128;
-            bytes = self.decrypt_segment(key, bytes, seq).await?;
+            bytes = self
+                .decrypt_segment(key, bytes, seq)
+                .await
+                .context("decrypt segment data")?;
         }
 
         Ok(bytes)
@@ -1062,5 +1191,55 @@ impl CourseVideo {
             }
             r => unimplemented!("m3u8 key: {:?}", r),
         }
+    }
+}
+
+/// 根据文件扩展名返回对应的 MIME 类型
+pub fn get_mime_type(extension: &str) -> &str {
+    let mime_types: HashMap<&str, &str> = [
+        ("html", "text/html"),
+        ("htm", "text/html"),
+        ("txt", "text/plain"),
+        ("csv", "text/csv"),
+        ("json", "application/json"),
+        ("xml", "application/xml"),
+        ("png", "image/png"),
+        ("jpg", "image/jpeg"),
+        ("jpeg", "image/jpeg"),
+        ("gif", "image/gif"),
+        ("bmp", "image/bmp"),
+        ("webp", "image/webp"),
+        ("mp3", "audio/mpeg"),
+        ("wav", "audio/wav"),
+        ("mp4", "video/mp4"),
+        ("avi", "video/x-msvideo"),
+        ("pdf", "application/pdf"),
+        ("zip", "application/zip"),
+        ("tar", "application/x-tar"),
+        ("7z", "application/x-7z-compressed"),
+        ("rar", "application/vnd.rar"),
+        ("exe", "application/octet-stream"),
+        ("bin", "application/octet-stream"),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    mime_types
+        .get(extension)
+        .copied()
+        .unwrap_or("application/octet-stream")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_mime_type() {
+        assert_eq!(get_mime_type("html"), "text/html");
+        assert_eq!(get_mime_type("png"), "image/png");
+        assert_eq!(get_mime_type("mp3"), "audio/mpeg");
+        assert_eq!(get_mime_type("unknown"), "application/octet-stream");
     }
 }

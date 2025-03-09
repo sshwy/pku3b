@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 use super::*;
 pub async fn list(force: bool) -> anyhow::Result<()> {
     let courses = load_courses(force).await?;
@@ -82,7 +84,9 @@ pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
         .await
         .context("create dir failed")?;
 
-    let paths = download_segments(&v, &dir).await?;
+    let paths = download_segments(&v, &dir)
+        .await
+        .context("download ts segments")?;
 
     let m3u8 = dir.join("playlist").with_extension("m3u8");
     buf_try!(@try fs::write(&m3u8, v.m3u8_raw()).await);
@@ -142,7 +146,10 @@ async fn download_segments(
 
         if !path.exists() {
             log::debug!("key: {:?}", key);
-            let seg = v.get_segment_data(i, key).await?;
+            let seg = v
+                .get_segment_data(i, key)
+                .await
+                .with_context(|| format!("get segment #{i} with key {key:?}"))?;
 
             // fs::write is not atomic, so we write to a tmp file first
             let tmpath = path.with_extension("tmp");

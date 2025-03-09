@@ -57,12 +57,10 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
-    let (_, courses, sp) = load_client_courses(false).await?;
-
-    let mut target_handle = None;
-
-    sp.set_message("finding assignment...");
+pub async fn find_assignment(
+    courses: &[api::CourseHandle],
+    id: &str,
+) -> anyhow::Result<Option<api::CourseAssignmentHandle>> {
     for c in courses {
         let c = c.get().await.context("fetch course")?;
         let assignments = c
@@ -72,15 +70,18 @@ pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
 
         for a in assignments {
             if a.id() == id {
-                target_handle = Some(a);
-                break;
+                return Ok(Some(a));
             }
         }
-
-        if target_handle.is_some() {
-            break;
-        }
     }
+    Ok(None)
+}
+
+pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
+    let (_, courses, sp) = load_client_courses(false).await?;
+
+    sp.set_message("finding assignment...");
+    let target_handle = find_assignment(&courses, id).await?;
 
     let Some(a) = target_handle else {
         sp.finish_and_clear().await;
@@ -111,6 +112,29 @@ pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
+    if !path.exists() {
+        anyhow::bail!("file not found: {:?}", path);
+    }
+    let (_, courses, sp) = load_client_courses(false).await?;
+
+    let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
+
+    let Some(a) = target_handle else {
+        sp.finish_and_clear().await;
+        anyhow::bail!("assignment with id {} not found", id);
+    };
+
+    sp.set_message("fetch assignment metadata...");
+    let a = a.get().await?;
+
+    sp.set_message("submit file...");
+    a.submit_file(path).await.context("submit file")?;
+
+    sp.finish_and_clear().await;
+    Ok(())
+}
+
 fn write_course_assignment(
     buf: &mut Vec<u8>,
     id: &str,
@@ -118,7 +142,7 @@ fn write_course_assignment(
 ) -> anyhow::Result<()> {
     write!(buf, "{MG}{H2}{}{H2:#}{MG:#}", a.title())?;
     if let Some(att) = a.last_attempt() {
-        write!(buf, " ({GR}已完成{GR:#}) {D}{att}{D:#}")?;
+        write!(buf, " ({GR}已完成: {att}{GR:#})")?;
     } else {
         let t = a
             .deadline()

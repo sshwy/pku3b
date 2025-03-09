@@ -5,6 +5,7 @@ extern crate directories as dirs;
 mod api;
 mod cli;
 mod config;
+mod multipart;
 mod qs;
 mod utils;
 mod walkdir;

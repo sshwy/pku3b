@@ -108,6 +108,14 @@ enum AssignmentCommands {
         #[arg(default_value = ".")]
         dir: std::path::PathBuf,
     },
+    /// 提交作业
+    #[command(visible_alias("sb"))]
+    Submit {
+        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        id: String,
+        /// 提交文件
+        path: std::path::PathBuf,
+    },
 }
 
 async fn load_client_courses(
@@ -234,7 +242,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     if dry_run {
         println!("缓存大小: {B}{:.2}GB{B:#}", sizenum);
     } else {
-        println!("缓存已清空 (释放 {B}{:.2}GB{B:#}GB)", sizenum);
+        println!("缓存已清空 (释放 {B}{:.2}GB{B:#})", sizenum);
     }
     Ok(())
 }
@@ -262,6 +270,9 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                         }
                         AssignmentCommands::Download { id, dir } => {
                             cmd_assignment::download(&id, &dir).await?
+                        }
+                        AssignmentCommands::Submit { id, path } => {
+                            cmd_assignment::submit(&id, &path).await?
                         }
                     }
                 } else {
@@ -299,57 +310,5 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
 
 #[cfg(feature = "dev")]
 async fn command_debug() -> anyhow::Result<()> {
-    let (_, courses, sp) = load_client_courses(false).await?;
-
-    let id = "f4f30444c7485d49";
-    let mut target_handle = None;
-
-    sp.set_message("finding assignment...");
-    for c in courses {
-        let c = c.get().await.context("fetch course")?;
-        let assignments = c
-            .get_assignments()
-            .await
-            .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
-
-        for a in assignments {
-            if a.id() == id {
-                target_handle = Some(a);
-                break;
-            }
-        }
-
-        if target_handle.is_some() {
-            break;
-        }
-    }
-
-    let Some(a) = target_handle else {
-        sp.finish_and_clear().await;
-        anyhow::bail!("assignment with id {} not found", id);
-    };
-
-    sp.set_message("fetch assignment metadata...");
-    let a = a.get().await?;
-
-    let dir: &std::path::Path = "test".as_ref();
-
-    if !dir.exists() {
-        compio::fs::create_dir_all(dir).await?;
-    }
-
-    let atts = a.attachments();
-    let tot = atts.len();
-    for (id, (name, uri)) in atts.into_iter().enumerate() {
-        sp.set_message(format!(
-            "[{}/{tot}] downloading attachment '{name}'...",
-            id + 1
-        ));
-        a.download_attachment(uri, &dir.join(name))
-            .await
-            .with_context(|| format!("download attachment '{}'", name))?;
-    }
-
-    sp.finish_and_clear().await;
     Ok(())
 }
