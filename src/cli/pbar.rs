@@ -1,3 +1,5 @@
+use std::sync::{Arc, Weak};
+
 use futures_util::FutureExt;
 use indicatif::{ProgressBar, ProgressStyle};
 struct TickerHandle {
@@ -12,10 +14,10 @@ impl TickerHandle {
     }
 }
 
-fn spawn_pb_ticker(pb: ProgressBar, interval: std::time::Duration) -> TickerHandle {
+fn spawn_pb_ticker(pb: Weak<ProgressBar>, interval: std::time::Duration) -> TickerHandle {
     let (tx, mut rx) = futures_channel::oneshot::channel::<()>();
     let h = compio::runtime::spawn(async move {
-        loop {
+        while let Some(pb) = pb.upgrade() {
             pb.tick();
             let wait = compio::time::sleep(interval);
             let mut wait = std::pin::pin!(wait.fuse());
@@ -40,7 +42,7 @@ fn pb_style() -> ProgressStyle {
 
 /// Progress bar that ticks asynchronously
 pub struct AsyncSpinner {
-    pb: ProgressBar,
+    pb: Arc<ProgressBar>,
     ticker: TickerHandle,
 }
 
@@ -60,8 +62,9 @@ impl AsyncSpinner {
 
 /// Create a new spinner with a default style
 pub fn new_spinner() -> AsyncSpinner {
-    let pb = ProgressBar::new_spinner();
-    let ticker = spawn_pb_ticker(pb.clone(), std::time::Duration::from_millis(100));
+    let pb = Arc::new(ProgressBar::new_spinner());
+    let w = Arc::downgrade(&pb);
+    let ticker = spawn_pb_ticker(w, std::time::Duration::from_millis(100));
     AsyncSpinner { pb, ticker }
 }
 

@@ -17,9 +17,6 @@ use futures_util::{StreamExt, future::try_join_all};
 use std::{io::Write as _, os::unix::fs::MetadataExt};
 use utils::style::*;
 
-const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
-const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
-
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
@@ -32,13 +29,12 @@ enum Commands {
     /// 获取作业信息
     #[command(visible_alias("a"))]
     Assignment {
-        /// 显示所有作业，包括已完成的
-        #[arg(short, long, default_value = "false")]
-        all: bool,
-
         /// 强制刷新
         #[arg(short, long, default_value = "false")]
         force: bool,
+
+        #[command(subcommand)]
+        command: Option<AssignmentCommands>,
     },
 
     /// 获取课程回放/下载课程回放
@@ -90,9 +86,66 @@ enum VideoCommands {
 enum CacheCommands {
     /// 查看缓存大小
     Show,
-
     /// 清除缓存
     Clean,
+}
+
+#[derive(Subcommand)]
+enum AssignmentCommands {
+    /// 查看作业
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有作业，包括已完成的
+        #[arg(short, long, default_value = "false")]
+        all: bool,
+    },
+    /// 下载作业要求和附件到指定文件夹下
+    #[command(visible_alias("down"))]
+    Download {
+        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        id: String,
+        /// 下载目录, 默认为当前目录
+        #[arg(default_value = ".")]
+        dir: std::path::PathBuf,
+    },
+}
+
+async fn load_client_courses(
+    force: bool,
+) -> anyhow::Result<(api::Client, Vec<api::CourseHandle>, pbar::AsyncSpinner)> {
+    let client = if force {
+        api::Client::new_nocache()
+    } else {
+        api::Client::default()
+    };
+
+    let sp = pbar::new_spinner();
+
+    sp.set_message("reading config...");
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+
+    sp.set_message("logging in to blackboard...");
+    let blackboard = client
+        .blackboard(&cfg.username, &cfg.password)
+        .await
+        .context("login to blackboard")?;
+
+    sp.set_message("fetching courses...");
+    let courses = blackboard
+        .get_courses()
+        .await
+        .context("fetch course handles")?;
+
+    Ok((client, courses, sp))
+}
+
+async fn load_courses(force: bool) -> anyhow::Result<Vec<api::CourseHandle>> {
+    let (_, r, sp) = load_client_courses(force).await?;
+    sp.finish_and_clear().await;
+    Ok(r)
 }
 
 async fn command_config(
@@ -201,7 +254,24 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     command_cache_clean(true).await?
                 }
             }
-            Commands::Assignment { force, all } => cmd_assignment::run(force, all).await?,
+            Commands::Assignment { force, command } => {
+                if let Some(command) = command {
+                    match command {
+                        AssignmentCommands::List { all } => {
+                            cmd_assignment::list(force, all).await?
+                        }
+                        AssignmentCommands::Download { id, dir } => {
+                            cmd_assignment::download(&id, &dir).await?
+                        }
+                    }
+                } else {
+                    Cli::command()
+                        .get_subcommands_mut()
+                        .find(|s| s.get_name() == "assignment")
+                        .unwrap()
+                        .print_help()?;
+                }
+            }
             Commands::Video { force, command } => {
                 if let Some(command) = command {
                     match command {
@@ -229,5 +299,57 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
 
 #[cfg(feature = "dev")]
 async fn command_debug() -> anyhow::Result<()> {
+    let (_, courses, sp) = load_client_courses(false).await?;
+
+    let id = "f4f30444c7485d49";
+    let mut target_handle = None;
+
+    sp.set_message("finding assignment...");
+    for c in courses {
+        let c = c.get().await.context("fetch course")?;
+        let assignments = c
+            .get_assignments()
+            .await
+            .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
+
+        for a in assignments {
+            if a.id() == id {
+                target_handle = Some(a);
+                break;
+            }
+        }
+
+        if target_handle.is_some() {
+            break;
+        }
+    }
+
+    let Some(a) = target_handle else {
+        sp.finish_and_clear().await;
+        anyhow::bail!("assignment with id {} not found", id);
+    };
+
+    sp.set_message("fetch assignment metadata...");
+    let a = a.get().await?;
+
+    let dir: &std::path::Path = "test".as_ref();
+
+    if !dir.exists() {
+        compio::fs::create_dir_all(dir).await?;
+    }
+
+    let atts = a.attachments();
+    let tot = atts.len();
+    for (id, (name, uri)) in atts.into_iter().enumerate() {
+        sp.set_message(format!(
+            "[{}/{tot}] downloading attachment '{name}'...",
+            id + 1
+        ));
+        a.download_attachment(uri, &dir.join(name))
+            .await
+            .with_context(|| format!("download attachment '{}'", name))?;
+    }
+
+    sp.finish_and_clear().await;
     Ok(())
 }

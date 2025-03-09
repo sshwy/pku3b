@@ -1,28 +1,6 @@
 use super::*;
 pub async fn list(force: bool) -> anyhow::Result<()> {
-    let client = api::Client::new(
-        if force { None } else { Some(ONE_HOUR) },
-        if force { None } else { Some(ONE_DAY) },
-    );
-
-    let pb = pbar::new_spinner();
-
-    pb.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
-        .await
-        .context("read config file")?;
-
-    pb.set_message("logging in to blackboard...");
-    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
-
-    pb.set_message("fetching courses...");
-    let courses = blackboard
-        .get_courses()
-        .await
-        .context("fetch course handles")?;
-
-    pb.finish_and_clear().await;
+    let courses = load_courses(force).await?;
 
     let pb = pbar::new(courses.len() as u64);
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
@@ -64,29 +42,9 @@ pub async fn list(force: bool) -> anyhow::Result<()> {
 }
 
 pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
-    let client = api::Client::new(
-        if force { None } else { Some(ONE_HOUR) },
-        if force { None } else { Some(ONE_DAY) },
-    );
+    let (_, courses, sp) = load_client_courses(force).await?;
 
-    let pb = pbar::new_spinner();
-
-    pb.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
-        .await
-        .context("read config file")?;
-
-    pb.set_message("logging in to blackboard...");
-    let blackboard = client.blackboard(&cfg.username, &cfg.password).await?;
-
-    pb.set_message("fetching courses...");
-    let courses = blackboard
-        .get_courses()
-        .await
-        .context("fetch course handles")?;
-
-    pb.set_message("finding video...");
+    sp.set_message("finding video...");
     let mut target_video = None;
     for c in courses {
         let c = c.get().await.context("fetch course")?;
@@ -104,14 +62,14 @@ pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
         }
     }
     let Some(v) = target_video else {
-        pb.finish_and_clear().await;
+        sp.finish_and_clear().await;
         anyhow::bail!("video with id {} not found", id);
     };
 
-    pb.set_message("fetch video metadata...");
+    sp.set_message("fetch video metadata...");
     let v = v.get().await?;
 
-    pb.finish_and_clear().await;
+    sp.finish_and_clear().await;
 
     println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
 

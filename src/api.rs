@@ -14,6 +14,9 @@ use crate::{
     utils::{with_cache, with_cache_bytes},
 };
 
+const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
+const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
+
 struct ClientInner {
     http_client: cyper::Client,
     cache_ttl: Option<std::time::Duration>,
@@ -62,6 +65,10 @@ impl Client {
             }
             .into(),
         )
+    }
+
+    pub fn new_nocache() -> Self {
+        Self::new(None, None)
     }
 
     pub async fn blackboard(&self, username: &str, password: &str) -> anyhow::Result<Blackboard> {
@@ -119,6 +126,12 @@ impl Client {
 
     pub fn download_artifact_ttl(&self) -> Option<&std::time::Duration> {
         self.0.download_artifact_ttl.as_ref()
+    }
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        Self::new(Some(ONE_HOUR), Some(ONE_DAY))
     }
 }
 
@@ -355,6 +368,7 @@ impl Course {
 
                 Ok(CourseAssignmentHandle {
                     client: self.client.clone(),
+                    course: self.meta.clone(),
                     meta: CourseAssignmentMeta {
                         title,
                         course_id,
@@ -476,10 +490,20 @@ pub struct CourseAssignmentMeta {
 #[derive(Debug, Clone)]
 pub struct CourseAssignmentHandle {
     client: Client,
+    course: Arc<CourseMeta>,
     meta: Arc<CourseAssignmentMeta>,
 }
 
 impl CourseAssignmentHandle {
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.key.hash(&mut hasher);
+        self.meta.content_id.hash(&mut hasher);
+        self.meta.course_id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
         let res = self
             .client
@@ -551,7 +575,7 @@ impl CourseAssignmentHandle {
         .await?;
 
         Ok(CourseAssignment {
-            _client: self.client.clone(),
+            client: self.client.clone(),
             meta: self.meta.clone(),
             data,
         })
@@ -599,7 +623,7 @@ struct CourseAssignmentData {
 }
 
 pub struct CourseAssignment {
-    _client: Client,
+    client: Client,
     meta: Arc<CourseAssignmentMeta>,
     data: CourseAssignmentData,
 }
@@ -656,6 +680,39 @@ impl CourseAssignment {
 
     pub fn deadline_raw(&self) -> &str {
         &self.data.deadline
+    }
+
+    pub async fn download_attachment(
+        &self,
+        uri: &str,
+        dest: &std::path::Path,
+    ) -> anyhow::Result<()> {
+        let url = format!("https://course.pku.edu.cn{}", uri);
+        log::debug!("downloading attachment from {}", url);
+        let res = self.client.get(url)?.send().await?;
+        anyhow::ensure!(
+            res.status().as_u16() == 302,
+            "status not 302: {}",
+            res.status()
+        );
+
+        let loc = res
+            .headers()
+            .get("location")
+            .context("location header not found")?
+            .to_str()
+            .context("location header not str")?
+            .to_owned();
+
+        let url = format!("https://course.pku.edu.cn{}", loc);
+        log::debug!("redicted to {}", url);
+        let res = self.client.get(url)?.send().await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.bytes().await?;
+        let r = compio::fs::write(dest, rbody).await;
+        compio::buf::buf_try!(@try r);
+        Ok(())
     }
 }
 

@@ -1,31 +1,6 @@
 use super::*;
-pub async fn run(force: bool, all: bool) -> anyhow::Result<()> {
-    let client = api::Client::new(
-        if force { None } else { Some(ONE_HOUR) },
-        if force { None } else { Some(ONE_DAY) },
-    );
-
-    let pb = pbar::new_spinner();
-
-    pb.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
-        .await
-        .context("read config file")?;
-
-    pb.set_message("logging in to blackboard...");
-    let blackboard = client
-        .blackboard(&cfg.username, &cfg.password)
-        .await
-        .context("login to blackboard")?;
-
-    pb.set_message("fetching courses...");
-    let courses = blackboard
-        .get_courses()
-        .await
-        .context("fetch course handles")?;
-
-    pb.finish_and_clear().await;
+pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
+    let courses = load_courses(force).await?;
 
     // fetch each course concurrently
     let pb = pbar::new(courses.len() as u64);
@@ -37,10 +12,11 @@ pub async fn run(force: bool, all: bool) -> anyhow::Result<()> {
             .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
 
         pb.inc_length(assignments.len() as u64);
-        let futs = assignments.into_iter().map(async |a| {
-            let r = a.get().await.context("fetch assignment");
+        let futs = assignments.into_iter().map(async |a| -> anyhow::Result<_> {
+            let id = a.id();
+            let r = a.get().await.context("fetch assignment")?;
             pb.inc(1);
-            r
+            Ok((id, r))
         });
         let assignments = try_join_all(futs).await?;
 
@@ -65,13 +41,13 @@ pub async fn run(force: bool, all: bool) -> anyhow::Result<()> {
         }
 
         writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.meta().title())?;
-        for a in assignments {
+        for (id, a) in assignments {
             // skip finished assignments if not in full mode
             if a.last_attempt().is_some() && !all {
                 continue;
             }
 
-            write_course_assignments(&mut outbuf, &a)?;
+            write_course_assignment(&mut outbuf, &id, &a)?;
         }
     }
 
@@ -81,34 +57,85 @@ pub async fn run(force: bool, all: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn write_course_assignments(buf: &mut Vec<u8>, a: &api::CourseAssignment) -> anyhow::Result<()> {
+pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
+    let (_, courses, sp) = load_client_courses(false).await?;
+
+    let mut target_handle = None;
+
+    sp.set_message("finding assignment...");
+    for c in courses {
+        let c = c.get().await.context("fetch course")?;
+        let assignments = c
+            .get_assignments()
+            .await
+            .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
+
+        for a in assignments {
+            if a.id() == id {
+                target_handle = Some(a);
+                break;
+            }
+        }
+
+        if target_handle.is_some() {
+            break;
+        }
+    }
+
+    let Some(a) = target_handle else {
+        sp.finish_and_clear().await;
+        anyhow::bail!("assignment with id {} not found", id);
+    };
+
+    sp.set_message("fetch assignment metadata...");
+    let a = a.get().await?;
+
+    if !dir.exists() {
+        compio::fs::create_dir_all(dir).await?;
+    }
+
+    let atts = a.attachments();
+    let tot = atts.len();
+    for (id, (name, uri)) in atts.iter().enumerate() {
+        sp.set_message(format!(
+            "[{}/{tot}] downloading attachment '{name}'...",
+            id + 1
+        ));
+        a.download_attachment(uri, &dir.join(name))
+            .await
+            .with_context(|| format!("download attachment '{}'", name))?;
+    }
+
+    sp.finish_and_clear().await;
+    println!("Done.");
+    Ok(())
+}
+
+fn write_course_assignment(
+    buf: &mut Vec<u8>,
+    id: &str,
+    a: &api::CourseAssignment,
+) -> anyhow::Result<()> {
+    write!(buf, "{MG}{H2}{}{H2:#}{MG:#}", a.title())?;
     if let Some(att) = a.last_attempt() {
-        writeln!(
-            buf,
-            "{MG}{H2}{}{H2:#}{MG:#} ({GR}已完成{GR:#}) {D}{att}{D:#}\n",
-            a.title()
-        )?;
+        write!(buf, " ({GR}已完成{GR:#}) {D}{att}{D:#}")?;
     } else {
         let t = a
             .deadline()
             .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
         let delta = t - chrono::Local::now();
-        writeln!(
-            buf,
-            "{MG}{H2}{}{H2:#}{MG:#} ({})\n",
-            a.title(),
-            fmt_time_delta(delta),
-        )?;
+        write!(buf, " ({})", fmt_time_delta(delta))?;
     }
+    writeln!(buf, " {D}{}{D:#}", id)?;
+
     if !a.attachments().is_empty() {
-        writeln!(buf, "{H3}附件{H3:#}")?;
-        for (name, uri) in a.attachments() {
-            writeln!(buf, "{D}•{D:#} {name}: {D}{uri}{D:#}")?;
+        writeln!(buf, "\n{H3}附件{H3:#}")?;
+        for (name, _) in a.attachments() {
+            writeln!(buf, "{D}•{D:#} {name}")?;
         }
-        writeln!(buf,)?;
     }
     if !a.descriptions().is_empty() {
-        writeln!(buf, "{H3}描述{H3:#}")?;
+        writeln!(buf, "\n{H3}描述{H3:#}")?;
         for p in a.descriptions() {
             writeln!(buf, "{p}")?;
         }
