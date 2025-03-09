@@ -42,6 +42,10 @@ enum Commands {
     /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"))]
     Video {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+
         #[command(subcommand)]
         command: Option<VideoCommands>,
     },
@@ -325,8 +329,11 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn command_video_list() -> anyhow::Result<()> {
-    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+async fn command_video_list(force: bool) -> anyhow::Result<()> {
+    let client = api::Client::new(
+        if force { None } else { Some(ONE_HOUR) },
+        if force { None } else { Some(ONE_DAY) },
+    );
 
     let pb = pbar::new_spinner();
 
@@ -386,8 +393,11 @@ async fn command_video_list() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn command_video_download(id: String) -> anyhow::Result<()> {
-    let client = api::Client::new(Some(ONE_HOUR), Some(ONE_DAY));
+async fn command_video_download(force: bool, id: String) -> anyhow::Result<()> {
+    let client = api::Client::new(
+        if force { None } else { Some(ONE_HOUR) },
+        if force { None } else { Some(ONE_DAY) },
+    );
 
     let pb = pbar::new_spinner();
 
@@ -498,11 +508,11 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment { force, all } => command_fetch(force, all).await?,
-            Commands::Video { command } => {
+            Commands::Video { force, command } => {
                 if let Some(command) = command {
                     match command {
-                        VideoCommands::List => command_video_list().await?,
-                        VideoCommands::Download { id } => command_video_download(id).await?,
+                        VideoCommands::List => command_video_list(force).await?,
+                        VideoCommands::Download { id } => command_video_download(force, id).await?,
                     }
                 } else {
                     Cli::command()
