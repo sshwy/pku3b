@@ -9,7 +9,7 @@ use clap::{
 use compio::{
     buf::buf_try,
     fs,
-    io::{AsyncWrite, AsyncWriteAtExt, AsyncWriteExt},
+    io::{AsyncWrite, AsyncWriteExt},
 };
 use futures_util::{StreamExt, future::try_join_all};
 use std::{io::Write as _, os::unix::fs::MetadataExt};
@@ -94,6 +94,7 @@ async fn command_config(
     value: Option<String>,
 ) -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
+    log::info!("Config path: '{}'", cfg_path.display());
     let cfg_res = config::read_cfg(&cfg_path).await;
 
     let Some(attr) = attr else {
@@ -137,9 +138,6 @@ async fn read_line(prompt: &str, is_password: bool) -> anyhow::Result<String> {
 
 async fn command_init() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
-    let style = Style::new().underline();
-
-    eprintln!("Config path: '{style}{}{style:#}'", cfg_path.display());
 
     let username = read_line("PKU IAAA Username: ", false).await?;
     let password = read_line("PKU IAAA Password: ", true).await?;
@@ -298,6 +296,7 @@ async fn command_fetch(force: bool, all: bool) -> anyhow::Result<()> {
 
 async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     let dir = utils::projectdir();
+    log::info!("Cache dir: '{}'", dir.cache_dir().display());
     let sp = pbar::new_spinner();
     sp.set_message("scanning cache dir...");
 
@@ -566,17 +565,16 @@ async fn merge_segments(
     dest: impl AsRef<std::path::Path>,
     paths: &[std::path::PathBuf],
 ) -> anyhow::Result<()> {
-    let mut f = fs::File::create(&dest)
+    let f = fs::File::create(&dest)
         .await
         .context("create merged file failed")?;
-    let mut pos = 0;
+    let mut f = std::io::Cursor::new(f);
 
     let pb = pbar::new(paths.len() as u64).with_prefix("merge segments");
     pb.tick();
     for p in paths {
         let data = fs::read(p).await.context("read segments failed")?;
-        let (_, buf) = buf_try!(@try f.write_all_at(data, pos).await);
-        pos += buf.len() as u64;
+        buf_try!(@try f.write(data).await);
         pb.inc(1);
     }
     pb.finish_and_clear();

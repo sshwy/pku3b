@@ -1,4 +1,3 @@
-use aes::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7, generic_array::GenericArray};
 use anyhow::Context;
 use chrono::TimeZone;
 use cyper::IntoUrl;
@@ -971,6 +970,9 @@ impl CourseVideo {
         bytes: bytes::Bytes,
         seq: u128,
     ) -> anyhow::Result<bytes::Bytes> {
+        use aes::cipher::{
+            BlockDecryptMut, KeyIvInit, block_padding::Pkcs7, generic_array::GenericArray,
+        };
         // ref: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.4
         match &key.method {
             // An encryption method of AES-128 signals that Media Segments are

@@ -24,10 +24,8 @@ async fn main() {
     match cli::start(cli).await {
         Ok(r) => r,
         Err(e) => {
-            let style = clap::builder::styling::Style::new()
-                .fg_color(Some(clap::builder::styling::AnsiColor::Red.into()))
-                .bold();
-            eprintln!("{style}Error{style:#}: {e:#}");
+            use utils::style::*;
+            eprintln!("{RD}{B}Error{B:#}{RD:#}: {e:#}");
             std::process::exit(1);
         }
     }

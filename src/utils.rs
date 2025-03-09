@@ -14,6 +14,7 @@ pub mod style {
     pub const GR: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Green)));
     pub const MG: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightMagenta)));
     pub const BL: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Cyan)));
+    pub const RD: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Red)));
 }
 
 pub fn projectdir() -> dirs::ProjectDirs {

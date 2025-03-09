@@ -55,10 +55,10 @@ url = "2.5.4"
 
 [features]
 dev = []
-default = ["video_download"]
+default = ["video-download"]
 
 # support for downloading videos
 aes = ["dep:aes"]
 cbc = ["dep:cbc"]
 m3u8-rs = ["dep:m3u8-rs"]
-video_download = ["m3u8-rs", "aes", "cbc"]
+video-download = ["m3u8-rs", "aes", "cbc"]

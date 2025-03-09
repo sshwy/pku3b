@@ -30,9 +30,12 @@ fn spawn_pb_ticker(pb: ProgressBar, interval: std::time::Duration) -> TickerHand
 }
 
 fn pb_style() -> ProgressStyle {
-    ProgressStyle::with_template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}")
-        .unwrap()
-        .progress_chars("=> ")
+    // a trailing space is left for the cursor
+    ProgressStyle::with_template(
+        "{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ",
+    )
+    .unwrap()
+    .progress_chars("=> ")
 }
 
 /// Progress bar that ticks asynchronously
