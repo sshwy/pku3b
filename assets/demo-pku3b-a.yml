@@ -1,0 +1,283 @@
+# The configurations that used for the recording, feel free to edit them
+config:
+
+  # Specify a command to be executed
+  # like `/bin/bash -l`, `ls`, or any other commands
+  # the default is bash for Linux
+  # or powershell.exe for Windows
+  command: bash -l
+  
+  # Specify the current working directory path
+  # the default is the current working directory path
+  cwd: /Users/sshwy/pku3b
+  
+  # Export additional ENV variables
+  env:
+    recording: true
+  
+  # Explicitly set the number of columns
+  # or use `auto` to take the current
+  # number of columns of your shell
+  cols: 80
+  
+  # Explicitly set the number of rows
+  # or use `auto` to take the current
+  # number of rows of your shell
+  rows: 40
+  
+  # Amount of times to repeat GIF
+  # If value is -1, play once
+  # If value is 0, loop indefinitely
+  # If value is a positive number, loop n times
+  repeat: 0
+  
+  # Quality
+  # 1 - 100
+  quality: 5
+  
+  # Delay between frames in ms
+  # If the value is `auto` use the actual recording delays
+  frameDelay: auto
+  
+  # Maximum delay between frames in ms
+  # Ignored if the `frameDelay` isn't set to `auto`
+  # Set to `auto` to prevent limiting the max idle time
+  maxIdleTime: 2000
+  
+  # The surrounding frame box
+  # The `type` can be null, window, floating, or solid`
+  # To hide the title use the value null
+  # Don't forget to add a backgroundColor style with a null as type
+  frameBox:
+    type: floating
+    title: pku3b assignment
+    style:
+      border: 0px black solid
+      # boxShadow: none
+      margin: 8px
+  
+  # Add a watermark image to the rendered gif
+  # You need to specify an absolute path for
+  # the image on your machine or a URL, and you can also
+  # add your own CSS styles
+  watermark:
+    imagePath: null
+    style:
+      position: absolute
+      right: 15px
+      bottom: 15px
+      width: 100px
+      opacity: 0.9
+  
+  # Cursor style can be one of
+  # `block`, `underline`, or `bar`
+  cursorStyle: block
+  
+  # Font family
+  # You can use any font that is installed on your machine
+  # in CSS-like syntax
+  fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
+  
+  # The size of the font
+  fontSize: 12
+  
+  # The height of lines
+  lineHeight: 1
+  
+  # The spacing between letters
+  letterSpacing: 0
+  
+  # Theme
+  theme:
+    background: "transparent"
+    foreground: "#afafaf"
+    cursor: "#c7c7c7"
+    black: "#232628"
+    red: "#fc4384"
+    green: "#b3e33b"
+    yellow: "#ffa727"
+    blue: "#75dff2"
+    magenta: "#ae89fe"
+    cyan: "#708387"
+    white: "#d5d5d0"
+    brightBlack: "#626566"
+    brightRed: "#ff7fac"
+    brightGreen: "#c8ed71"
+    brightYellow: "#ebdf86"
+    brightBlue: "#75dff2"
+    brightMagenta: "#ae89fe"
+    brightCyan: "#b1c6ca"
+    brightWhite: "#f9f9f4"
+  
+# Records, feel free to edit them
+records:
+  - delay: 133
+    content: "Restored session: Sun Mar  9 23:05:00 CST 2025\r\n\e]7;file://bogon/Users/sshwy/pku3b\a\e[?2004hbogon:pku3b sshwy$ "
+  - delay: 1356
+    content: p
+  - delay: 62
+    content: k
+  - delay: 256
+    content: u
+  - delay: 145
+    content: '3'
+  - delay: 226
+    content: b
+  - delay: 172
+    content: ' '
+  - delay: 119
+    content: a
+  - delay: 71
+    content: ' '
+  - delay: 305
+    content: l
+  - delay: 123
+    content: s
+  - delay: 645
+    content: "\r\n\e[?2004l\r"
+  - delay: 9
+    content: "⠁ reading config...                                                             \r\e[2K⠁ reading config...                                                             \r\e[2K⠁ logging in to blackboard...                                                   "
+  - delay: 100
+    content: "\r\e[2K⠉ logging in to blackboard...                                                   "
+  - delay: 101
+    content: "\r\e[2K⠙ logging in to blackboard...                                                   "
+  - delay: 48
+    content: "\r\e[2K⠙ fetching courses...                                                           "
+  - delay: 53
+    content: "\r\e[2K⠚ fetching courses...                                                           "
+  - delay: 102
+    content: "\r\e[2K⠒ fetching courses...                                                           "
+  - delay: 100
+    content: "\r\e[2K⠂ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠂ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠒ fetching courses...                                                           "
+  - delay: 75
+    content: "\r\e[2K"
+  - delay: 222
+    content: " [00:00:00] [\e[36m\e[34m                                                             \e[0m\e[0m] 0/8 \r\e[2K [00:00:00] [\e[36m=======>\e[34m                                                     \e[0m\e[0m] 1/8 "
+  - delay: 102
+    content: "\r\e[2K [00:00:00] [\e[36m=======>\e[34m                                                     \e[0m\e[0m] 1/8 \r\e[2K [00:00:00] [\e[36m===============>\e[34m                                             \e[0m\e[0m] 2/8 "
+  - delay: 18
+    content: "\r\e[2K [00:00:00] [\e[36m===============>\e[34m                                             \e[0m\e[0m] 2/8 \r\e[2K [00:00:00] [\e[36m======================>\e[34m                                      \e[0m\e[0m] 3/8 "
+  - delay: 117
+    content: "\r\e[2K [00:00:00] [\e[36m======================>\e[34m                                      \e[0m\e[0m] 3/8 \r\e[2K [00:00:00] [\e[36m==============================>\e[34m                              \e[0m\e[0m] 4/8 "
+  - delay: 158
+    content: "\r\e[2K [00:00:00] [\e[36m==============================>\e[34m                              \e[0m\e[0m] 4/8 \r\e[2K [00:00:00] [\e[36m======================================>\e[34m                      \e[0m\e[0m] 5/8 "
+  - delay: 17
+    content: "\r\e[2K [00:00:00] [\e[36m======================================>\e[34m                      \e[0m\e[0m] 5/8 \r\e[2K [00:00:00] [\e[36m=============================================>\e[34m               \e[0m\e[0m] 6/8 "
+  - delay: 179
+    content: "\r\e[2K [00:00:00] [\e[36m================================>\e[34m                           \e[0m\e[0m] 6/11 "
+  - delay: 293
+    content: "\r\e[2K [00:00:01] [\e[36m===========================>\e[34m                                \e[0m\e[0m] 6/13 "
+  - delay: 160
+    content: "\r\e[2K [00:00:01] [\e[36m================================>\e[34m                           \e[0m\e[0m] 7/13 "
+  - delay: 180
+    content: "\r\e[2K [00:00:01] [\e[36m====================================>\e[34m                       \e[0m\e[0m] 8/13 "
+  - delay: 84
+    content: "\r\e[2K [00:00:01] [\e[36m=========================================>\e[34m                  \e[0m\e[0m] 9/13 \r\e[2K [00:00:01] [\e[36m=============================================>\e[34m             \e[0m\e[0m] 10/13 "
+  - delay: 546
+    content: "\r\e[2K [00:00:02] [\e[36m=================================================>\e[34m         \e[0m\e[0m] 11/13 "
+  - delay: 171
+    content: "\r\e[2K [00:00:02] [\e[36m======================================================>\e[34m    \e[0m\e[0m] 12/13 \r\e[2K [00:00:02] [\e[36m===========================================================\e[34m\e[0m\e[0m] 13/13 \r\e[2K\e[2m>\e[0m \e[1m未完成作业\e[0m \e[2m<\e[0m\r\n\r\n\e[36m\e[1m\e[4m[数据库概论(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4m第 0,1,2 章大模型问题\e[0m\e[0m (\e[33min 7d 24m 41s\e[0m) \e[2mff9068d9cf4968bc\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 数据库概论问题清单 ——第 0, 1, 2 章.docx\r\n\r\n\e[3m描述\e[0m\r\n请同学们根据问题清单上的设问，向大模型提问，然后把相关回答汇总成一个学习文档后提交，同时也可以把它导入到自己的个人知识库中。\r\n欢迎同学们提出更多的和章节内容相关的问题，不仅仅限于老师构思的这些问题。\r\n\r\n\e[95m\e[4m第 2 章 作业 ER模型\e[0m\e[0m (\e[33min 14d 24m 41s\e[0m) \e[2m608339e2c36b2c27\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 第 2 章 ER模型.pptx\r\n\r\n\e[36m\e[1m\e[4m[算法设计与分析（实验班）(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4mAssignment 3\e[0m\e[0m (\e[33min 2d 18h 54m 41s\e[0m) \e[2mf4f30444c7485d49\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m Assignment3.pdf\r\n\r\n\e[3m描述\e[0m\r\nDue: 6 pm on Wednesday, March 12\r\n\r\n\e]7;file://bogon/Users/sshwy/pku3b\a\e[?2004hbogon:pku3b sshwy$ "
+  - delay: 1820
+    content: "\e[H\e[2Jbogon:pku3b sshwy$ "
+  - delay: 1326
+    content: p
+  - delay: 51
+    content: k
+  - delay: 285
+    content: u
+  - delay: 188
+    content: '3'
+  - delay: 270
+    content: b
+  - delay: 232
+    content: ' '
+  - delay: 336
+    content: a
+  - delay: 209
+    content: ' '
+  - delay: 241
+    content: l
+  - delay: 160
+    content: s
+  - delay: 159
+    content: ' '
+  - delay: 202
+    content: '-'
+  - delay: 272
+    content: a
+  - delay: 1005
+    content: "\r\n\e[?2004l\r"
+  - delay: 11
+    content: "⠁ reading config...                                                             \r\e[2K⠁ reading config...                                                             \r\e[2K⠁ logging in to blackboard...                                                   "
+  - delay: 101
+    content: "\r\e[2K⠉ logging in to blackboard...                                                   "
+  - delay: 101
+    content: "\r\e[2K⠙ logging in to blackboard...                                                   "
+  - delay: 20
+    content: "\r\e[2K⠙ fetching courses...                                                           \r\e[2K [00:00:00] [\e[36m\e[34m                                                             \e[0m\e[0m] 0/8 \r\e[2K [00:00:00] [\e[36m=======>\e[34m                                                     \e[0m\e[0m] 1/8 \r\e[2K [00:00:00] [\e[36m=======>\e[34m                                                     \e[0m\e[0m] 1/8 \r\e[2K [00:00:00] [\e[36m===============>\e[34m                                             \e[0m\e[0m] 2/8 \r\e[2K [00:00:00] [\e[36m===============>\e[34m                                             \e[0m\e[0m] 2/8 \r\e[2K [00:00:00] [\e[36m======================>\e[34m                                      \e[0m\e[0m] 3/8 \r\e[2K [00:00:00] [\e[36m======================>\e[34m                                      \e[0m\e[0m] 3/8 \r\e[2K [00:00:00] [\e[36m==============================>\e[34m                              \e[0m\e[0m] 4/8 \r\e[2K [00:00:00] [\e[36m==============================>\e[34m                              \e[0m\e[0m] 4/8 \r\e[2K [00:00:00] [\e[36m======================================>\e[34m                      \e[0m\e[0m] 5/8 \r\e[2K [00:00:00] [\e[36m======================================>\e[34m                      \e[0m\e[0m] 5/8 \r\e[2K [00:00:00] [\e[36m=============================================>\e[34m               \e[0m\e[0m] 6/8 \r\e[2K [00:00:00] [\e[36m====================================>\e[34m                       \e[0m\e[0m] 6/10 \r\e[2K [00:00:00] [\e[36m===========================>\e[34m                                \e[0m\e[0m] 6/13 \r\e[2K [00:00:00] [\e[36m================================>\e[34m                           \e[0m\e[0m] 7/13 \r\e[2K [00:00:00] [\e[36m====================================>\e[34m                       \e[0m\e[0m] 8/13 \r\e[2K [00:00:00] [\e[36m=========================================>\e[34m                  \e[0m\e[0m] 9/13 \r\e[2K [00:00:00] [\e[36m=============================================>\e[34m             \e[0m\e[0m] 10/13 \r\e[2K [00:00:00] [\e[36m=================================================>\e[34m         \e[0m\e[0m] 11/13 \r\e[2K [00:00:00] [\e[36m======================================================>\e[34m    \e[0m\e[0m] 12/13 \r\e[2K\e[2m>\e[0m \e[1m所有作业 (包括已完成)\e[0m \e[2m<\e[0m\r\n\r\n\e[36m\e[1m\e[4m[数据库概论(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4m第 0,1,2 章大模型问题\e[0m\e[0m (\e[33min 7d 24m 34s\e[0m) \e[2mff9068d9cf4968bc\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 数据库概论问题清单 ——第 0, 1, 2 章.docx\r\n\r\n\e[3m描述\e[0m\r\n请同学们根据问题清单上的设问，向大模型提问，然后把相关回答汇总成一个学习文档后提交，同时也可以把它导入到自己的个人知识库中。\r\n欢迎同学们提出更多的和章节内容相关的问题，不仅仅限于老师构思的这些问题。\r\n\r\n\e[95m\e[4m第 2 章 作业 ER模型\e[0m\e[0m (\e[33min 14d 24m 34s\e[0m) \e[2m608339e2c36b2c27\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 第 2 章 ER模型.pptx\r\n\r\n\e[36m\e[1m\e[4m[算法设计与分析（实验班）(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4mAssignment 1\e[0m\e[0m (\e[32m已完成\e[0m) \e[2m尝试 25-2-27 下午2:37\e[0m \e[2ma04df001a4140ae6\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m Assignment1.pdf\r\n\e[2m•\e[0m 1.19.png\r\n\e[2m•\e[0m 1.21.png\r\n\r\n\e[3m描述\e[0m\r\nDue: 1 pm on Friday, February 28\r\n\r\n\e[95m\e[4mAssignment 2\e[0m\e[0m (\e[32m已完成\e[0m) \e[2m尝试2 25-2-28 下午1:38\e[0m \e[2mcba5860f4095b2f0\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m Assignment2.pdf\r\n\e[2m•\e[0m 2.7.png\r\n\e[2m•\e[0m 2.27.png\r\n\e[2m•\e[0m 2.27图.png\r\n\r\n\e[3m描述\e[0m\r\nDue: 6 pm on Wednesday, March 5\r\n\r\n\e[95m\e[4mAssignment 3\e[0m\e[0m (\e[33min 2d 18h 54m 34s\e[0m) \e[2mf4f30444c7485d49\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m Assignment3.pdf\r\n\r\n\e[3m描述\e[0m\r\nDue: 6 pm on Wednesday, March 12\r\n\r\n\e]7;file://bogon/Users/sshwy/pku3b\a\e[?2004hbogon:pku3b sshwy$ "
+  - delay: 4457
+    content: "\e[H\e[2Jbogon:pku3b sshwy$ "
+  - delay: 921
+    content: p
+  - delay: 67
+    content: k
+  - delay: 267
+    content: u
+  - delay: 224
+    content: '3'
+  - delay: 269
+    content: b
+  - delay: 190
+    content: ' '
+  - delay: 206
+    content: a
+  - delay: 148
+    content: ' '
+  - delay: 863
+    content: d
+  - delay: 106
+    content: o
+  - delay: 100
+    content: w
+  - delay: 121
+    content: 'n'
+  - delay: 114
+    content: ' '
+  - delay: 986
+    content: "\e[7mf4f30444c7485d49\e[27m"
+  - delay: 422
+    content: "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bf4f30444c7485d49 "
+  - delay: 795
+    content: "\r\n\e[?2004l\r"
+  - delay: 10
+    content: "⠁ reading config...                                                             \r\e[2K⠁ reading config...                                                             \r\e[2K⠁ logging in to blackboard...                                                   "
+  - delay: 106
+    content: "\r\e[2K⠉ logging in to blackboard...                                                   "
+  - delay: 101
+    content: "\r\e[2K⠙ logging in to blackboard...                                                   "
+  - delay: 44
+    content: "\r\e[2K⠙ fetching courses...                                                           \r\e[2K⠙ finding assignment...                                                         \r\e[2K⠙ fetch assignment metadata...                                                  \r\e[2K⠙ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 52
+    content: "\r\e[2K⠚ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 301
+    content: "\r\e[2K⠒ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 301
+    content: "\r\e[2K⠂ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 301
+    content: "\r\e[2K⠂ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 301
+    content: "\r\e[2K⠒ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 301
+    content: "\r\e[2K⠲ [1/1] downloading attachment 'Assignment3.pdf'...                             "
+  - delay: 70
+    content: "\r\e[2KDone.\r\n\e]7;file://bogon/Users/sshwy/pku3b\a\e[?2004hbogon:pku3b sshwy$ "
+  - delay: 4002
+    content: "\e[?2004l\r\r\nlogout\r\n\r\nSaving session..."
+  - delay: 10
+    content: "\r\n...saving history..."
+  - delay: 7
+    content: "truncating history files...\r\n...completed.\r\n"

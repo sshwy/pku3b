@@ -10,6 +10,10 @@ pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大�
 - [x] 查看课程回放列表
 - [x] 下载课程回放（需要 ffmpeg）
 
+查看作业/下载附件:
+
+![demo-a](assets/demo-pku3b-a.gif)
+
 基本用法如下：
 
 ```text
