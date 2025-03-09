@@ -23,7 +23,7 @@ config:
   # Explicitly set the number of rows
   # or use `auto` to take the current
   # number of rows of your shell
-  rows: 40
+  rows: 24
   
   # Amount of times to repeat GIF
   # If value is -1, play once
@@ -79,7 +79,7 @@ config:
   fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
   
   # The size of the font
-  fontSize: 12
+  fontSize: 11
   
   # The height of lines
   lineHeight: 1
@@ -181,7 +181,7 @@ records:
     content: "\r\e[2K [00:00:02] [\e[36m=================================================>\e[34m         \e[0m\e[0m] 11/13 "
   - delay: 171
     content: "\r\e[2K [00:00:02] [\e[36m======================================================>\e[34m    \e[0m\e[0m] 12/13 \r\e[2K [00:00:02] [\e[36m===========================================================\e[34m\e[0m\e[0m] 13/13 \r\e[2K\e[2m>\e[0m \e[1m未完成作业\e[0m \e[2m<\e[0m\r\n\r\n\e[36m\e[1m\e[4m[数据库概论(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4m第 0,1,2 章大模型问题\e[0m\e[0m (\e[33min 7d 24m 41s\e[0m) \e[2mff9068d9cf4968bc\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 数据库概论问题清单 ——第 0, 1, 2 章.docx\r\n\r\n\e[3m描述\e[0m\r\n请同学们根据问题清单上的设问，向大模型提问，然后把相关回答汇总成一个学习文档后提交，同时也可以把它导入到自己的个人知识库中。\r\n欢迎同学们提出更多的和章节内容相关的问题，不仅仅限于老师构思的这些问题。\r\n\r\n\e[95m\e[4m第 2 章 作业 ER模型\e[0m\e[0m (\e[33min 14d 24m 41s\e[0m) \e[2m608339e2c36b2c27\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m 第 2 章 ER模型.pptx\r\n\r\n\e[36m\e[1m\e[4m[算法设计与分析（实验班）(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[95m\e[4mAssignment 3\e[0m\e[0m (\e[33min 2d 18h 54m 41s\e[0m) \e[2mf4f30444c7485d49\e[0m\r\n\r\n\e[3m附件\e[0m\r\n\e[2m•\e[0m Assignment3.pdf\r\n\r\n\e[3m描述\e[0m\r\nDue: 6 pm on Wednesday, March 12\r\n\r\n\e]7;file://bogon/Users/sshwy/pku3b\a\e[?2004hbogon:pku3b sshwy$ "
-  - delay: 1820
+  - delay: 3820
     content: "\e[H\e[2Jbogon:pku3b sshwy$ "
   - delay: 1326
     content: p

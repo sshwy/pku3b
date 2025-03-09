@@ -1,0 +1,1959 @@
+# The configurations that used for the recording, feel free to edit them
+config:
+
+  # Specify a command to be executed
+  # like `/bin/bash -l`, `ls`, or any other commands
+  # the default is bash for Linux
+  # or powershell.exe for Windows
+  command: bash -l
+  
+  # Specify the current working directory path
+  # the default is the current working directory path
+  cwd: /Users/sshwy/pku3b/assets
+  
+  # Export additional ENV variables
+  env:
+    recording: true
+  
+  # Explicitly set the number of columns
+  # or use `auto` to take the current
+  # number of columns of your shell
+  cols: 80
+  
+  # Explicitly set the number of rows
+  # or use `auto` to take the current
+  # number of rows of your shell
+  rows: 24
+  
+  # Amount of times to repeat GIF
+  # If value is -1, play once
+  # If value is 0, loop indefinitely
+  # If value is a positive number, loop n times
+  repeat: 0
+  
+  # Quality
+  # 1 - 100
+  quality: 5
+  
+  # Delay between frames in ms
+  # If the value is `auto` use the actual recording delays
+  frameDelay: auto
+  
+  # Maximum delay between frames in ms
+  # Ignored if the `frameDelay` isn't set to `auto`
+  # Set to `auto` to prevent limiting the max idle time
+  maxIdleTime: 2000
+  
+  # The surrounding frame box
+  # The `type` can be null, window, floating, or solid`
+  # To hide the title use the value null
+  # Don't forget to add a backgroundColor style with a null as type
+  frameBox:
+    type: floating
+    title: pku3b video
+    style:
+      border: 0px black solid
+      # boxShadow: none
+      margin: 8px
+  
+  # Add a watermark image to the rendered gif
+  # You need to specify an absolute path for
+  # the image on your machine or a URL, and you can also
+  # add your own CSS styles
+  watermark:
+    imagePath: null
+    style:
+      position: absolute
+      right: 15px
+      bottom: 15px
+      width: 100px
+      opacity: 0.9
+  
+  # Cursor style can be one of
+  # `block`, `underline`, or `bar`
+  cursorStyle: block
+  
+  # Font family
+  # You can use any font that is installed on your machine
+  # in CSS-like syntax
+  fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
+  
+  # The size of the font
+  fontSize: 11
+  
+  # The height of lines
+  lineHeight: 1
+  
+  # The spacing between letters
+  letterSpacing: 0
+  
+  # Theme
+  theme:
+    background: "transparent"
+    foreground: "#afafaf"
+    cursor: "#c7c7c7"
+    black: "#232628"
+    red: "#fc4384"
+    green: "#b3e33b"
+    yellow: "#ffa727"
+    blue: "#75dff2"
+    magenta: "#ae89fe"
+    cyan: "#708387"
+    white: "#d5d5d0"
+    brightBlack: "#626566"
+    brightRed: "#ff7fac"
+    brightGreen: "#c8ed71"
+    brightYellow: "#ebdf86"
+    brightBlue: "#75dff2"
+    brightMagenta: "#ae89fe"
+    brightCyan: "#b1c6ca"
+    brightWhite: "#f9f9f4"
+  
+# Records, feel free to edit them
+records:
+  - delay: 293
+    content: "Restored session: Sun Mar  9 23:54:14 CST 2025\r\n\e]7;file://bogon/Users/sshwy/pku3b/assets\a\e[?2004hbogon:assets sshwy$ "
+  - delay: 1240
+    content: p
+  - delay: 54
+    content: k
+  - delay: 239
+    content: u
+  - delay: 178
+    content: '3'
+  - delay: 303
+    content: b
+  - delay: 467
+    content: ' '
+  - delay: 178
+    content: v
+  - delay: 149
+    content: ' '
+  - delay: 340
+    content: l
+  - delay: 99
+    content: s
+  # delim
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  # delim
+  - delay: 248
+    content: "\r\n\e[?2004l\r"
+  - delay: 14
+    content: "⠁ reading config...                                                             \r\e[2K⠁ reading config...                                                             \r\e[2K⠁ logging in to blackboard...                                                   "
+  - delay: 99
+    content: "\r\e[2K⠉ logging in to blackboard...                                                   "
+  - delay: 102
+    content: "\r\e[2K⠙ logging in to blackboard...                                                   "
+  - delay: 83
+    content: "\r\e[2K⠙ fetching courses...                                                           "
+  - delay: 17
+    content: "\r\e[2K⠚ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠒ fetching courses...                                                           "
+  - delay: 100
+    content: "\r\e[2K⠂ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠂ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠒ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠲ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠴ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠤ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠄ fetching courses...                                                           "
+  - delay: 101
+    content: "\r\e[2K⠄ fetching courses...                                                           "
+  - delay: 16
+    content: "\r\e[2K"
+  - delay: 482
+    content: " [00:00:00] [\e[36m=======>\e[34m                                                     \e[0m\e[0m] 1/8 "
+  - delay: 72
+    content: "\r\e[2K [00:00:00] [\e[36m===============>\e[34m                                             \e[0m\e[0m] 2/8 "
+  - delay: 19
+    content: "\r\e[2K [00:00:00] [\e[36m======================>\e[34m                                      \e[0m\e[0m] 3/8 "
+  - delay: 22
+    content: "\r\e[2K [00:00:00] [\e[36m==============================>\e[34m                              \e[0m\e[0m] 4/8 "
+  - delay: 32
+    content: "\r\e[2K [00:00:00] [\e[36m======================================>\e[34m                      \e[0m\e[0m] 5/8 \r\e[2K [00:00:00] [\e[36m=============================================>\e[34m               \e[0m\e[0m] 6/8 "
+  - delay: 25
+    content: "\r\e[2K [00:00:00] [\e[36m=====================================================>\e[34m       \e[0m\e[0m] 7/8 "
+  - delay: 35
+    content: "\r\e[2K [00:00:00] [\e[36m=============================================================\e[34m\e[0m\e[0m] 8/8 \r\e[2K\e[2m>\e[0m \e[1m课程回放\e[0m \e[2m<\e[0m\r\n\r\n\e[36m\e[1m\e[4m[并行与分布式计算导论(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-07第3-4节 (2025-03-07 10:10:00) \e[2mc95eb662d584f612\e[0m\r\n\e[2m•\e[0m 2025-03-05第1-2节 (2025-03-05 08:00:00) \e[2m15874cff6ccac9ab\e[0m\r\n\e[2m•\e[0m 2025-02-26第1-2节 (2025-02-26 08:00:00) \e[2m191da96268ca6173\e[0m\r\n\e[2m•\e[0m 2025-02-21第3-4节 (2025-02-21 10:10:00) \e[2mf4578df58f8aace\e[0m\r\n\e[2m•\e[0m 2025-02-19第1-2节 (2025-02-19 08:00:00) \e[2mf4baaed64f6a08e1\e[0m\r\n\r\n\e[36m\e[1m\e[4m[数字逻辑设计(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-06第7-9节 (2025-03-06 15:10:00) \e[2me780808c9eb81f61\e[0m\r\n\e[2m•\e[0m 2025-02-27第7-9节 (2025-02-27 15:10:00) \e[2m4dea71a98e4a082e\e[0m\r\n\e[2m•\e[0m 2025-02-20第7-9节 (2025-02-20 15:10:00) \e[2m825b4580acb14b96\e[0m\r\n\r\n\e[36m\e[1m\e[4m[数据库概论(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-06第3-4节 (2025-03-06 10:10:00) \e[2m690877487bcdbcf9\e[0m\r\n\e[2m•\e[0m 2025-03-04第7-8节 (2025-03-04 15:10:00) \e[2mba57bf5f94b57a9a\e[0m\r\n\e[2m•\e[0m 2025-02-25第7-8节 (2025-02-25 15:10:00) \e[2m49a51bb831102cea\e[0m\r\n\e[2m•\e[0m 2025-02-20第3-4节 (2025-02-20 10:10:00) \e[2m71e9f9ee9ebe059\e[0m\r\n\e[2m•\e[0m 2025-02-18第7-8节 (2025-02-18 15:10:00) \e[2m462ef0d5dcf7c85d\e[0m\r\n\r\n\e[36m\e[1m\e[4m[日本经济(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-05第10-11节 (2025-03-05 18:40:00) \e[2m32fc3d139a4c22f7\e[0m\r\n\e[2m•\e[0m 2025-02-26第10-11节 (2025-02-26 18:40:00) \e[2mc9c41656d7741ea4\e[0m\r\n\e[2m•\e[0m 2025-02-19第10-11节 (2025-02-19 18:40:00) \e[2mbea9ebb4a9e52e20\e[0m\r\n\r\n\e[36m\e[1m\e[4m[算法设计与分析（实验班）(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-05第5-6节 (2025-03-05 13:00:00) \e[2me02fe51c0fac6d3f\e[0m\r\n\e[2m•\e[0m 2025-03-03第3-4节 (2025-03-03 10:10:00) \e[2m3b45b3d46d47fb60\e[0m\r\n\e[2m•\e[0m 2025-02-26第5-6节 (2025-02-26 13:00:00) \e[2m8051ee1ae540ddbe\e[0m\r\n\e[2m•\e[0m 2025-02-24第3-4节 (2025-02-24 10:10:00) \e[2md3d6ff3256a48caa\e[0m\r\n\e[2m•\e[0m 2025-02-19第5-6节 (2025-02-19 13:00:00) \e[2m9006896786ca5e08\e[0m\r\n\e[2m•\e[0m 2025-02-17第3-4节 (2025-02-17 10:10:00) \e[2m45f8074e1f38caee\e[0m\r\n\r\n\e[36m\e[1m\e[4m[算法设计与分析（研讨型小班）(24-25学年第2学期)]\e[0m\e[0m\r\n\r\n\e[2m•\e[0m 2025-03-07第5-6节 (2025-03-07 13:00:00) \e[2md61ebef680ebe37a\e[0m\r\n\e[2m•\e[0m 2025-02-28第5-6节 (2025-02-28 13:00:00) \e[2me50c223e23f7e745\e[0m\r\n\e[2m•\e[0m 2025-02-21第5-6节 (2025-02-21 13:00:00) \e[2mbfd14c56d69a4475\e[0m\r\n\e[2m•\e[0m 2025-02-21第5-6节 (2025-02-21 13:00:00) \e[2mbfd14c56d69a4475\e[0m\r\n\r\n\e]7;file://bogon/Users/sshwy/pku3b/assets\a\e[?2004hbogon:assets sshwy$ "
+  # delim
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  # delim
+  - delay: 5259
+    content: p
+  - delay: 49
+    content: k
+  - delay: 216
+    content: u
+  - delay: 248
+    content: '3'
+  - delay: 540
+    content: b
+  - delay: 101
+    content: ' '
+  - delay: 502
+    content: v
+  - delay: 86
+    content: ' '
+  - delay: 344
+    content: d
+  - delay: 88
+    content: o
+  - delay: 119
+    content: w
+  - delay: 114
+    content: 'n'
+  - delay: 121
+    content: ' '
+  - delay: 824
+    content: "\e[7mc9c41656d7741ea4\e[27m"
+  - delay: 447
+    content: "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bc9c41656d7741ea4 "
+  # delim
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  # delim
+  - delay: 770
+    content: "\r\n\e[?2004l\r"
+  - delay: 12
+    content: "⠁ reading config...                                                             \r\e[2K⠁ reading config...                                                             \r\e[2K⠁ logging in to blackboard...                                                   "
+  - delay: 100
+    content: "\r\e[2K⠉ logging in to blackboard...                                                   "
+  - delay: 102
+    content: "\r\e[2K⠙ logging in to blackboard...                                                   "
+  - delay: 27
+    content: "\r\e[2K⠙ fetching courses...                                                           \r\e[2K⠙ finding video...                                                              \r\e[2K⠙ fetch video metadata...                                                       "
+  - delay: 71
+    content: "\r\e[2K⠚ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠒ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠂ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠂ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠒ fetch video metadata...                                                       "
+  - delay: 100
+    content: "\r\e[2K⠲ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠴ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠤ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠄ fetch video metadata...                                                       "
+  - delay: 102
+    content: "\r\e[2K⠄ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠤ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠠ fetch video metadata...                                                       "
+  - delay: 100
+    content: "\r\e[2K⠠ fetch video metadata...                                                       "
+  - delay: 100
+    content: "\r\e[2K⠤ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠦ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠖ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠒ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠐ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠐ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠒ fetch video metadata...                                                       "
+  - delay: 101
+    content: "\r\e[2K⠓ fetch video metadata...                                                       "
+  - delay: 70
+    content: "\r\e[2K下载课程回放：日本经济 (2025-02-26第10-11节)\r\ndownload [00:00:00] [\e[36m\e[34m                                                   \e[0m\e[0m] 0/719 "
+  - delay: 1459
+    content: "\r\e[2Kdownload [00:00:01] [\e[36m>\e[34m                                                  \e[0m\e[0m] 1/719 "
+  - delay: 565
+    content: "\r\e[2Kdownload [00:00:02] [\e[36m>\e[34m                                                  \e[0m\e[0m] 2/719 "
+  - delay: 692
+    content: "\r\e[2Kdownload [00:00:02] [\e[36m>\e[34m                                                  \e[0m\e[0m] 3/719 "
+  - delay: 519
+    content: "\r\e[2Kdownload [00:00:03] [\e[36m>\e[34m                                                  \e[0m\e[0m] 4/719 "
+  - delay: 470
+    content: "\r\e[2Kdownload [00:00:03] [\e[36m>\e[34m                                                  \e[0m\e[0m] 5/719 "
+  - delay: 593
+    content: "\r\e[2Kdownload [00:00:04] [\e[36m>\e[34m                                                  \e[0m\e[0m] 6/719 "
+  - delay: 425
+    content: "\r\e[2Kdownload [00:00:04] [\e[36m>\e[34m                                                  \e[0m\e[0m] 7/719 "
+  - delay: 454
+    content: "\r\e[2Kdownload [00:00:05] [\e[36m>\e[34m                                                  \e[0m\e[0m] 8/719 "
+  - delay: 479
+    content: "\r\e[2Kdownload [00:00:05] [\e[36m>\e[34m                                                  \e[0m\e[0m] 9/719 "
+  - delay: 536
+    content: "\r\e[2Kdownload [00:00:06] [\e[36m>\e[34m                                                 \e[0m\e[0m] 10/719 "
+  - delay: 341
+    content: "\r\e[2Kdownload [00:00:06] [\e[36m>\e[34m                                                 \e[0m\e[0m] 11/719 "
+  - delay: 503
+    content: "\r\e[2Kdownload [00:00:07] [\e[36m>\e[34m                                                 \e[0m\e[0m] 12/719 "
+  - delay: 600
+    content: "\r\e[2Kdownload [00:00:07] [\e[36m>\e[34m                                                 \e[0m\e[0m] 13/719 "
+  - delay: 622
+    content: "\r\e[2Kdownload [00:00:08] [\e[36m>\e[34m                                                 \e[0m\e[0m] 14/719 "
+  - delay: 721
+    content: "\r\e[2Kdownload [00:00:08] [\e[36m=>\e[34m                                                \e[0m\e[0m] 15/719 "
+  - delay: 401
+    content: "\r\e[2Kdownload [00:00:09] [\e[36m=>\e[34m                                                \e[0m\e[0m] 16/719 "
+  - delay: 693
+    content: "\r\e[2Kdownload [00:00:10] [\e[36m=>\e[34m                                                \e[0m\e[0m] 17/719 "
+  - delay: 817
+    content: "\r\e[2Kdownload [00:00:10] [\e[36m=>\e[34m                                                \e[0m\e[0m] 18/719 "
+  - delay: 478
+    content: "\r\e[2Kdownload [00:00:11] [\e[36m=>\e[34m                                                \e[0m\e[0m] 19/719 "
+  - delay: 845
+    content: "\r\e[2Kdownload [00:00:12] [\e[36m=>\e[34m                                                \e[0m\e[0m] 20/719 "
+  - delay: 394
+    content: "\r\e[2Kdownload [00:00:12] [\e[36m=>\e[34m                                                \e[0m\e[0m] 21/719 "
+  - delay: 540
+    content: "\r\e[2Kdownload [00:00:13] [\e[36m=>\e[34m                                                \e[0m\e[0m] 22/719 "
+  - delay: 350
+    content: "\r\e[2Kdownload [00:00:13] [\e[36m=>\e[34m                                                \e[0m\e[0m] 23/719 "
+  - delay: 465
+    content: "\r\e[2Kdownload [00:00:13] [\e[36m=>\e[34m                                                \e[0m\e[0m] 24/719 "
+  - delay: 441
+    content: "\r\e[2Kdownload [00:00:14] [\e[36m=>\e[34m                                                \e[0m\e[0m] 25/719 "
+  - delay: 438
+    content: "\r\e[2Kdownload [00:00:14] [\e[36m=>\e[34m                                                \e[0m\e[0m] 26/719 "
+  - delay: 456
+    content: "\r\e[2Kdownload [00:00:15] [\e[36m=>\e[34m                                                \e[0m\e[0m] 27/719 "
+  - delay: 343
+    content: "\r\e[2Kdownload [00:00:15] [\e[36m=>\e[34m                                                \e[0m\e[0m] 28/719 "
+  - delay: 471
+    content: "\r\e[2Kdownload [00:00:16] [\e[36m==>\e[34m                                               \e[0m\e[0m] 29/719 "
+  - delay: 344
+    content: "\r\e[2Kdownload [00:00:16] [\e[36m==>\e[34m                                               \e[0m\e[0m] 30/719 "
+  - delay: 413
+    content: "\r\e[2Kdownload [00:00:16] [\e[36m==>\e[34m                                               \e[0m\e[0m] 31/719 "
+  - delay: 558
+    content: "\r\e[2Kdownload [00:00:17] [\e[36m==>\e[34m                                               \e[0m\e[0m] 32/719 "
+  - delay: 532
+    content: "\r\e[2Kdownload [00:00:17] [\e[36m==>\e[34m                                               \e[0m\e[0m] 33/719 "
+  - delay: 812
+    content: "\r\e[2Kdownload [00:00:18] [\e[36m==>\e[34m                                               \e[0m\e[0m] 34/719 "
+  - delay: 390
+    content: "\r\e[2Kdownload [00:00:19] [\e[36m==>\e[34m                                               \e[0m\e[0m] 35/719 "
+  - delay: 460
+    content: "\r\e[2Kdownload [00:00:19] [\e[36m==>\e[34m                                               \e[0m\e[0m] 36/719 "
+  - delay: 608
+    content: "\r\e[2Kdownload [00:00:20] [\e[36m==>\e[34m                                               \e[0m\e[0m] 37/719 "
+  - delay: 254
+    content: "\r\e[2Kdownload [00:00:20] [\e[36m==>\e[34m                                               \e[0m\e[0m] 38/719 "
+  - delay: 566
+    content: "\r\e[2Kdownload [00:00:21] [\e[36m==>\e[34m                                               \e[0m\e[0m] 39/719 "
+  - delay: 506
+    content: "\r\e[2Kdownload [00:00:21] [\e[36m==>\e[34m                                               \e[0m\e[0m] 40/719 "
+  - delay: 718
+    content: "\r\e[2Kdownload [00:00:22] [\e[36m==>\e[34m                                               \e[0m\e[0m] 41/719 "
+  - delay: 570
+    content: "\r\e[2Kdownload [00:00:22] [\e[36m==>\e[34m                                               \e[0m\e[0m] 42/719 "
+  - delay: 627
+    content: "\r\e[2Kdownload [00:00:23] [\e[36m==>\e[34m                                               \e[0m\e[0m] 43/719 "
+  - delay: 995
+    content: "\r\e[2Kdownload [00:00:24] [\e[36m===>\e[34m                                              \e[0m\e[0m] 44/719 "
+  - delay: 638
+    content: "\r\e[2Kdownload [00:00:25] [\e[36m===>\e[34m                                              \e[0m\e[0m] 45/719 "
+  - delay: 838
+    content: "\r\e[2Kdownload [00:00:25] [\e[36m===>\e[34m                                              \e[0m\e[0m] 46/719 "
+  - delay: 784
+    content: "\r\e[2Kdownload [00:00:26] [\e[36m===>\e[34m                                              \e[0m\e[0m] 47/719 "
+  - delay: 492
+    content: "\r\e[2Kdownload [00:00:27] [\e[36m===>\e[34m                                              \e[0m\e[0m] 48/719 "
+  - delay: 494
+    content: "\r\e[2Kdownload [00:00:27] [\e[36m===>\e[34m                                              \e[0m\e[0m] 49/719 "
+  - delay: 409
+    content: "\r\e[2Kdownload [00:00:28] [\e[36m===>\e[34m                                              \e[0m\e[0m] 50/719 "
+  - delay: 810
+    content: "\r\e[2Kdownload [00:00:28] [\e[36m===>\e[34m                                              \e[0m\e[0m] 51/719 "
+  - delay: 617
+    content: "\r\e[2Kdownload [00:00:29] [\e[36m===>\e[34m                                              \e[0m\e[0m] 52/719 "
+  - delay: 737
+    content: "\r\e[2Kdownload [00:00:30] [\e[36m===>\e[34m                                              \e[0m\e[0m] 53/719 "
+  - delay: 429
+    content: "\r\e[2Kdownload [00:00:30] [\e[36m===>\e[34m                                              \e[0m\e[0m] 54/719 "
+  - delay: 653
+    content: "\r\e[2Kdownload [00:00:31] [\e[36m===>\e[34m                                              \e[0m\e[0m] 55/719 "
+  - delay: 481
+    content: "\r\e[2Kdownload [00:00:31] [\e[36m===>\e[34m                                              \e[0m\e[0m] 56/719 "
+  - delay: 365
+    content: "\r\e[2Kdownload [00:00:32] [\e[36m===>\e[34m                                              \e[0m\e[0m] 57/719 "
+  - delay: 438
+    content: "\r\e[2Kdownload [00:00:32] [\e[36m====>\e[34m                                             \e[0m\e[0m] 58/719 "
+  - delay: 334
+    content: "\r\e[2Kdownload [00:00:32] [\e[36m====>\e[34m                                             \e[0m\e[0m] 59/719 "
+  - delay: 501
+    content: "\r\e[2Kdownload [00:00:33] [\e[36m====>\e[34m                                             \e[0m\e[0m] 60/719 "
+  - delay: 482
+    content: "\r\e[2Kdownload [00:00:33] [\e[36m====>\e[34m                                             \e[0m\e[0m] 61/719 "
+  - delay: 609
+    content: "\r\e[2Kdownload [00:00:34] [\e[36m====>\e[34m                                             \e[0m\e[0m] 62/719 "
+  - delay: 305
+    content: "\r\e[2Kdownload [00:00:34] [\e[36m====>\e[34m                                             \e[0m\e[0m] 63/719 "
+  - delay: 135
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 64/719 "
+  - delay: 197
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 65/719 "
+  - delay: 140
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 66/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 67/719 "
+  - delay: 142
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 68/719 "
+  - delay: 215
+    content: "\r\e[2Kdownload [00:00:35] [\e[36m====>\e[34m                                             \e[0m\e[0m] 69/719 "
+  - delay: 160
+    content: "\r\e[2Kdownload [00:00:36] [\e[36m====>\e[34m                                             \e[0m\e[0m] 70/719 "
+  - delay: 400
+    content: "\r\e[2Kdownload [00:00:36] [\e[36m====>\e[34m                                             \e[0m\e[0m] 71/719 "
+  - delay: 419
+    content: "\r\e[2Kdownload [00:00:36] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 72/719 "
+  - delay: 314
+    content: "\r\e[2Kdownload [00:00:37] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 73/719 "
+  - delay: 354
+    content: "\r\e[2Kdownload [00:00:37] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 74/719 "
+  - delay: 364
+    content: "\r\e[2Kdownload [00:00:37] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 75/719 "
+  - delay: 264
+    content: "\r\e[2Kdownload [00:00:38] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 76/719 "
+  - delay: 234
+    content: "\r\e[2Kdownload [00:00:38] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 77/719 "
+  - delay: 347
+    content: "\r\e[2Kdownload [00:00:38] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 78/719 "
+  - delay: 351
+    content: "\r\e[2Kdownload [00:00:39] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 79/719 "
+  - delay: 260
+    content: "\r\e[2Kdownload [00:00:39] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 80/719 "
+  - delay: 361
+    content: "\r\e[2Kdownload [00:00:39] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 81/719 "
+  - delay: 239
+    content: "\r\e[2Kdownload [00:00:39] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 82/719 "
+  - delay: 537
+    content: "\r\e[2Kdownload [00:00:40] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 83/719 "
+  - delay: 322
+    content: "\r\e[2Kdownload [00:00:40] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 84/719 "
+  - delay: 450
+    content: "\r\e[2Kdownload [00:00:41] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 85/719 "
+  - delay: 710
+    content: "\r\e[2Kdownload [00:00:42] [\e[36m=====>\e[34m                                            \e[0m\e[0m] 86/719 "
+  - delay: 279
+    content: "\r\e[2Kdownload [00:00:42] [\e[36m======>\e[34m                                           \e[0m\e[0m] 87/719 "
+  - delay: 563
+    content: "\r\e[2Kdownload [00:00:42] [\e[36m======>\e[34m                                           \e[0m\e[0m] 88/719 "
+  - delay: 472
+    content: "\r\e[2Kdownload [00:00:43] [\e[36m======>\e[34m                                           \e[0m\e[0m] 89/719 "
+  - delay: 476
+    content: "\r\e[2Kdownload [00:00:43] [\e[36m======>\e[34m                                           \e[0m\e[0m] 90/719 "
+  - delay: 659
+    content: "\r\e[2Kdownload [00:00:44] [\e[36m======>\e[34m                                           \e[0m\e[0m] 91/719 "
+  - delay: 458
+    content: "\r\e[2Kdownload [00:00:44] [\e[36m======>\e[34m                                           \e[0m\e[0m] 92/719 "
+  - delay: 500
+    content: "\r\e[2Kdownload [00:00:45] [\e[36m======>\e[34m                                           \e[0m\e[0m] 93/719 "
+  - delay: 414
+    content: "\r\e[2Kdownload [00:00:45] [\e[36m======>\e[34m                                           \e[0m\e[0m] 94/719 "
+  - delay: 527
+    content: "\r\e[2Kdownload [00:00:46] [\e[36m======>\e[34m                                           \e[0m\e[0m] 95/719 "
+  - delay: 358
+    content: "\r\e[2Kdownload [00:00:46] [\e[36m======>\e[34m                                           \e[0m\e[0m] 96/719 "
+  - delay: 308
+    content: "\r\e[2Kdownload [00:00:47] [\e[36m======>\e[34m                                           \e[0m\e[0m] 97/719 "
+  - delay: 398
+    content: "\r\e[2Kdownload [00:00:47] [\e[36m======>\e[34m                                           \e[0m\e[0m] 98/719 "
+  - delay: 513
+    content: "\r\e[2Kdownload [00:00:47] [\e[36m======>\e[34m                                           \e[0m\e[0m] 99/719 "
+  - delay: 543
+    content: "\r\e[2Kdownload [00:00:48] [\e[36m======>\e[34m                                          \e[0m\e[0m] 100/719 "
+  - delay: 384
+    content: "\r\e[2Kdownload [00:00:48] [\e[36m======>\e[34m                                          \e[0m\e[0m] 101/719 "
+  - delay: 616
+    content: "\r\e[2Kdownload [00:00:49] [\e[36m======>\e[34m                                          \e[0m\e[0m] 102/719 "
+  - delay: 583
+    content: "\r\e[2Kdownload [00:00:50] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 103/719 "
+  - delay: 431
+    content: "\r\e[2Kdownload [00:00:50] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 104/719 "
+  - delay: 482
+    content: "\r\e[2Kdownload [00:00:50] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 105/719 "
+  - delay: 279
+    content: "\r\e[2Kdownload [00:00:51] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 106/719 "
+  - delay: 388
+    content: "\r\e[2Kdownload [00:00:51] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 107/719 "
+  - delay: 341
+    content: "\r\e[2Kdownload [00:00:51] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 108/719 "
+  - delay: 396
+    content: "\r\e[2Kdownload [00:00:52] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 109/719 "
+  - delay: 401
+    content: "\r\e[2Kdownload [00:00:52] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 110/719 "
+  - delay: 306
+    content: "\r\e[2Kdownload [00:00:53] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 111/719 "
+  - delay: 408
+    content: "\r\e[2Kdownload [00:00:53] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 112/719 "
+  - delay: 451
+    content: "\r\e[2Kdownload [00:00:53] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 113/719 "
+  - delay: 714
+    content: "\r\e[2Kdownload [00:00:54] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 114/719 "
+  - delay: 462
+    content: "\r\e[2Kdownload [00:00:55] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 115/719 "
+  - delay: 841
+    content: "\r\e[2Kdownload [00:00:55] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 116/719 "
+  - delay: 780
+    content: "\r\e[2Kdownload [00:00:56] [\e[36m=======>\e[34m                                         \e[0m\e[0m] 117/719 "
+  - delay: 418
+    content: "\r\e[2Kdownload [00:00:57] [\e[36m========>\e[34m                                        \e[0m\e[0m] 118/719 "
+  - delay: 713
+    content: "\r\e[2Kdownload [00:00:57] [\e[36m========>\e[34m                                        \e[0m\e[0m] 119/719 "
+  - delay: 591
+    content: "\r\e[2Kdownload [00:00:58] [\e[36m========>\e[34m                                        \e[0m\e[0m] 120/719 "
+  - delay: 324
+    content: "\r\e[2Kdownload [00:00:58] [\e[36m========>\e[34m                                        \e[0m\e[0m] 121/719 "
+  - delay: 235
+    content: "\r\e[2Kdownload [00:00:59] [\e[36m========>\e[34m                                        \e[0m\e[0m] 122/719 "
+  - delay: 201
+    content: "\r\e[2Kdownload [00:00:59] [\e[36m========>\e[34m                                        \e[0m\e[0m] 123/719 "
+  - delay: 359
+    content: "\r\e[2Kdownload [00:00:59] [\e[36m========>\e[34m                                        \e[0m\e[0m] 124/719 "
+  - delay: 283
+    content: "\r\e[2Kdownload [00:00:59] [\e[36m========>\e[34m                                        \e[0m\e[0m] 125/719 "
+  - delay: 245
+    content: "\r\e[2Kdownload [00:01:00] [\e[36m========>\e[34m                                        \e[0m\e[0m] 126/719 "
+  - delay: 198
+    content: "\r\e[2Kdownload [00:01:00] [\e[36m========>\e[34m                                        \e[0m\e[0m] 127/719 "
+  - delay: 199
+    content: "\r\e[2Kdownload [00:01:00] [\e[36m========>\e[34m                                        \e[0m\e[0m] 128/719 "
+  - delay: 254
+    content: "\r\e[2Kdownload [00:01:00] [\e[36m========>\e[34m                                        \e[0m\e[0m] 129/719 "
+  - delay: 177
+    content: "\r\e[2Kdownload [00:01:00] [\e[36m========>\e[34m                                        \e[0m\e[0m] 130/719 "
+  - delay: 208
+    content: "\r\e[2Kdownload [00:01:01] [\e[36m========>\e[34m                                        \e[0m\e[0m] 131/719 "
+  - delay: 183
+    content: "\r\e[2Kdownload [00:01:01] [\e[36m========>\e[34m                                        \e[0m\e[0m] 132/719 "
+  - delay: 425
+    content: "\r\e[2Kdownload [00:01:01] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 133/719 "
+  - delay: 356
+    content: "\r\e[2Kdownload [00:01:02] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 134/719 "
+  - delay: 365
+    content: "\r\e[2Kdownload [00:01:02] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 135/719 "
+  - delay: 170
+    content: "\r\e[2Kdownload [00:01:02] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 136/719 "
+  - delay: 237
+    content: "\r\e[2Kdownload [00:01:02] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 137/719 "
+  - delay: 217
+    content: "\r\e[2Kdownload [00:01:03] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 138/719 "
+  - delay: 175
+    content: "\r\e[2Kdownload [00:01:03] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 139/719 "
+  - delay: 216
+    content: "\r\e[2Kdownload [00:01:03] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 140/719 "
+  - delay: 195
+    content: "\r\e[2Kdownload [00:01:03] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 141/719 "
+  - delay: 324
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 142/719 "
+  - delay: 121
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 143/719 "
+  - delay: 133
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 144/719 "
+  - delay: 175
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 145/719 "
+  - delay: 158
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m=========>\e[34m                                       \e[0m\e[0m] 146/719 "
+  - delay: 199
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 147/719 "
+  - delay: 163
+    content: "\r\e[2Kdownload [00:01:04] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 148/719 "
+  - delay: 161
+    content: "\r\e[2Kdownload [00:01:05] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 149/719 "
+  - delay: 138
+    content: "\r\e[2Kdownload [00:01:05] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 150/719 "
+  - delay: 193
+    content: "\r\e[2Kdownload [00:01:05] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 151/719 "
+  - delay: 195
+    content: "\r\e[2Kdownload [00:01:05] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 152/719 "
+  - delay: 169
+    content: "\r\e[2Kdownload [00:01:05] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 153/719 "
+  - delay: 369
+    content: "\r\e[2Kdownload [00:01:06] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 154/719 "
+  - delay: 504
+    content: "\r\e[2Kdownload [00:01:06] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 155/719 "
+  - delay: 1239
+    content: "\r\e[2Kdownload [00:01:07] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 156/719 "
+  - delay: 420
+    content: "\r\e[2Kdownload [00:01:08] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 157/719 "
+  - delay: 626
+    content: "\r\e[2Kdownload [00:01:08] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 158/719 "
+  - delay: 1024
+    content: "\r\e[2Kdownload [00:01:09] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 159/719 "
+  - delay: 484
+    content: "\r\e[2Kdownload [00:01:10] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 160/719 "
+  - delay: 812
+    content: "\r\e[2Kdownload [00:01:11] [\e[36m==========>\e[34m                                      \e[0m\e[0m] 161/719 "
+  - delay: 585
+    content: "\r\e[2Kdownload [00:01:11] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 162/719 "
+  - delay: 495
+    content: "\r\e[2Kdownload [00:01:12] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 163/719 "
+  - delay: 768
+    content: "\r\e[2Kdownload [00:01:13] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 164/719 "
+  - delay: 539
+    content: "\r\e[2Kdownload [00:01:13] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 165/719 "
+  - delay: 456
+    content: "\r\e[2Kdownload [00:01:14] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 166/719 "
+  - delay: 336
+    content: "\r\e[2Kdownload [00:01:14] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 167/719 "
+  - delay: 553
+    content: "\r\e[2Kdownload [00:01:15] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 168/719 "
+  - delay: 950
+    content: "\r\e[2Kdownload [00:01:15] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 169/719 "
+  - delay: 527
+    content: "\r\e[2Kdownload [00:01:16] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 170/719 "
+  - delay: 446
+    content: "\r\e[2Kdownload [00:01:16] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 171/719 "
+  - delay: 264
+    content: "\r\e[2Kdownload [00:01:17] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 172/719 "
+  - delay: 499
+    content: "\r\e[2Kdownload [00:01:17] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 173/719 "
+  - delay: 443
+    content: "\r\e[2Kdownload [00:01:18] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 174/719 "
+  - delay: 424
+    content: "\r\e[2Kdownload [00:01:18] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 175/719 "
+  - delay: 332
+    content: "\r\e[2Kdownload [00:01:18] [\e[36m===========>\e[34m                                     \e[0m\e[0m] 176/719 "
+  - delay: 260
+    content: "\r\e[2Kdownload [00:01:19] [\e[36m============>\e[34m                                    \e[0m\e[0m] 177/719 "
+  - delay: 394
+    content: "\r\e[2Kdownload [00:01:19] [\e[36m============>\e[34m                                    \e[0m\e[0m] 178/719 "
+  - delay: 449
+    content: "\r\e[2Kdownload [00:01:20] [\e[36m============>\e[34m                                    \e[0m\e[0m] 179/719 "
+  - delay: 419
+    content: "\r\e[2Kdownload [00:01:20] [\e[36m============>\e[34m                                    \e[0m\e[0m] 180/719 "
+  - delay: 513
+    content: "\r\e[2Kdownload [00:01:20] [\e[36m============>\e[34m                                    \e[0m\e[0m] 181/719 "
+  - delay: 523
+    content: "\r\e[2Kdownload [00:01:21] [\e[36m============>\e[34m                                    \e[0m\e[0m] 182/719 "
+  - delay: 405
+    content: "\r\e[2Kdownload [00:01:21] [\e[36m============>\e[34m                                    \e[0m\e[0m] 183/719 "
+  - delay: 396
+    content: "\r\e[2Kdownload [00:01:22] [\e[36m============>\e[34m                                    \e[0m\e[0m] 184/719 "
+  - delay: 495
+    content: "\r\e[2Kdownload [00:01:22] [\e[36m============>\e[34m                                    \e[0m\e[0m] 185/719 "
+  - delay: 361
+    content: "\r\e[2Kdownload [00:01:23] [\e[36m============>\e[34m                                    \e[0m\e[0m] 186/719 "
+  - delay: 585
+    content: "\r\e[2Kdownload [00:01:23] [\e[36m============>\e[34m                                    \e[0m\e[0m] 187/719 "
+  - delay: 456
+    content: "\r\e[2Kdownload [00:01:24] [\e[36m============>\e[34m                                    \e[0m\e[0m] 188/719 "
+  - delay: 582
+    content: "\r\e[2Kdownload [00:01:24] [\e[36m============>\e[34m                                    \e[0m\e[0m] 189/719 "
+  - delay: 605
+    content: "\r\e[2Kdownload [00:01:25] [\e[36m============>\e[34m                                    \e[0m\e[0m] 190/719 "
+  - delay: 565
+    content: "\r\e[2Kdownload [00:01:25] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 191/719 "
+  - delay: 831
+    content: "\r\e[2Kdownload [00:01:26] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 192/719 "
+  - delay: 584
+    content: "\r\e[2Kdownload [00:01:27] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 193/719 "
+  - delay: 830
+    content: "\r\e[2Kdownload [00:01:28] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 194/719 "
+  - delay: 596
+    content: "\r\e[2Kdownload [00:01:28] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 195/719 "
+  - delay: 747
+    content: "\r\e[2Kdownload [00:01:29] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 196/719 "
+  - delay: 693
+    content: "\r\e[2Kdownload [00:01:30] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 197/719 "
+  - delay: 402
+    content: "\r\e[2Kdownload [00:01:30] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 198/719 "
+  - delay: 679
+    content: "\r\e[2Kdownload [00:01:31] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 199/719 "
+  - delay: 507
+    content: "\r\e[2Kdownload [00:01:31] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 200/719 "
+  - delay: 658
+    content: "\r\e[2Kdownload [00:01:32] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 201/719 "
+  - delay: 504
+    content: "\r\e[2Kdownload [00:01:32] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 202/719 "
+  - delay: 303
+    content: "\r\e[2Kdownload [00:01:33] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 203/719 "
+  - delay: 362
+    content: "\r\e[2Kdownload [00:01:33] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 204/719 "
+  - delay: 430
+    content: "\r\e[2Kdownload [00:01:34] [\e[36m=============>\e[34m                                   \e[0m\e[0m] 205/719 "
+  - delay: 663
+    content: "\r\e[2Kdownload [00:01:34] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 206/719 "
+  - delay: 281
+    content: "\r\e[2Kdownload [00:01:34] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 207/719 "
+  - delay: 303
+    content: "\r\e[2Kdownload [00:01:35] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 208/719 "
+  - delay: 187
+    content: "\r\e[2Kdownload [00:01:35] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 209/719 "
+  - delay: 228
+    content: "\r\e[2Kdownload [00:01:35] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 210/719 "
+  - delay: 293
+    content: "\r\e[2Kdownload [00:01:35] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 211/719 "
+  - delay: 189
+    content: "\r\e[2Kdownload [00:01:36] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 212/719 "
+  - delay: 269
+    content: "\r\e[2Kdownload [00:01:36] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 213/719 "
+  - delay: 273
+    content: "\r\e[2Kdownload [00:01:36] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 214/719 "
+  - delay: 293
+    content: "\r\e[2Kdownload [00:01:37] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 215/719 "
+  - delay: 278
+    content: "\r\e[2Kdownload [00:01:37] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 216/719 "
+  - delay: 216
+    content: "\r\e[2Kdownload [00:01:37] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 217/719 "
+  - delay: 652
+    content: "\r\e[2Kdownload [00:01:38] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 218/719 "
+  - delay: 314
+    content: "\r\e[2Kdownload [00:01:38] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 219/719 "
+  - delay: 567
+    content: "\r\e[2Kdownload [00:01:39] [\e[36m==============>\e[34m                                  \e[0m\e[0m] 220/719 "
+  - delay: 282
+    content: "\r\e[2Kdownload [00:01:39] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 221/719 "
+  - delay: 403
+    content: "\r\e[2Kdownload [00:01:39] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 222/719 "
+  - delay: 227
+    content: "\r\e[2Kdownload [00:01:39] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 223/719 "
+  - delay: 323
+    content: "\r\e[2Kdownload [00:01:40] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 224/719 "
+  - delay: 586
+    content: "\r\e[2Kdownload [00:01:40] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 225/719 "
+  - delay: 490
+    content: "\r\e[2Kdownload [00:01:41] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 226/719 "
+  - delay: 591
+    content: "\r\e[2Kdownload [00:01:41] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 227/719 "
+  - delay: 597
+    content: "\r\e[2Kdownload [00:01:42] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 228/719 "
+  - delay: 748
+    content: "\r\e[2Kdownload [00:01:43] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 229/719 "
+  - delay: 515
+    content: "\r\e[2Kdownload [00:01:43] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 230/719 "
+  - delay: 557
+    content: "\r\e[2Kdownload [00:01:44] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 231/719 "
+  - delay: 515
+    content: "\r\e[2Kdownload [00:01:44] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 232/719 "
+  - delay: 380
+    content: "\r\e[2Kdownload [00:01:45] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 233/719 "
+  - delay: 188
+    content: "\r\e[2Kdownload [00:01:45] [\e[36m===============>\e[34m                                 \e[0m\e[0m] 234/719 "
+  - delay: 172
+    content: "\r\e[2Kdownload [00:01:45] [\e[36m================>\e[34m                                \e[0m\e[0m] 235/719 "
+  - delay: 155
+    content: "\r\e[2Kdownload [00:01:45] [\e[36m================>\e[34m                                \e[0m\e[0m] 236/719 "
+  - delay: 190
+    content: "\r\e[2Kdownload [00:01:45] [\e[36m================>\e[34m                                \e[0m\e[0m] 237/719 "
+  - delay: 195
+    content: "\r\e[2Kdownload [00:01:46] [\e[36m================>\e[34m                                \e[0m\e[0m] 238/719 "
+  - delay: 166
+    content: "\r\e[2Kdownload [00:01:46] [\e[36m================>\e[34m                                \e[0m\e[0m] 239/719 "
+  - delay: 181
+    content: "\r\e[2Kdownload [00:01:46] [\e[36m================>\e[34m                                \e[0m\e[0m] 240/719 "
+  - delay: 225
+    content: "\r\e[2Kdownload [00:01:46] [\e[36m================>\e[34m                                \e[0m\e[0m] 241/719 "
+  - delay: 178
+    content: "\r\e[2Kdownload [00:01:46] [\e[36m================>\e[34m                                \e[0m\e[0m] 242/719 "
+  - delay: 155
+    content: "\r\e[2Kdownload [00:01:47] [\e[36m================>\e[34m                                \e[0m\e[0m] 243/719 "
+  - delay: 270
+    content: "\r\e[2Kdownload [00:01:47] [\e[36m================>\e[34m                                \e[0m\e[0m] 244/719 "
+  - delay: 364
+    content: "\r\e[2Kdownload [00:01:47] [\e[36m================>\e[34m                                \e[0m\e[0m] 245/719 "
+  - delay: 545
+    content: "\r\e[2Kdownload [00:01:48] [\e[36m================>\e[34m                                \e[0m\e[0m] 246/719 "
+  - delay: 613
+    content: "\r\e[2Kdownload [00:01:48] [\e[36m================>\e[34m                                \e[0m\e[0m] 247/719 "
+  - delay: 891
+    content: "\r\e[2Kdownload [00:01:49] [\e[36m================>\e[34m                                \e[0m\e[0m] 248/719 "
+  - delay: 430
+    content: "\r\e[2Kdownload [00:01:50] [\e[36m================>\e[34m                                \e[0m\e[0m] 249/719 "
+  - delay: 492
+    content: "\r\e[2Kdownload [00:01:50] [\e[36m=================>\e[34m                               \e[0m\e[0m] 250/719 "
+  - delay: 314
+    content: "\r\e[2Kdownload [00:01:50] [\e[36m=================>\e[34m                               \e[0m\e[0m] 251/719 "
+  - delay: 329
+    content: "\r\e[2Kdownload [00:01:51] [\e[36m=================>\e[34m                               \e[0m\e[0m] 252/719 "
+  - delay: 475
+    content: "\r\e[2Kdownload [00:01:51] [\e[36m=================>\e[34m                               \e[0m\e[0m] 253/719 "
+  - delay: 298
+    content: "\r\e[2Kdownload [00:01:52] [\e[36m=================>\e[34m                               \e[0m\e[0m] 254/719 "
+  - delay: 321
+    content: "\r\e[2Kdownload [00:01:52] [\e[36m=================>\e[34m                               \e[0m\e[0m] 255/719 "
+  - delay: 683
+    content: "\r\e[2Kdownload [00:01:53] [\e[36m=================>\e[34m                               \e[0m\e[0m] 256/719 "
+  - delay: 128
+    content: "\r\e[2Kdownload [00:01:53] [\e[36m=================>\e[34m                               \e[0m\e[0m] 257/719 "
+  - delay: 140
+    content: "\r\e[2Kdownload [00:01:53] [\e[36m=================>\e[34m                               \e[0m\e[0m] 258/719 "
+  - delay: 241
+    content: "\r\e[2Kdownload [00:01:53] [\e[36m=================>\e[34m                               \e[0m\e[0m] 259/719 "
+  - delay: 203
+    content: "\r\e[2Kdownload [00:01:53] [\e[36m=================>\e[34m                               \e[0m\e[0m] 260/719 "
+  - delay: 221
+    content: "\r\e[2Kdownload [00:01:54] [\e[36m=================>\e[34m                               \e[0m\e[0m] 261/719 "
+  - delay: 276
+    content: "\r\e[2Kdownload [00:01:54] [\e[36m=================>\e[34m                               \e[0m\e[0m] 262/719 "
+  - delay: 735
+    content: "\r\e[2Kdownload [00:01:55] [\e[36m=================>\e[34m                               \e[0m\e[0m] 263/719 "
+  - delay: 479
+    content: "\r\e[2Kdownload [00:01:55] [\e[36m=================>\e[34m                               \e[0m\e[0m] 264/719 "
+  - delay: 872
+    content: "\r\e[2Kdownload [00:01:56] [\e[36m==================>\e[34m                              \e[0m\e[0m] 265/719 "
+  - delay: 639
+    content: "\r\e[2Kdownload [00:01:57] [\e[36m==================>\e[34m                              \e[0m\e[0m] 266/719 "
+  - delay: 461
+    content: "\r\e[2Kdownload [00:01:57] [\e[36m==================>\e[34m                              \e[0m\e[0m] 267/719 "
+  - delay: 412
+    content: "\r\e[2Kdownload [00:01:57] [\e[36m==================>\e[34m                              \e[0m\e[0m] 268/719 "
+  - delay: 388
+    content: "\r\e[2Kdownload [00:01:58] [\e[36m==================>\e[34m                              \e[0m\e[0m] 269/719 "
+  - delay: 769
+    content: "\r\e[2Kdownload [00:01:59] [\e[36m==================>\e[34m                              \e[0m\e[0m] 270/719 "
+  - delay: 648
+    content: "\r\e[2Kdownload [00:01:59] [\e[36m==================>\e[34m                              \e[0m\e[0m] 271/719 "
+  - delay: 900
+    content: "\r\e[2Kdownload [00:02:00] [\e[36m==================>\e[34m                              \e[0m\e[0m] 272/719 "
+  - delay: 416
+    content: "\r\e[2Kdownload [00:02:01] [\e[36m==================>\e[34m                              \e[0m\e[0m] 273/719 "
+  - delay: 293
+    content: "\r\e[2Kdownload [00:02:01] [\e[36m==================>\e[34m                              \e[0m\e[0m] 274/719 "
+  - delay: 153
+    content: "\r\e[2Kdownload [00:02:01] [\e[36m==================>\e[34m                              \e[0m\e[0m] 275/719 "
+  - delay: 276
+    content: "\r\e[2Kdownload [00:02:01] [\e[36m==================>\e[34m                              \e[0m\e[0m] 276/719 "
+  - delay: 334
+    content: "\r\e[2Kdownload [00:02:02] [\e[36m==================>\e[34m                              \e[0m\e[0m] 277/719 "
+  - delay: 185
+    content: "\r\e[2Kdownload [00:02:02] [\e[36m==================>\e[34m                              \e[0m\e[0m] 278/719 "
+  - delay: 284
+    content: "\r\e[2Kdownload [00:02:02] [\e[36m===================>\e[34m                             \e[0m\e[0m] 279/719 "
+  - delay: 190
+    content: "\r\e[2Kdownload [00:02:02] [\e[36m===================>\e[34m                             \e[0m\e[0m] 280/719 "
+  - delay: 246
+    content: "\r\e[2Kdownload [00:02:02] [\e[36m===================>\e[34m                             \e[0m\e[0m] 281/719 "
+  - delay: 147
+    content: "\r\e[2Kdownload [00:02:03] [\e[36m===================>\e[34m                             \e[0m\e[0m] 282/719 "
+  - delay: 146
+    content: "\r\e[2Kdownload [00:02:03] [\e[36m===================>\e[34m                             \e[0m\e[0m] 283/719 "
+  - delay: 241
+    content: "\r\e[2Kdownload [00:02:03] [\e[36m===================>\e[34m                             \e[0m\e[0m] 284/719 "
+  - delay: 628
+    content: "\r\e[2Kdownload [00:02:04] [\e[36m===================>\e[34m                             \e[0m\e[0m] 285/719 "
+  - delay: 558
+    content: "\r\e[2Kdownload [00:02:04] [\e[36m===================>\e[34m                             \e[0m\e[0m] 286/719 "
+  - delay: 432
+    content: "\r\e[2Kdownload [00:02:05] [\e[36m===================>\e[34m                             \e[0m\e[0m] 287/719 "
+  - delay: 351
+    content: "\r\e[2Kdownload [00:02:05] [\e[36m===================>\e[34m                             \e[0m\e[0m] 288/719 "
+  - delay: 487
+    content: "\r\e[2Kdownload [00:02:05] [\e[36m===================>\e[34m                             \e[0m\e[0m] 289/719 "
+  - delay: 388
+    content: "\r\e[2Kdownload [00:02:06] [\e[36m===================>\e[34m                             \e[0m\e[0m] 290/719 "
+  - delay: 349
+    content: "\r\e[2Kdownload [00:02:06] [\e[36m===================>\e[34m                             \e[0m\e[0m] 291/719 "
+  - delay: 244
+    content: "\r\e[2Kdownload [00:02:06] [\e[36m===================>\e[34m                             \e[0m\e[0m] 292/719 "
+  - delay: 667
+    content: "\r\e[2Kdownload [00:02:07] [\e[36m===================>\e[34m                             \e[0m\e[0m] 293/719 "
+  - delay: 203
+    content: "\r\e[2Kdownload [00:02:07] [\e[36m====================>\e[34m                            \e[0m\e[0m] 294/719 "
+  - delay: 171
+    content: "\r\e[2Kdownload [00:02:07] [\e[36m====================>\e[34m                            \e[0m\e[0m] 295/719 "
+  - delay: 154
+    content: "\r\e[2Kdownload [00:02:08] [\e[36m====================>\e[34m                            \e[0m\e[0m] 296/719 "
+  - delay: 154
+    content: "\r\e[2Kdownload [00:02:08] [\e[36m====================>\e[34m                            \e[0m\e[0m] 297/719 "
+  - delay: 345
+    content: "\r\e[2Kdownload [00:02:08] [\e[36m====================>\e[34m                            \e[0m\e[0m] 298/719 "
+  - delay: 204
+    content: "\r\e[2Kdownload [00:02:08] [\e[36m====================>\e[34m                            \e[0m\e[0m] 299/719 "
+  - delay: 287
+    content: "\r\e[2Kdownload [00:02:09] [\e[36m====================>\e[34m                            \e[0m\e[0m] 300/719 "
+  - delay: 183
+    content: "\r\e[2Kdownload [00:02:09] [\e[36m====================>\e[34m                            \e[0m\e[0m] 301/719 "
+  - delay: 340
+    content: "\r\e[2Kdownload [00:02:09] [\e[36m====================>\e[34m                            \e[0m\e[0m] 302/719 "
+  - delay: 172
+    content: "\r\e[2Kdownload [00:02:09] [\e[36m====================>\e[34m                            \e[0m\e[0m] 303/719 "
+  - delay: 245
+    content: "\r\e[2Kdownload [00:02:10] [\e[36m====================>\e[34m                            \e[0m\e[0m] 304/719 "
+  - delay: 418
+    content: "\r\e[2Kdownload [00:02:10] [\e[36m====================>\e[34m                            \e[0m\e[0m] 305/719 "
+  - delay: 553
+    content: "\r\e[2Kdownload [00:02:11] [\e[36m====================>\e[34m                            \e[0m\e[0m] 306/719 "
+  - delay: 769
+    content: "\r\e[2Kdownload [00:02:11] [\e[36m====================>\e[34m                            \e[0m\e[0m] 307/719 "
+  - delay: 479
+    content: "\r\e[2Kdownload [00:02:12] [\e[36m====================>\e[34m                            \e[0m\e[0m] 308/719 "
+  - delay: 576
+    content: "\r\e[2Kdownload [00:02:12] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 309/719 "
+  - delay: 1239
+    content: "\r\e[2Kdownload [00:02:14] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 310/719 "
+  - delay: 528
+    content: "\r\e[2Kdownload [00:02:14] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 311/719 "
+  - delay: 774
+    content: "\r\e[2Kdownload [00:02:15] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 312/719 "
+  - delay: 630
+    content: "\r\e[2Kdownload [00:02:16] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 313/719 "
+  - delay: 671
+    content: "\r\e[2Kdownload [00:02:16] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 314/719 "
+  - delay: 441
+    content: "\r\e[2Kdownload [00:02:17] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 315/719 "
+  - delay: 128
+    content: "\r\e[2Kdownload [00:02:17] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 316/719 "
+  - delay: 259
+    content: "\r\e[2Kdownload [00:02:17] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 317/719 "
+  - delay: 141
+    content: "\r\e[2Kdownload [00:02:17] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 318/719 "
+  - delay: 202
+    content: "\r\e[2Kdownload [00:02:17] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 319/719 "
+  - delay: 416
+    content: "\r\e[2Kdownload [00:02:18] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 320/719 "
+  - delay: 263
+    content: "\r\e[2Kdownload [00:02:18] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 321/719 "
+  - delay: 227
+    content: "\r\e[2Kdownload [00:02:18] [\e[36m=====================>\e[34m                           \e[0m\e[0m] 322/719 "
+  - delay: 169
+    content: "\r\e[2Kdownload [00:02:18] [\e[36m======================>\e[34m                          \e[0m\e[0m] 323/719 "
+  - delay: 264
+    content: "\r\e[2Kdownload [00:02:19] [\e[36m======================>\e[34m                          \e[0m\e[0m] 324/719 "
+  - delay: 201
+    content: "\r\e[2Kdownload [00:02:19] [\e[36m======================>\e[34m                          \e[0m\e[0m] 325/719 "
+  - delay: 279
+    content: "\r\e[2Kdownload [00:02:19] [\e[36m======================>\e[34m                          \e[0m\e[0m] 326/719 "
+  - delay: 178
+    content: "\r\e[2Kdownload [00:02:19] [\e[36m======================>\e[34m                          \e[0m\e[0m] 327/719 "
+  - delay: 219
+    content: "\r\e[2Kdownload [00:02:20] [\e[36m======================>\e[34m                          \e[0m\e[0m] 328/719 "
+  - delay: 172
+    content: "\r\e[2Kdownload [00:02:20] [\e[36m======================>\e[34m                          \e[0m\e[0m] 329/719 "
+  - delay: 211
+    content: "\r\e[2Kdownload [00:02:20] [\e[36m======================>\e[34m                          \e[0m\e[0m] 330/719 "
+  - delay: 217
+    content: "\r\e[2Kdownload [00:02:20] [\e[36m======================>\e[34m                          \e[0m\e[0m] 331/719 "
+  - delay: 172
+    content: "\r\e[2Kdownload [00:02:20] [\e[36m======================>\e[34m                          \e[0m\e[0m] 332/719 "
+  - delay: 174
+    content: "\r\e[2Kdownload [00:02:21] [\e[36m======================>\e[34m                          \e[0m\e[0m] 333/719 "
+  - delay: 182
+    content: "\r\e[2Kdownload [00:02:21] [\e[36m======================>\e[34m                          \e[0m\e[0m] 334/719 "
+  - delay: 289
+    content: "\r\e[2Kdownload [00:02:21] [\e[36m======================>\e[34m                          \e[0m\e[0m] 335/719 "
+  - delay: 205
+    content: "\r\e[2Kdownload [00:02:21] [\e[36m======================>\e[34m                          \e[0m\e[0m] 336/719 "
+  - delay: 150
+    content: "\r\e[2Kdownload [00:02:21] [\e[36m======================>\e[34m                          \e[0m\e[0m] 337/719 "
+  - delay: 228
+    content: "\r\e[2Kdownload [00:02:22] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 338/719 "
+  - delay: 201
+    content: "\r\e[2Kdownload [00:02:22] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 339/719 "
+  - delay: 203
+    content: "\r\e[2Kdownload [00:02:22] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 340/719 "
+  - delay: 186
+    content: "\r\e[2Kdownload [00:02:22] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 341/719 "
+  - delay: 170
+    content: "\r\e[2Kdownload [00:02:22] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 342/719 "
+  - delay: 193
+    content: "\r\e[2Kdownload [00:02:23] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 343/719 "
+  - delay: 262
+    content: "\r\e[2Kdownload [00:02:23] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 344/719 "
+  - delay: 315
+    content: "\r\e[2Kdownload [00:02:23] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 345/719 "
+  - delay: 417
+    content: "\r\e[2Kdownload [00:02:24] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 346/719 "
+  - delay: 617
+    content: "\r\e[2Kdownload [00:02:24] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 347/719 "
+  - delay: 312
+    content: "\r\e[2Kdownload [00:02:24] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 348/719 "
+  - delay: 151
+    content: "\r\e[2Kdownload [00:02:25] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 349/719 "
+  - delay: 219
+    content: "\r\e[2Kdownload [00:02:25] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 350/719 "
+  - delay: 163
+    content: "\r\e[2Kdownload [00:02:25] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 351/719 "
+  - delay: 232
+    content: "\r\e[2Kdownload [00:02:25] [\e[36m=======================>\e[34m                         \e[0m\e[0m] 352/719 "
+  - delay: 425
+    content: "\r\e[2Kdownload [00:02:26] [\e[36m========================>\e[34m                        \e[0m\e[0m] 353/719 "
+  - delay: 255
+    content: "\r\e[2Kdownload [00:02:26] [\e[36m========================>\e[34m                        \e[0m\e[0m] 354/719 "
+  - delay: 309
+    content: "\r\e[2Kdownload [00:02:26] [\e[36m========================>\e[34m                        \e[0m\e[0m] 355/719 "
+  - delay: 203
+    content: "\r\e[2Kdownload [00:02:26] [\e[36m========================>\e[34m                        \e[0m\e[0m] 356/719 "
+  - delay: 192
+    content: "\r\e[2Kdownload [00:02:27] [\e[36m========================>\e[34m                        \e[0m\e[0m] 357/719 "
+  - delay: 204
+    content: "\r\e[2Kdownload [00:02:27] [\e[36m========================>\e[34m                        \e[0m\e[0m] 358/719 "
+  - delay: 246
+    content: "\r\e[2Kdownload [00:02:27] [\e[36m========================>\e[34m                        \e[0m\e[0m] 359/719 "
+  - delay: 169
+    content: "\r\e[2Kdownload [00:02:27] [\e[36m========================>\e[34m                        \e[0m\e[0m] 360/719 "
+  - delay: 226
+    content: "\r\e[2Kdownload [00:02:27] [\e[36m========================>\e[34m                        \e[0m\e[0m] 361/719 "
+  - delay: 188
+    content: "\r\e[2Kdownload [00:02:28] [\e[36m========================>\e[34m                        \e[0m\e[0m] 362/719 "
+  - delay: 150
+    content: "\r\e[2Kdownload [00:02:28] [\e[36m========================>\e[34m                        \e[0m\e[0m] 363/719 "
+  - delay: 254
+    content: "\r\e[2Kdownload [00:02:28] [\e[36m========================>\e[34m                        \e[0m\e[0m] 364/719 "
+  - delay: 286
+    content: "\r\e[2Kdownload [00:02:28] [\e[36m========================>\e[34m                        \e[0m\e[0m] 365/719 "
+  - delay: 382
+    content: "\r\e[2Kdownload [00:02:29] [\e[36m========================>\e[34m                        \e[0m\e[0m] 366/719 "
+  - delay: 415
+    content: "\r\e[2Kdownload [00:02:29] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 367/719 "
+  - delay: 361
+    content: "\r\e[2Kdownload [00:02:30] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 368/719 "
+  - delay: 255
+    content: "\r\e[2Kdownload [00:02:30] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 369/719 "
+  - delay: 305
+    content: "\r\e[2Kdownload [00:02:30] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 370/719 "
+  - delay: 285
+    content: "\r\e[2Kdownload [00:02:30] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 371/719 "
+  - delay: 205
+    content: "\r\e[2Kdownload [00:02:31] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 372/719 "
+  - delay: 281
+    content: "\r\e[2Kdownload [00:02:31] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 373/719 "
+  - delay: 251
+    content: "\r\e[2Kdownload [00:02:31] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 374/719 "
+  - delay: 355
+    content: "\r\e[2Kdownload [00:02:31] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 375/719 "
+  - delay: 212
+    content: "\r\e[2Kdownload [00:02:32] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 376/719 "
+  - delay: 280
+    content: "\r\e[2Kdownload [00:02:32] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 377/719 "
+  - delay: 391
+    content: "\r\e[2Kdownload [00:02:32] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 378/719 "
+  - delay: 295
+    content: "\r\e[2Kdownload [00:02:33] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 379/719 "
+  - delay: 282
+    content: "\r\e[2Kdownload [00:02:33] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 380/719 "
+  - delay: 290
+    content: "\r\e[2Kdownload [00:02:33] [\e[36m=========================>\e[34m                       \e[0m\e[0m] 381/719 "
+  - delay: 288
+    content: "\r\e[2Kdownload [00:02:33] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 382/719 "
+  - delay: 526
+    content: "\r\e[2Kdownload [00:02:34] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 383/719 "
+  - delay: 183
+    content: "\r\e[2Kdownload [00:02:34] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 384/719 "
+  - delay: 247
+    content: "\r\e[2Kdownload [00:02:34] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 385/719 "
+  - delay: 217
+    content: "\r\e[2Kdownload [00:02:35] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 386/719 "
+  - delay: 210
+    content: "\r\e[2Kdownload [00:02:35] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 387/719 "
+  - delay: 210
+    content: "\r\e[2Kdownload [00:02:35] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 388/719 "
+  - delay: 163
+    content: "\r\e[2Kdownload [00:02:35] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 389/719 "
+  - delay: 224
+    content: "\r\e[2Kdownload [00:02:35] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 390/719 "
+  - delay: 497
+    content: "\r\e[2Kdownload [00:02:36] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 391/719 "
+  - delay: 507
+    content: "\r\e[2Kdownload [00:02:36] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 392/719 "
+  - delay: 279
+    content: "\r\e[2Kdownload [00:02:37] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 393/719 "
+  - delay: 218
+    content: "\r\e[2Kdownload [00:02:37] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 394/719 "
+  - delay: 454
+    content: "\r\e[2Kdownload [00:02:37] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 395/719 "
+  - delay: 1005
+    content: "\r\e[2Kdownload [00:02:38] [\e[36m==========================>\e[34m                      \e[0m\e[0m] 396/719 "
+  - delay: 212
+    content: "\r\e[2Kdownload [00:02:39] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 397/719 "
+  - delay: 162
+    content: "\r\e[2Kdownload [00:02:39] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 398/719 "
+  - delay: 305
+    content: "\r\e[2Kdownload [00:02:39] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 399/719 "
+  - delay: 172
+    content: "\r\e[2Kdownload [00:02:39] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 400/719 "
+  - delay: 191
+    content: "\r\e[2Kdownload [00:02:39] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 401/719 "
+  - delay: 129
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 402/719 "
+  - delay: 158
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 403/719 "
+  - delay: 148
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 404/719 "
+  - delay: 151
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 405/719 "
+  - delay: 188
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 406/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:02:40] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 407/719 "
+  - delay: 296
+    content: "\r\e[2Kdownload [00:02:41] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 408/719 "
+  - delay: 238
+    content: "\r\e[2Kdownload [00:02:41] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 409/719 "
+  - delay: 285
+    content: "\r\e[2Kdownload [00:02:41] [\e[36m===========================>\e[34m                     \e[0m\e[0m] 410/719 "
+  - delay: 289
+    content: "\r\e[2Kdownload [00:02:42] [\e[36m============================>\e[34m                    \e[0m\e[0m] 411/719 "
+  - delay: 224
+    content: "\r\e[2Kdownload [00:02:42] [\e[36m============================>\e[34m                    \e[0m\e[0m] 412/719 "
+  - delay: 510
+    content: "\r\e[2Kdownload [00:02:42] [\e[36m============================>\e[34m                    \e[0m\e[0m] 413/719 "
+  - delay: 241
+    content: "\r\e[2Kdownload [00:02:43] [\e[36m============================>\e[34m                    \e[0m\e[0m] 414/719 "
+  - delay: 202
+    content: "\r\e[2Kdownload [00:02:43] [\e[36m============================>\e[34m                    \e[0m\e[0m] 415/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:02:43] [\e[36m============================>\e[34m                    \e[0m\e[0m] 416/719 "
+  - delay: 217
+    content: "\r\e[2Kdownload [00:02:43] [\e[36m============================>\e[34m                    \e[0m\e[0m] 417/719 "
+  - delay: 248
+    content: "\r\e[2Kdownload [00:02:43] [\e[36m============================>\e[34m                    \e[0m\e[0m] 418/719 "
+  - delay: 167
+    content: "\r\e[2Kdownload [00:02:44] [\e[36m============================>\e[34m                    \e[0m\e[0m] 419/719 "
+  - delay: 226
+    content: "\r\e[2Kdownload [00:02:44] [\e[36m============================>\e[34m                    \e[0m\e[0m] 420/719 "
+  - delay: 174
+    content: "\r\e[2Kdownload [00:02:44] [\e[36m============================>\e[34m                    \e[0m\e[0m] 421/719 "
+  - delay: 182
+    content: "\r\e[2Kdownload [00:02:44] [\e[36m============================>\e[34m                    \e[0m\e[0m] 422/719 "
+  - delay: 321
+    content: "\r\e[2Kdownload [00:02:44] [\e[36m============================>\e[34m                    \e[0m\e[0m] 423/719 "
+  - delay: 225
+    content: "\r\e[2Kdownload [00:02:45] [\e[36m============================>\e[34m                    \e[0m\e[0m] 424/719 "
+  - delay: 288
+    content: "\r\e[2Kdownload [00:02:45] [\e[36m============================>\e[34m                    \e[0m\e[0m] 425/719 "
+  - delay: 542
+    content: "\r\e[2Kdownload [00:02:46] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 426/719 "
+  - delay: 617
+    content: "\r\e[2Kdownload [00:02:46] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 427/719 "
+  - delay: 344
+    content: "\r\e[2Kdownload [00:02:46] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 428/719 "
+  - delay: 538
+    content: "\r\e[2Kdownload [00:02:47] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 429/719 "
+  - delay: 734
+    content: "\r\e[2Kdownload [00:02:48] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 430/719 "
+  - delay: 398
+    content: "\r\e[2Kdownload [00:02:48] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 431/719 "
+  - delay: 460
+    content: "\r\e[2Kdownload [00:02:49] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 432/719 "
+  - delay: 423
+    content: "\r\e[2Kdownload [00:02:49] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 433/719 "
+  - delay: 488
+    content: "\r\e[2Kdownload [00:02:50] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 434/719 "
+  - delay: 558
+    content: "\r\e[2Kdownload [00:02:50] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 435/719 "
+  - delay: 429
+    content: "\r\e[2Kdownload [00:02:51] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 436/719 "
+  - delay: 726
+    content: "\r\e[2Kdownload [00:02:51] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 437/719 "
+  - delay: 178
+    content: "\r\e[2Kdownload [00:02:51] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 438/719 "
+  - delay: 248
+    content: "\r\e[2Kdownload [00:02:52] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 439/719 "
+  - delay: 184
+    content: "\r\e[2Kdownload [00:02:52] [\e[36m=============================>\e[34m                   \e[0m\e[0m] 440/719 "
+  - delay: 151
+    content: "\r\e[2Kdownload [00:02:52] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 441/719 "
+  - delay: 192
+    content: "\r\e[2Kdownload [00:02:52] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 442/719 "
+  - delay: 166
+    content: "\r\e[2Kdownload [00:02:52] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 443/719 "
+  - delay: 218
+    content: "\r\e[2Kdownload [00:02:53] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 444/719 "
+  - delay: 135
+    content: "\r\e[2Kdownload [00:02:53] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 445/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:02:53] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 446/719 "
+  - delay: 161
+    content: "\r\e[2Kdownload [00:02:53] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 447/719 "
+  - delay: 200
+    content: "\r\e[2Kdownload [00:02:53] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 448/719 "
+  - delay: 545
+    content: "\r\e[2Kdownload [00:02:54] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 449/719 "
+  - delay: 450
+    content: "\r\e[2Kdownload [00:02:54] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 450/719 "
+  - delay: 644
+    content: "\r\e[2Kdownload [00:02:55] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 451/719 "
+  - delay: 650
+    content: "\r\e[2Kdownload [00:02:56] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 452/719 "
+  - delay: 595
+    content: "\r\e[2Kdownload [00:02:56] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 453/719 "
+  - delay: 548
+    content: "\r\e[2Kdownload [00:02:57] [\e[36m==============================>\e[34m                  \e[0m\e[0m] 454/719 "
+  - delay: 474
+    content: "\r\e[2Kdownload [00:02:57] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 455/719 "
+  - delay: 523
+    content: "\r\e[2Kdownload [00:02:58] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 456/719 "
+  - delay: 835
+    content: "\r\e[2Kdownload [00:02:59] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 457/719 "
+  - delay: 1011
+    content: "\r\e[2Kdownload [00:03:00] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 458/719 "
+  - delay: 702
+    content: "\r\e[2Kdownload [00:03:00] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 459/719 "
+  - delay: 406
+    content: "\r\e[2Kdownload [00:03:01] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 460/719 "
+  - delay: 485
+    content: "\r\e[2Kdownload [00:03:01] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 461/719 "
+  - delay: 345
+    content: "\r\e[2Kdownload [00:03:01] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 462/719 "
+  - delay: 283
+    content: "\r\e[2Kdownload [00:03:02] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 463/719 "
+  - delay: 301
+    content: "\r\e[2Kdownload [00:03:02] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 464/719 "
+  - delay: 287
+    content: "\r\e[2Kdownload [00:03:02] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 465/719 "
+  - delay: 197
+    content: "\r\e[2Kdownload [00:03:03] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 466/719 "
+  - delay: 271
+    content: "\r\e[2Kdownload [00:03:03] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 467/719 "
+  - delay: 337
+    content: "\r\e[2Kdownload [00:03:03] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 468/719 "
+  - delay: 229
+    content: "\r\e[2Kdownload [00:03:03] [\e[36m===============================>\e[34m                 \e[0m\e[0m] 469/719 "
+  - delay: 252
+    content: "\r\e[2Kdownload [00:03:04] [\e[36m================================>\e[34m                \e[0m\e[0m] 470/719 "
+  - delay: 391
+    content: "\r\e[2Kdownload [00:03:04] [\e[36m================================>\e[34m                \e[0m\e[0m] 471/719 "
+  - delay: 847
+    content: "\r\e[2Kdownload [00:03:05] [\e[36m================================>\e[34m                \e[0m\e[0m] 472/719 "
+  - delay: 517
+    content: "\r\e[2Kdownload [00:03:05] [\e[36m================================>\e[34m                \e[0m\e[0m] 473/719 "
+  - delay: 645
+    content: "\r\e[2Kdownload [00:03:06] [\e[36m================================>\e[34m                \e[0m\e[0m] 474/719 "
+  - delay: 569
+    content: "\r\e[2Kdownload [00:03:07] [\e[36m================================>\e[34m                \e[0m\e[0m] 475/719 "
+  - delay: 681
+    content: "\r\e[2Kdownload [00:03:07] [\e[36m================================>\e[34m                \e[0m\e[0m] 476/719 "
+  - delay: 638
+    content: "\r\e[2Kdownload [00:03:08] [\e[36m================================>\e[34m                \e[0m\e[0m] 477/719 "
+  - delay: 605
+    content: "\r\e[2Kdownload [00:03:09] [\e[36m================================>\e[34m                \e[0m\e[0m] 478/719 "
+  - delay: 633
+    content: "\r\e[2Kdownload [00:03:09] [\e[36m================================>\e[34m                \e[0m\e[0m] 479/719 "
+  - delay: 304
+    content: "\r\e[2Kdownload [00:03:09] [\e[36m================================>\e[34m                \e[0m\e[0m] 480/719 "
+  - delay: 336
+    content: "\r\e[2Kdownload [00:03:10] [\e[36m================================>\e[34m                \e[0m\e[0m] 481/719 "
+  - delay: 365
+    content: "\r\e[2Kdownload [00:03:10] [\e[36m================================>\e[34m                \e[0m\e[0m] 482/719 "
+  - delay: 332
+    content: "\r\e[2Kdownload [00:03:11] [\e[36m================================>\e[34m                \e[0m\e[0m] 483/719 "
+  - delay: 673
+    content: "\r\e[2Kdownload [00:03:11] [\e[36m================================>\e[34m                \e[0m\e[0m] 484/719 "
+  - delay: 570
+    content: "\r\e[2Kdownload [00:03:12] [\e[36m=================================>\e[34m               \e[0m\e[0m] 485/719 "
+  - delay: 375
+    content: "\r\e[2Kdownload [00:03:12] [\e[36m=================================>\e[34m               \e[0m\e[0m] 486/719 "
+  - delay: 245
+    content: "\r\e[2Kdownload [00:03:12] [\e[36m=================================>\e[34m               \e[0m\e[0m] 487/719 "
+  - delay: 205
+    content: "\r\e[2Kdownload [00:03:13] [\e[36m=================================>\e[34m               \e[0m\e[0m] 488/719 "
+  - delay: 223
+    content: "\r\e[2Kdownload [00:03:13] [\e[36m=================================>\e[34m               \e[0m\e[0m] 489/719 "
+  - delay: 229
+    content: "\r\e[2Kdownload [00:03:13] [\e[36m=================================>\e[34m               \e[0m\e[0m] 490/719 "
+  - delay: 244
+    content: "\r\e[2Kdownload [00:03:13] [\e[36m=================================>\e[34m               \e[0m\e[0m] 491/719 "
+  - delay: 285
+    content: "\r\e[2Kdownload [00:03:14] [\e[36m=================================>\e[34m               \e[0m\e[0m] 492/719 "
+  - delay: 270
+    content: "\r\e[2Kdownload [00:03:14] [\e[36m=================================>\e[34m               \e[0m\e[0m] 493/719 "
+  - delay: 222
+    content: "\r\e[2Kdownload [00:03:14] [\e[36m=================================>\e[34m               \e[0m\e[0m] 494/719 "
+  - delay: 209
+    content: "\r\e[2Kdownload [00:03:14] [\e[36m=================================>\e[34m               \e[0m\e[0m] 495/719 "
+  - delay: 345
+    content: "\r\e[2Kdownload [00:03:15] [\e[36m=================================>\e[34m               \e[0m\e[0m] 496/719 "
+  - delay: 636
+    content: "\r\e[2Kdownload [00:03:15] [\e[36m=================================>\e[34m               \e[0m\e[0m] 497/719 "
+  - delay: 704
+    content: "\r\e[2Kdownload [00:03:16] [\e[36m=================================>\e[34m               \e[0m\e[0m] 498/719 "
+  - delay: 1342
+    content: "\r\e[2Kdownload [00:03:17] [\e[36m==================================>\e[34m              \e[0m\e[0m] 499/719 "
+  - delay: 1223
+    content: "\r\e[2Kdownload [00:03:19] [\e[36m==================================>\e[34m              \e[0m\e[0m] 500/719 "
+  - delay: 705
+    content: "\r\e[2Kdownload [00:03:19] [\e[36m==================================>\e[34m              \e[0m\e[0m] 501/719 "
+  - delay: 517
+    content: "\r\e[2Kdownload [00:03:20] [\e[36m==================================>\e[34m              \e[0m\e[0m] 502/719 "
+  - delay: 677
+    content: "\r\e[2Kdownload [00:03:20] [\e[36m==================================>\e[34m              \e[0m\e[0m] 503/719 "
+  - delay: 349
+    content: "\r\e[2Kdownload [00:03:21] [\e[36m==================================>\e[34m              \e[0m\e[0m] 504/719 "
+  - delay: 721
+    content: "\r\e[2Kdownload [00:03:21] [\e[36m==================================>\e[34m              \e[0m\e[0m] 505/719 "
+  - delay: 219
+    content: "\r\e[2Kdownload [00:03:22] [\e[36m==================================>\e[34m              \e[0m\e[0m] 506/719 "
+  - delay: 227
+    content: "\r\e[2Kdownload [00:03:22] [\e[36m==================================>\e[34m              \e[0m\e[0m] 507/719 "
+  - delay: 234
+    content: "\r\e[2Kdownload [00:03:22] [\e[36m==================================>\e[34m              \e[0m\e[0m] 508/719 "
+  - delay: 231
+    content: "\r\e[2Kdownload [00:03:22] [\e[36m==================================>\e[34m              \e[0m\e[0m] 509/719 "
+  - delay: 268
+    content: "\r\e[2Kdownload [00:03:23] [\e[36m==================================>\e[34m              \e[0m\e[0m] 510/719 "
+  - delay: 191
+    content: "\r\e[2Kdownload [00:03:23] [\e[36m==================================>\e[34m              \e[0m\e[0m] 511/719 "
+  - delay: 229
+    content: "\r\e[2Kdownload [00:03:23] [\e[36m==================================>\e[34m              \e[0m\e[0m] 512/719 "
+  - delay: 240
+    content: "\r\e[2Kdownload [00:03:23] [\e[36m==================================>\e[34m              \e[0m\e[0m] 513/719 "
+  - delay: 252
+    content: "\r\e[2Kdownload [00:03:24] [\e[36m===================================>\e[34m             \e[0m\e[0m] 514/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:03:24] [\e[36m===================================>\e[34m             \e[0m\e[0m] 515/719 "
+  - delay: 267
+    content: "\r\e[2Kdownload [00:03:24] [\e[36m===================================>\e[34m             \e[0m\e[0m] 516/719 "
+  - delay: 254
+    content: "\r\e[2Kdownload [00:03:24] [\e[36m===================================>\e[34m             \e[0m\e[0m] 517/719 "
+  - delay: 280
+    content: "\r\e[2Kdownload [00:03:25] [\e[36m===================================>\e[34m             \e[0m\e[0m] 518/719 "
+  - delay: 333
+    content: "\r\e[2Kdownload [00:03:25] [\e[36m===================================>\e[34m             \e[0m\e[0m] 519/719 "
+  - delay: 423
+    content: "\r\e[2Kdownload [00:03:25] [\e[36m===================================>\e[34m             \e[0m\e[0m] 520/719 "
+  - delay: 682
+    content: "\r\e[2Kdownload [00:03:26] [\e[36m===================================>\e[34m             \e[0m\e[0m] 521/719 "
+  - delay: 456
+    content: "\r\e[2Kdownload [00:03:26] [\e[36m===================================>\e[34m             \e[0m\e[0m] 522/719 "
+  - delay: 387
+    content: "\r\e[2Kdownload [00:03:27] [\e[36m===================================>\e[34m             \e[0m\e[0m] 523/719 "
+  - delay: 664
+    content: "\r\e[2Kdownload [00:03:28] [\e[36m===================================>\e[34m             \e[0m\e[0m] 524/719 "
+  - delay: 501
+    content: "\r\e[2Kdownload [00:03:28] [\e[36m===================================>\e[34m             \e[0m\e[0m] 525/719 "
+  - delay: 780
+    content: "\r\e[2Kdownload [00:03:29] [\e[36m===================================>\e[34m             \e[0m\e[0m] 526/719 "
+  - delay: 727
+    content: "\r\e[2Kdownload [00:03:30] [\e[36m===================================>\e[34m             \e[0m\e[0m] 527/719 "
+  - delay: 595
+    content: "\r\e[2Kdownload [00:03:30] [\e[36m===================================>\e[34m             \e[0m\e[0m] 528/719 "
+  - delay: 440
+    content: "\r\e[2Kdownload [00:03:31] [\e[36m====================================>\e[34m            \e[0m\e[0m] 529/719 "
+  - delay: 395
+    content: "\r\e[2Kdownload [00:03:31] [\e[36m====================================>\e[34m            \e[0m\e[0m] 530/719 "
+  - delay: 424
+    content: "\r\e[2Kdownload [00:03:31] [\e[36m====================================>\e[34m            \e[0m\e[0m] 531/719 "
+  - delay: 262
+    content: "\r\e[2Kdownload [00:03:32] [\e[36m====================================>\e[34m            \e[0m\e[0m] 532/719 "
+  - delay: 530
+    content: "\r\e[2Kdownload [00:03:32] [\e[36m====================================>\e[34m            \e[0m\e[0m] 533/719 "
+  - delay: 310
+    content: "\r\e[2Kdownload [00:03:32] [\e[36m====================================>\e[34m            \e[0m\e[0m] 534/719 "
+  - delay: 322
+    content: "\r\e[2Kdownload [00:03:33] [\e[36m====================================>\e[34m            \e[0m\e[0m] 535/719 "
+  - delay: 756
+    content: "\r\e[2Kdownload [00:03:34] [\e[36m====================================>\e[34m            \e[0m\e[0m] 536/719 "
+  - delay: 349
+    content: "\r\e[2Kdownload [00:03:34] [\e[36m====================================>\e[34m            \e[0m\e[0m] 537/719 "
+  - delay: 534
+    content: "\r\e[2Kdownload [00:03:34] [\e[36m====================================>\e[34m            \e[0m\e[0m] 538/719 "
+  - delay: 347
+    content: "\r\e[2Kdownload [00:03:35] [\e[36m====================================>\e[34m            \e[0m\e[0m] 539/719 "
+  - delay: 515
+    content: "\r\e[2Kdownload [00:03:35] [\e[36m====================================>\e[34m            \e[0m\e[0m] 540/719 "
+  - delay: 366
+    content: "\r\e[2Kdownload [00:03:36] [\e[36m====================================>\e[34m            \e[0m\e[0m] 541/719 "
+  - delay: 387
+    content: "\r\e[2Kdownload [00:03:36] [\e[36m====================================>\e[34m            \e[0m\e[0m] 542/719 "
+  - delay: 444
+    content: "\r\e[2Kdownload [00:03:37] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 543/719 "
+  - delay: 380
+    content: "\r\e[2Kdownload [00:03:37] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 544/719 "
+  - delay: 542
+    content: "\r\e[2Kdownload [00:03:37] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 545/719 "
+  - delay: 219
+    content: "\r\e[2Kdownload [00:03:38] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 546/719 "
+  - delay: 210
+    content: "\r\e[2Kdownload [00:03:38] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 547/719 "
+  - delay: 226
+    content: "\r\e[2Kdownload [00:03:38] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 548/719 "
+  - delay: 307
+    content: "\r\e[2Kdownload [00:03:38] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 549/719 "
+  - delay: 217
+    content: "\r\e[2Kdownload [00:03:39] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 550/719 "
+  - delay: 201
+    content: "\r\e[2Kdownload [00:03:39] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 551/719 "
+  - delay: 235
+    content: "\r\e[2Kdownload [00:03:39] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 552/719 "
+  - delay: 168
+    content: "\r\e[2Kdownload [00:03:39] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 553/719 "
+  - delay: 211
+    content: "\r\e[2Kdownload [00:03:39] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 554/719 "
+  - delay: 202
+    content: "\r\e[2Kdownload [00:03:40] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 555/719 "
+  - delay: 177
+    content: "\r\e[2Kdownload [00:03:40] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 556/719 "
+  - delay: 597
+    content: "\r\e[2Kdownload [00:03:40] [\e[36m=====================================>\e[34m           \e[0m\e[0m] 557/719 "
+  - delay: 306
+    content: "\r\e[2Kdownload [00:03:41] [\e[36m======================================>\e[34m          \e[0m\e[0m] 558/719 "
+  - delay: 512
+    content: "\r\e[2Kdownload [00:03:41] [\e[36m======================================>\e[34m          \e[0m\e[0m] 559/719 "
+  - delay: 480
+    content: "\r\e[2Kdownload [00:03:42] [\e[36m======================================>\e[34m          \e[0m\e[0m] 560/719 "
+  - delay: 344
+    content: "\r\e[2Kdownload [00:03:42] [\e[36m======================================>\e[34m          \e[0m\e[0m] 561/719 "
+  - delay: 492
+    content: "\r\e[2Kdownload [00:03:43] [\e[36m======================================>\e[34m          \e[0m\e[0m] 562/719 "
+  - delay: 376
+    content: "\r\e[2Kdownload [00:03:43] [\e[36m======================================>\e[34m          \e[0m\e[0m] 563/719 "
+  - delay: 729
+    content: "\r\e[2Kdownload [00:03:44] [\e[36m======================================>\e[34m          \e[0m\e[0m] 564/719 "
+  - delay: 422
+    content: "\r\e[2Kdownload [00:03:44] [\e[36m======================================>\e[34m          \e[0m\e[0m] 565/719 "
+  - delay: 558
+    content: "\r\e[2Kdownload [00:03:45] [\e[36m======================================>\e[34m          \e[0m\e[0m] 566/719 "
+  - delay: 349
+    content: "\r\e[2Kdownload [00:03:45] [\e[36m======================================>\e[34m          \e[0m\e[0m] 567/719 "
+  - delay: 353
+    content: "\r\e[2Kdownload [00:03:45] [\e[36m======================================>\e[34m          \e[0m\e[0m] 568/719 "
+  - delay: 319
+    content: "\r\e[2Kdownload [00:03:46] [\e[36m======================================>\e[34m          \e[0m\e[0m] 569/719 "
+  - delay: 268
+    content: "\r\e[2Kdownload [00:03:46] [\e[36m======================================>\e[34m          \e[0m\e[0m] 570/719 "
+  - delay: 475
+    content: "\r\e[2Kdownload [00:03:46] [\e[36m======================================>\e[34m          \e[0m\e[0m] 571/719 "
+  - delay: 304
+    content: "\r\e[2Kdownload [00:03:47] [\e[36m======================================>\e[34m          \e[0m\e[0m] 572/719 "
+  - delay: 345
+    content: "\r\e[2Kdownload [00:03:47] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 573/719 "
+  - delay: 332
+    content: "\r\e[2Kdownload [00:03:47] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 574/719 "
+  - delay: 269
+    content: "\r\e[2Kdownload [00:03:48] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 575/719 "
+  - delay: 351
+    content: "\r\e[2Kdownload [00:03:48] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 576/719 "
+  - delay: 343
+    content: "\r\e[2Kdownload [00:03:48] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 577/719 "
+  - delay: 458
+    content: "\r\e[2Kdownload [00:03:49] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 578/719 "
+  - delay: 798
+    content: "\r\e[2Kdownload [00:03:50] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 579/719 "
+  - delay: 854
+    content: "\r\e[2Kdownload [00:03:50] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 580/719 "
+  - delay: 802
+    content: "\r\e[2Kdownload [00:03:51] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 581/719 "
+  - delay: 825
+    content: "\r\e[2Kdownload [00:03:52] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 582/719 "
+  - delay: 1277
+    content: "\r\e[2Kdownload [00:03:53] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 583/719 "
+  - delay: 1316
+    content: "\r\e[2Kdownload [00:03:55] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 584/719 "
+  - delay: 1321
+    content: "\r\e[2Kdownload [00:03:56] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 585/719 "
+  - delay: 739
+    content: "\r\e[2Kdownload [00:03:57] [\e[36m=======================================>\e[34m         \e[0m\e[0m] 586/719 "
+  - delay: 1042
+    content: "\r\e[2Kdownload [00:03:58] [\e[36m========================================>\e[34m        \e[0m\e[0m] 587/719 "
+  - delay: 792
+    content: "\r\e[2Kdownload [00:03:59] [\e[36m========================================>\e[34m        \e[0m\e[0m] 588/719 "
+  - delay: 844
+    content: "\r\e[2Kdownload [00:03:59] [\e[36m========================================>\e[34m        \e[0m\e[0m] 589/719 "
+  - delay: 827
+    content: "\r\e[2Kdownload [00:04:00] [\e[36m========================================>\e[34m        \e[0m\e[0m] 590/719 "
+  - delay: 683
+    content: "\r\e[2Kdownload [00:04:01] [\e[36m========================================>\e[34m        \e[0m\e[0m] 591/719 "
+  - delay: 688
+    content: "\r\e[2Kdownload [00:04:02] [\e[36m========================================>\e[34m        \e[0m\e[0m] 592/719 "
+  - delay: 502
+    content: "\r\e[2Kdownload [00:04:02] [\e[36m========================================>\e[34m        \e[0m\e[0m] 593/719 "
+  - delay: 678
+    content: "\r\e[2Kdownload [00:04:03] [\e[36m========================================>\e[34m        \e[0m\e[0m] 594/719 "
+  - delay: 557
+    content: "\r\e[2Kdownload [00:04:03] [\e[36m========================================>\e[34m        \e[0m\e[0m] 595/719 "
+  - delay: 634
+    content: "\r\e[2Kdownload [00:04:04] [\e[36m========================================>\e[34m        \e[0m\e[0m] 596/719 "
+  - delay: 700
+    content: "\r\e[2Kdownload [00:04:05] [\e[36m========================================>\e[34m        \e[0m\e[0m] 597/719 "
+  - delay: 445
+    content: "\r\e[2Kdownload [00:04:05] [\e[36m========================================>\e[34m        \e[0m\e[0m] 598/719 "
+  - delay: 926
+    content: "\r\e[2Kdownload [00:04:06] [\e[36m========================================>\e[34m        \e[0m\e[0m] 599/719 "
+  - delay: 412
+    content: "\r\e[2Kdownload [00:04:06] [\e[36m========================================>\e[34m        \e[0m\e[0m] 600/719 "
+  - delay: 420
+    content: "\r\e[2Kdownload [00:04:07] [\e[36m========================================>\e[34m        \e[0m\e[0m] 601/719 "
+  - delay: 816
+    content: "\r\e[2Kdownload [00:04:08] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 602/719 "
+  - delay: 558
+    content: "\r\e[2Kdownload [00:04:08] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 603/719 "
+  - delay: 644
+    content: "\r\e[2Kdownload [00:04:09] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 604/719 "
+  - delay: 610
+    content: "\r\e[2Kdownload [00:04:09] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 605/719 "
+  - delay: 729
+    content: "\r\e[2Kdownload [00:04:10] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 606/719 "
+  - delay: 532
+    content: "\r\e[2Kdownload [00:04:11] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 607/719 "
+  - delay: 1298
+    content: "\r\e[2Kdownload [00:04:12] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 608/719 "
+  - delay: 385
+    content: "\r\e[2Kdownload [00:04:12] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 609/719 "
+  - delay: 288
+    content: "\r\e[2Kdownload [00:04:13] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 610/719 "
+  - delay: 541
+    content: "\r\e[2Kdownload [00:04:13] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 611/719 "
+  - delay: 662
+    content: "\r\e[2Kdownload [00:04:14] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 612/719 "
+  - delay: 418
+    content: "\r\e[2Kdownload [00:04:14] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 613/719 "
+  - delay: 419
+    content: "\r\e[2Kdownload [00:04:15] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 614/719 "
+  - delay: 214
+    content: "\r\e[2Kdownload [00:04:15] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 615/719 "
+  - delay: 377
+    content: "\r\e[2Kdownload [00:04:15] [\e[36m=========================================>\e[34m       \e[0m\e[0m] 616/719 "
+  - delay: 322
+    content: "\r\e[2Kdownload [00:04:16] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 617/719 "
+  - delay: 778
+    content: "\r\e[2Kdownload [00:04:16] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 618/719 "
+  - delay: 254
+    content: "\r\e[2Kdownload [00:04:17] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 619/719 "
+  - delay: 299
+    content: "\r\e[2Kdownload [00:04:17] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 620/719 "
+  - delay: 245
+    content: "\r\e[2Kdownload [00:04:17] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 621/719 "
+  - delay: 343
+    content: "\r\e[2Kdownload [00:04:18] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 622/719 "
+  - delay: 265
+    content: "\r\e[2Kdownload [00:04:18] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 623/719 "
+  - delay: 587
+    content: "\r\e[2Kdownload [00:04:18] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 624/719 "
+  - delay: 536
+    content: "\r\e[2Kdownload [00:04:19] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 625/719 "
+  - delay: 395
+    content: "\r\e[2Kdownload [00:04:19] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 626/719 "
+  - delay: 631
+    content: "\r\e[2Kdownload [00:04:20] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 627/719 "
+  - delay: 344
+    content: "\r\e[2Kdownload [00:04:20] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 628/719 "
+  - delay: 513
+    content: "\r\e[2Kdownload [00:04:21] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 629/719 "
+  - delay: 415
+    content: "\r\e[2Kdownload [00:04:21] [\e[36m==========================================>\e[34m      \e[0m\e[0m] 630/719 "
+  - delay: 960
+    content: "\r\e[2Kdownload [00:04:22] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 631/719 "
+  - delay: 996
+    content: "\r\e[2Kdownload [00:04:23] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 632/719 "
+  - delay: 406
+    content: "\r\e[2Kdownload [00:04:24] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 633/719 "
+  - delay: 261
+    content: "\r\e[2Kdownload [00:04:24] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 634/719 "
+  - delay: 401
+    content: "\r\e[2Kdownload [00:04:24] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 635/719 "
+  - delay: 314
+    content: "\r\e[2Kdownload [00:04:25] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 636/719 "
+  - delay: 274
+    content: "\r\e[2Kdownload [00:04:25] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 637/719 "
+  - delay: 588
+    content: "\r\e[2Kdownload [00:04:25] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 638/719 "
+  - delay: 316
+    content: "\r\e[2Kdownload [00:04:26] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 639/719 "
+  - delay: 285
+    content: "\r\e[2Kdownload [00:04:26] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 640/719 "
+  - delay: 323
+    content: "\r\e[2Kdownload [00:04:26] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 641/719 "
+  - delay: 318
+    content: "\r\e[2Kdownload [00:04:27] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 642/719 "
+  - delay: 212
+    content: "\r\e[2Kdownload [00:04:27] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 643/719 "
+  - delay: 243
+    content: "\r\e[2Kdownload [00:04:27] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 644/719 "
+  - delay: 412
+    content: "\r\e[2Kdownload [00:04:28] [\e[36m===========================================>\e[34m     \e[0m\e[0m] 645/719 "
+  - delay: 188
+    content: "\r\e[2Kdownload [00:04:28] [\e[36m============================================>\e[34m    \e[0m\e[0m] 646/719 "
+  - delay: 288
+    content: "\r\e[2Kdownload [00:04:28] [\e[36m============================================>\e[34m    \e[0m\e[0m] 647/719 "
+  - delay: 359
+    content: "\r\e[2Kdownload [00:04:28] [\e[36m============================================>\e[34m    \e[0m\e[0m] 648/719 "
+  - delay: 555
+    content: "\r\e[2Kdownload [00:04:29] [\e[36m============================================>\e[34m    \e[0m\e[0m] 649/719 "
+  - delay: 193
+    content: "\r\e[2Kdownload [00:04:29] [\e[36m============================================>\e[34m    \e[0m\e[0m] 650/719 "
+  - delay: 410
+    content: "\r\e[2Kdownload [00:04:30] [\e[36m============================================>\e[34m    \e[0m\e[0m] 651/719 "
+  - delay: 416
+    content: "\r\e[2Kdownload [00:04:30] [\e[36m============================================>\e[34m    \e[0m\e[0m] 652/719 "
+  - delay: 216
+    content: "\r\e[2Kdownload [00:04:30] [\e[36m============================================>\e[34m    \e[0m\e[0m] 653/719 "
+  - delay: 285
+    content: "\r\e[2Kdownload [00:04:31] [\e[36m============================================>\e[34m    \e[0m\e[0m] 654/719 "
+  - delay: 152
+    content: "\r\e[2Kdownload [00:04:31] [\e[36m============================================>\e[34m    \e[0m\e[0m] 655/719 "
+  - delay: 277
+    content: "\r\e[2Kdownload [00:04:31] [\e[36m============================================>\e[34m    \e[0m\e[0m] 656/719 "
+  - delay: 323
+    content: "\r\e[2Kdownload [00:04:31] [\e[36m============================================>\e[34m    \e[0m\e[0m] 657/719 "
+  - delay: 238
+    content: "\r\e[2Kdownload [00:04:31] [\e[36m============================================>\e[34m    \e[0m\e[0m] 658/719 "
+  - delay: 255
+    content: "\r\e[2Kdownload [00:04:32] [\e[36m============================================>\e[34m    \e[0m\e[0m] 659/719 "
+  - delay: 270
+    content: "\r\e[2Kdownload [00:04:32] [\e[36m============================================>\e[34m    \e[0m\e[0m] 660/719 "
+  - delay: 219
+    content: "\r\e[2Kdownload [00:04:32] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 661/719 "
+  - delay: 176
+    content: "\r\e[2Kdownload [00:04:32] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 662/719 "
+  - delay: 328
+    content: "\r\e[2Kdownload [00:04:33] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 663/719 "
+  - delay: 950
+    content: "\r\e[2Kdownload [00:04:34] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 664/719 "
+  - delay: 317
+    content: "\r\e[2Kdownload [00:04:34] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 665/719 "
+  - delay: 310
+    content: "\r\e[2Kdownload [00:04:34] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 666/719 "
+  - delay: 224
+    content: "\r\e[2Kdownload [00:04:35] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 667/719 "
+  - delay: 281
+    content: "\r\e[2Kdownload [00:04:35] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 668/719 "
+  - delay: 290
+    content: "\r\e[2Kdownload [00:04:35] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 669/719 "
+  - delay: 233
+    content: "\r\e[2Kdownload [00:04:35] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 670/719 "
+  - delay: 224
+    content: "\r\e[2Kdownload [00:04:36] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 671/719 "
+  - delay: 194
+    content: "\r\e[2Kdownload [00:04:36] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 672/719 "
+  - delay: 249
+    content: "\r\e[2Kdownload [00:04:36] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 673/719 "
+  - delay: 203
+    content: "\r\e[2Kdownload [00:04:36] [\e[36m=============================================>\e[34m   \e[0m\e[0m] 674/719 "
+  - delay: 266
+    content: "\r\e[2Kdownload [00:04:36] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 675/719 "
+  - delay: 274
+    content: "\r\e[2Kdownload [00:04:37] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 676/719 "
+  - delay: 461
+    content: "\r\e[2Kdownload [00:04:37] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 677/719 "
+  - delay: 154
+    content: "\r\e[2Kdownload [00:04:37] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 678/719 "
+  - delay: 206
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 679/719 "
+  - delay: 175
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 680/719 "
+  - delay: 146
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 681/719 "
+  - delay: 166
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 682/719 "
+  - delay: 205
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 683/719 "
+  - delay: 166
+    content: "\r\e[2Kdownload [00:04:38] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 684/719 "
+  - delay: 238
+    content: "\r\e[2Kdownload [00:04:39] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 685/719 "
+  - delay: 178
+    content: "\r\e[2Kdownload [00:04:39] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 686/719 "
+  - delay: 159
+    content: "\r\e[2Kdownload [00:04:39] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 687/719 "
+  - delay: 197
+    content: "\r\e[2Kdownload [00:04:39] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 688/719 "
+  - delay: 121
+    content: "\r\e[2Kdownload [00:04:39] [\e[36m==============================================>\e[34m  \e[0m\e[0m] 689/719 "
+  - delay: 225
+    content: "\r\e[2Kdownload [00:04:40] [\e[36m===============================================>\e[34m \e[0m\e[0m] 690/719 "
+  - delay: 171
+    content: "\r\e[2Kdownload [00:04:40] [\e[36m===============================================>\e[34m \e[0m\e[0m] 691/719 "
+  - delay: 389
+    content: "\r\e[2Kdownload [00:04:40] [\e[36m===============================================>\e[34m \e[0m\e[0m] 692/719 "
+  - delay: 631
+    content: "\r\e[2Kdownload [00:04:41] [\e[36m===============================================>\e[34m \e[0m\e[0m] 693/719 "
+  - delay: 789
+    content: "\r\e[2Kdownload [00:04:42] [\e[36m===============================================>\e[34m \e[0m\e[0m] 694/719 "
+  - delay: 827
+    content: "\r\e[2Kdownload [00:04:42] [\e[36m===============================================>\e[34m \e[0m\e[0m] 695/719 "
+  - delay: 298
+    content: "\r\e[2Kdownload [00:04:43] [\e[36m===============================================>\e[34m \e[0m\e[0m] 696/719 "
+  - delay: 351
+    content: "\r\e[2Kdownload [00:04:43] [\e[36m===============================================>\e[34m \e[0m\e[0m] 697/719 "
+  - delay: 297
+    content: "\r\e[2Kdownload [00:04:43] [\e[36m===============================================>\e[34m \e[0m\e[0m] 698/719 "
+  - delay: 439
+    content: "\r\e[2Kdownload [00:04:44] [\e[36m===============================================>\e[34m \e[0m\e[0m] 699/719 "
+  - delay: 462
+    content: "\r\e[2Kdownload [00:04:44] [\e[36m===============================================>\e[34m \e[0m\e[0m] 700/719 "
+  - delay: 329
+    content: "\r\e[2Kdownload [00:04:45] [\e[36m===============================================>\e[34m \e[0m\e[0m] 701/719 "
+  - delay: 358
+    content: "\r\e[2Kdownload [00:04:45] [\e[36m===============================================>\e[34m \e[0m\e[0m] 702/719 "
+  - delay: 298
+    content: "\r\e[2Kdownload [00:04:45] [\e[36m===============================================>\e[34m \e[0m\e[0m] 703/719 "
+  - delay: 370
+    content: "\r\e[2Kdownload [00:04:46] [\e[36m===============================================>\e[34m \e[0m\e[0m] 704/719 "
+  - delay: 303
+    content: "\r\e[2Kdownload [00:04:46] [\e[36m================================================>\e[34m\e[0m\e[0m] 705/719 "
+  - delay: 339
+    content: "\r\e[2Kdownload [00:04:46] [\e[36m================================================>\e[34m\e[0m\e[0m] 706/719 "
+  - delay: 309
+    content: "\r\e[2Kdownload [00:04:47] [\e[36m================================================>\e[34m\e[0m\e[0m] 707/719 "
+  - delay: 374
+    content: "\r\e[2Kdownload [00:04:47] [\e[36m================================================>\e[34m\e[0m\e[0m] 708/719 "
+  - delay: 870
+    content: "\r\e[2Kdownload [00:04:48] [\e[36m================================================>\e[34m\e[0m\e[0m] 709/719 "
+  - delay: 662
+    content: "\r\e[2Kdownload [00:04:48] [\e[36m================================================>\e[34m\e[0m\e[0m] 710/719 "
+  - delay: 609
+    content: "\r\e[2Kdownload [00:04:49] [\e[36m================================================>\e[34m\e[0m\e[0m] 711/719 "
+  - delay: 643
+    content: "\r\e[2Kdownload [00:04:50] [\e[36m================================================>\e[34m\e[0m\e[0m] 712/719 "
+  - delay: 395
+    content: "\r\e[2Kdownload [00:04:50] [\e[36m================================================>\e[34m\e[0m\e[0m] 713/719 "
+  - delay: 464
+    content: "\r\e[2Kdownload [00:04:51] [\e[36m================================================>\e[34m\e[0m\e[0m] 714/719 "
+  - delay: 361
+    content: "\r\e[2Kdownload [00:04:51] [\e[36m================================================>\e[34m\e[0m\e[0m] 715/719 "
+  - delay: 519
+    content: "\r\e[2Kdownload [00:04:51] [\e[36m================================================>\e[34m\e[0m\e[0m] 716/719 "
+  - delay: 318
+    content: "\r\e[2Kdownload [00:04:52] [\e[36m================================================>\e[34m\e[0m\e[0m] 717/719 "
+  - delay: 479
+    content: "\r\e[2Kdownload [00:04:52] [\e[36m================================================>\e[34m\e[0m\e[0m] 718/719 "
+  - delay: 179
+    content: "\r\e[2Kdownload [00:04:52] [\e[36m=================================================\e[34m\e[0m\e[0m] 719/719 \r\e[2Kmerge segments [00:00:00] [\e[36m\e[34m                                             \e[0m\e[0m] 0/719 "
+  - delay: 7
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 1/719 "
+  - delay: 5
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 2/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 3/719 "
+  - delay: 5
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 4/719 "
+  - delay: 11
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 5/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 6/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 7/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 8/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                            \e[0m\e[0m] 9/719 "
+  - delay: 10
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 10/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 11/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 12/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 13/719 "
+  - delay: 8
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 14/719 "
+  - delay: 5
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 15/719 \r\e[2Kmerge segments [00:00:00] [\e[36m>\e[34m                                           \e[0m\e[0m] 16/719 \r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 17/719 "
+  - delay: 12
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 18/719 \r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 19/719 \r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 20/719 "
+  - delay: 12
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 21/719 "
+  - delay: 37
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=>\e[34m                                          \e[0m\e[0m] 30/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m==>\e[34m                                         \e[0m\e[0m] 39/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m==>\e[34m                                         \e[0m\e[0m] 47/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m===>\e[34m                                        \e[0m\e[0m] 58/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m====>\e[34m                                       \e[0m\e[0m] 70/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=====>\e[34m                                      \e[0m\e[0m] 83/719 "
+  - delay: 55
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=====>\e[34m                                      \e[0m\e[0m] 92/719 "
+  - delay: 47
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m======>\e[34m                                    \e[0m\e[0m] 102/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m======>\e[34m                                    \e[0m\e[0m] 113/719 "
+  - delay: 51
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=======>\e[34m                                   \e[0m\e[0m] 125/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m========>\e[34m                                  \e[0m\e[0m] 138/719 "
+  - delay: 52
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=========>\e[34m                                 \e[0m\e[0m] 157/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m==========>\e[34m                                \e[0m\e[0m] 168/719 "
+  - delay: 53
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m===========>\e[34m                               \e[0m\e[0m] 185/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m===========>\e[34m                               \e[0m\e[0m] 195/719 "
+  - delay: 52
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m============>\e[34m                              \e[0m\e[0m] 205/719 "
+  - delay: 53
+    content: "\r\e[2Kmerge segments [00:00:00] [\e[36m=============>\e[34m                             \e[0m\e[0m] 220/719 "
+  - delay: 43
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=============>\e[34m                             \e[0m\e[0m] 230/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m==============>\e[34m                            \e[0m\e[0m] 247/719 "
+  - delay: 55
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m===============>\e[34m                           \e[0m\e[0m] 258/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m================>\e[34m                          \e[0m\e[0m] 272/719 "
+  - delay: 47
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=================>\e[34m                         \e[0m\e[0m] 289/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m==================>\e[34m                        \e[0m\e[0m] 308/719 "
+  - delay: 54
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m===================>\e[34m                       \e[0m\e[0m] 321/719 "
+  - delay: 45
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m====================>\e[34m                      \e[0m\e[0m] 339/719 "
+  - delay: 53
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=====================>\e[34m                     \e[0m\e[0m] 355/719 "
+  - delay: 53
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m======================>\e[34m                    \e[0m\e[0m] 370/719 "
+  - delay: 44
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m======================>\e[34m                    \e[0m\e[0m] 382/719 "
+  - delay: 55
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=======================>\e[34m                   \e[0m\e[0m] 401/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m========================>\e[34m                  \e[0m\e[0m] 417/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=========================>\e[34m                 \e[0m\e[0m] 431/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m==========================>\e[34m                \e[0m\e[0m] 449/719 "
+  - delay: 54
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m===========================>\e[34m               \e[0m\e[0m] 461/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m============================>\e[34m              \e[0m\e[0m] 476/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m=============================>\e[34m             \e[0m\e[0m] 488/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m==============================>\e[34m            \e[0m\e[0m] 502/719 "
+  - delay: 50
+    content: "\r\e[2Kmerge segments [00:00:01] [\e[36m==============================>\e[34m            \e[0m\e[0m] 518/719 "
+  - delay: 55
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m===============================>\e[34m           \e[0m\e[0m] 531/719 "
+  - delay: 46
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m================================>\e[34m          \e[0m\e[0m] 541/719 "
+  - delay: 52
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m=================================>\e[34m         \e[0m\e[0m] 558/719 "
+  - delay: 47
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m==================================>\e[34m        \e[0m\e[0m] 571/719 "
+  - delay: 51
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m==================================>\e[34m        \e[0m\e[0m] 583/719 "
+  - delay: 55
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m===================================>\e[34m       \e[0m\e[0m] 592/719 "
+  - delay: 48
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m===================================>\e[34m       \e[0m\e[0m] 601/719 "
+  - delay: 46
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m====================================>\e[34m      \e[0m\e[0m] 611/719 "
+  - delay: 52
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m=====================================>\e[34m     \e[0m\e[0m] 627/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m======================================>\e[34m    \e[0m\e[0m] 641/719 "
+  - delay: 49
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m=======================================>\e[34m   \e[0m\e[0m] 658/719 "
+  - delay: 51
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m========================================>\e[34m  \e[0m\e[0m] 678/719 "
+  - delay: 51
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m=========================================>\e[34m \e[0m\e[0m] 696/719 "
+  - delay: 51
+    content: "\r\e[2Kmerge segments [00:00:02] [\e[36m==========================================>\e[34m\e[0m\e[0m] 711/719 "
+  - delay: 36
+    content: "\r\e[2K⠁ Converting to mp4 file...                                                     "
+  - delay: 12
+    content: "\r\e[2K⠁ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠉ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠙ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠚ Converting to mp4 file...                                                     "
+  - delay: 102
+    content: "\r\e[2K⠒ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠂ Converting to mp4 file...                                                     "
+  - delay: 100
+    content: "\r\e[2K⠂ Converting to mp4 file...                                                     "
+  - delay: 100
+    content: "\r\e[2K⠒ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠲ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠴ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠤ Converting to mp4 file...                                                     "
+  - delay: 102
+    content: "\r\e[2K⠄ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠄ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠤ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠠ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠠ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠤ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠦ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠖ Converting to mp4 file...                                                     "
+  - delay: 101
+    content: "\r\e[2K⠒ Converting to mp4 file...                                                     "
+  - delay: 21
+    content: "\r\e[2K下载完成, 文件保存为: \e[32m\e[4m日本经济_2025-02-26第10-11节.mp4\e[0m\e[0m\r\n\e]7;file://bogon/Users/sshwy/pku3b/assets\a\e[?2004hbogon:assets sshwy$ "
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 1000
+    content: " "
+  - delay: 1000
+    content: "\b"
+  - delay: 4651
+    content: "\e[?2004l\r\r\nlogout\r\n\r\nSaving session..."
+  - delay: 15
+    content: "\r\n...saving history..."
+  - delay: 9
+    content: "truncating history files...\r\n...completed.\r\n"
