@@ -62,7 +62,7 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
 pub async fn find_assignment(
     courses: &[api::CourseHandle],
     id: &str,
-) -> anyhow::Result<Option<api::CourseAssignmentHandle>> {
+) -> anyhow::Result<Option<(api::Course, api::CourseAssignmentHandle)>> {
     for c in courses {
         let c = c.get().await.context("fetch course")?;
         let assignments = c
@@ -72,7 +72,7 @@ pub async fn find_assignment(
 
         for a in assignments {
             if a.id() == id {
-                return Ok(Some(a));
+                return Ok(Some((c, a)));
             }
         }
     }
@@ -85,7 +85,7 @@ pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
     sp.set_message("finding assignment...");
     let target_handle = find_assignment(&courses, id).await?;
 
-    let Some(a) = target_handle else {
+    let Some((_, a)) = target_handle else {
         sp.finish_and_clear().await;
         anyhow::bail!("assignment with id {} not found", id);
     };
@@ -122,7 +122,7 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
 
     let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
 
-    let Some(a) = target_handle else {
+    let Some((c, a)) = target_handle else {
         sp.finish_and_clear().await;
         anyhow::bail!("assignment with id {} not found", id);
     };
@@ -136,6 +136,15 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
         .with_context(|| format!("submit {:?} to {:?}", path.display(), a.title()))?;
 
     sp.finish_and_clear().await;
+
+    println!(
+        "成功将 {GR}{H2}{}{H2:#}{GR:#} 提交至 {MG}{H1}{} {}{H1:#}{MG:#} 课程作业",
+        path.display(),
+        c.meta().name(),
+        a.title()
+    );
+
+    println!("{EM:}tips: 执行 {H2}pku3b a -f ls -a{H2:#} 可强制刷新缓存并查看作业完成状态{EM:#}");
     Ok(())
 }
 
