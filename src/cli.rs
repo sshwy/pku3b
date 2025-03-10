@@ -14,7 +14,7 @@ use compio::{
     io::{AsyncWrite, AsyncWriteExt},
 };
 use futures_util::{StreamExt, future::try_join_all};
-use std::{io::Write as _, os::unix::fs::MetadataExt};
+use std::io::Write as _;
 use utils::style::*;
 
 #[derive(Parser)]
@@ -229,7 +229,17 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
         let mut s = walkdir::walkdir(d, false);
         while let Some(e) = s.next().await {
             let e = e?;
-            total_bytes += e.metadata()?.size();
+            #[cfg(unix)]
+            let s = {
+                use std::os::unix::fs::MetadataExt;
+                e.metadata()?.size()
+            };
+            #[cfg(windows)]
+            let s = {
+                use std::os::windows::fs::MetadataExt;
+                e.metadata()?.file_size()
+            };
+            total_bytes += s;
         }
 
         if !dry_run {
