@@ -10,6 +10,7 @@ homepage = "https://github.com/sshwy/pku3b"
 repository = "https://github.com/sshwy/pku3b"
 keywords = ["cli"]
 categories = ["command-line-utilities"]
+exclude = ["/assets"]
 
 [dependencies]
 aes = { version = "0.8.4", optional = true }
