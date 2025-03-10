@@ -12,11 +12,23 @@ mod walkdir;
 
 #[compio::main]
 async fn main() {
-    env_logger::builder()
-        .filter_module("selectors::matching", log::LevelFilter::Info)
-        .filter_module("html5ever::tokenizer", log::LevelFilter::Info)
-        .filter_module("html5ever::tree_builder", log::LevelFilter::Info)
-        .init();
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+
+    #[cfg(not(hyper_unstable_tracing))]
+    {
+        env_logger::builder()
+            .filter_module("selectors::matching", log::LevelFilter::Info)
+            .filter_module("html5ever::tokenizer", log::LevelFilter::Info)
+            .filter_module("html5ever::tree_builder", log::LevelFilter::Info)
+            .init();
+    }
+
+    #[cfg(hyper_unstable_tracing)]
+    {
+        tracing_subscriber::fmt::init();
+    }
 
     log::debug!("logger initialized...");
 

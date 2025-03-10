@@ -6,8 +6,8 @@ pub struct FormField<'a> {
     name: &'a str,
     filename: Option<&'a str>,
     content_type: Option<&'a str>,
-    reader: Option<Box<dyn Read + 'a>>, // 泛型化 reader 以支持不同类型
-    data: Option<&'a [u8]>,             // 直接引用数据，避免 to_vec
+    reader: Option<Box<dyn Read + Send + 'static>>,
+    data: Option<&'a [u8]>,
 }
 
 /// Multipart 表单构造器
@@ -44,7 +44,7 @@ impl<'a> MultipartBuilder<'a> {
     }
 
     /// 添加一个带文件名的字段
-    pub fn add_file<R: Read + 'a>(
+    pub fn add_file<R: Read + Send + 'static>(
         mut self,
         name: &'a str,
         filename: &'a str,
@@ -122,7 +122,7 @@ mod tests {
             .add_file("field2", "file.txt", "text/plain", file_reader);
 
         let body = builder.build().unwrap();
-        let body_str = String::from_utf8(body).unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
 
         assert!(body_str.contains("Content-Disposition: form-data; name=\"field1\""));
         assert!(body_str.contains("Hello, world!"));

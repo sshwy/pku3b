@@ -16,6 +16,7 @@ use crate::{
 
 const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
+const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
 struct ClientInner {
     http_client: cyper::Client,
@@ -48,7 +49,7 @@ impl Client {
         download_artifact_ttl: Option<std::time::Duration>,
     ) -> Self {
         let mut default_headers = http::HeaderMap::new();
-        default_headers.insert("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36".parse().unwrap());
+        default_headers.insert(http::header::USER_AGENT, AGENT.parse().unwrap());
         let http_client = cyper::Client::builder()
             .cookie_store(true)
             .default_headers(default_headers)
@@ -340,7 +341,11 @@ impl Course {
         Ok(assignments)
     }
     pub async fn get_assignments(&self) -> anyhow::Result<Vec<CourseAssignmentHandle>> {
-        log::info!("fetching assignments for course {}", self.meta.title());
+        log::info!(
+            "fetching assignments for {} (key={})",
+            self.meta.title(),
+            self.meta.key
+        );
 
         let assignments = with_cache(
             &format!("Course::_get_assignments_{}", self.meta.key),
@@ -349,8 +354,7 @@ impl Course {
         )
         .await?;
 
-        log::debug!("key: {}", self.meta.key);
-        log::debug!("assignments: {:?}", assignments);
+        log::trace!("assignments: {:?}", assignments);
 
         let assignments = assignments
             .into_iter()
@@ -701,9 +705,8 @@ impl CourseAssignment {
             .to_string();
 
         let map = self.get_submit_formfields().await?;
+        log::trace!("map: {:#?}", map);
 
-        let body = multipart::MultipartBuilder::new();
-        let boundary = body.boundary().to_owned();
         macro_rules! add_field_from_map {
             ($body:ident, $name:expr) => {
                 let $body = $body.add_field(
@@ -715,8 +718,7 @@ impl CourseAssignment {
             };
         }
 
-        log::debug!("map: {:#?}", map);
-
+        let body = multipart::MultipartBuilder::new();
         add_field_from_map!(body, "attempt_id");
         add_field_from_map!(body, "blackboard.platform.security.NonceUtil.nonce");
         add_field_from_map!(body, "blackboard.platform.security.NonceUtil.nonce.ajax");
@@ -751,25 +753,42 @@ impl CourseAssignment {
                 content_type,
                 std::fs::File::open(path)?,
             )
-            .build()
-            .context("build multipart form body")?;
+            .add_field("useless", b"");
+
+        const UPLOAD_URL: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
+
+        let boundary = body.boundary().to_owned();
+        let body = body.build().context("build multipart form body")?;
+        // let content_length = body.len();
         log::info!("body built: {}", body.len());
 
-        // .header("referer", format!("https://course.pku.edu.cn/webapps/assignment/uploadAssignment?action=newAttempt&course_id={}&content_id={}", map["course_id"], map["content_id"]))?
-        let res = self
+        let req = self
             .client
-            .post("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
+            .post(UPLOAD_URL)?
             .header("origin", "https://course.pku.edu.cn")?
+            .header("accept", "*/*")?
             .header(
                 "content-type",
                 format!("multipart/form-data; boundary={}", boundary),
             )?
             .query(&[("action", "submit")])?
             .body(body)
-            .send()
-            .await?;
+            .build();
 
-        anyhow::ensure!(res.status().is_success(), "invalid status {}", res.status());
+        log::debug!("$ cp {:?} {:?}", path.display(), filename);
+
+        let res = self.client.execute(req).await?;
+
+        if !res.status().is_success() {
+            let st = res.status();
+            let rbody = res.text().await?;
+            if rbody.contains("尝试呈现错误页面时发生严重的内部错误") {
+                anyhow::bail!("invalid status {} (caused by unknown server error)", st);
+            }
+
+            log::debug!("response: {}", rbody);
+            anyhow::bail!("invalid status {}", st);
+        }
 
         Ok(())
     }

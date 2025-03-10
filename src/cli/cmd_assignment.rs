@@ -131,7 +131,9 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
     let a = a.get().await?;
 
     sp.set_message("submit file...");
-    a.submit_file(path).await.context("submit file")?;
+    a.submit_file(path)
+        .await
+        .with_context(|| format!("submit {:?} to {:?}", path.display(), a.title()))?;
 
     sp.finish_and_clear().await;
     Ok(())
