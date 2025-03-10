@@ -46,19 +46,31 @@ Options:
 
 ## Getting Started 🚀
 
-该工具目前只在 MacOS 上测试过，按理支持 Linux，Windows 目前尚不支持。你需要使用 cargo 安装/更新:
+如果你的电脑上恰好有 rust 工具链，那么建议你使用 cargo 安装（能够保证安装最新版本，如果需要更新，只需再次执行这个命令）：
 
 ```bash
 cargo install pku3b
 ```
 
-如果需要使用下载课程回放的功能 (使用 `pku3b help v down` 查看用法)，你需要安装 `ffmpeg`。在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`.
+否则你可以从 [Release](https://github.com/sshwy/pku3b/releases) 页面中找到你所使用的操作系统对应的版本，然后下载二进制文件，放到应该放的位置，然后设置系统的环境变量。你也可以不设置环境变量，而是直接通过文件路径来执行这个程序。
 
-首次执行命令前你需要登陆教学网。执行以下命令，然后根据提示输入教学网账号密码来完成初始化设置（只需要执行一次，如果想要更改配置，只需要再执行一次；如果想要进行细粒度的修改，也可以使用 `pku3b config <key> <value>` 修改配置项）:
+如果需要使用下载课程回放的功能，你需要安装 `ffmpeg`:
+- 在 Linux 上使用发行版的包管理器安装（以 Ubuntu 为例）: `apt install ffmpeg`；
+- 在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`；
+- 在 Windows 上推荐使用 winget 安装: `winget install ffmpeg`。如果您艺高人胆大，也可以手动从官网上下载二进制文件安装，然后将 `ffmpeg` 命令加入系统环境变量。
+
+首次执行命令前你需要登陆教学网。执行以下命令，根据提示输入教学网账号密码来完成初始化设置（只需要执行一次）：
 
 ```bash
+# 目前 windows 上这个命令有 bug
 pku3b init
+
+# Windows 解决方案
+pku3b config username "你的用户名(学号)"
+pku3b config password "你的密码"
 ```
+
+完成初始化设置后即可使用该工具啦。
 
 更多示例:
 
