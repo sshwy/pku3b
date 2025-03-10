@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 use super::*;
 pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
     let courses = load_courses(force).await?;
@@ -47,7 +49,7 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
                 continue;
             }
 
-            write_course_assignment(&mut outbuf, &id, &a)?;
+            write_course_assignment(&mut outbuf, &id, &a).context("io error")?;
         }
     }
 
@@ -139,16 +141,19 @@ fn write_course_assignment(
     buf: &mut Vec<u8>,
     id: &str,
     a: &api::CourseAssignment,
-) -> anyhow::Result<()> {
+) -> std::io::Result<()> {
     write!(buf, "{MG}{H2}{}{H2:#}{MG:#}", a.title())?;
     if let Some(att) = a.last_attempt() {
         write!(buf, " ({GR}已完成: {att}{GR:#})")?;
     } else {
-        let t = a
-            .deadline()
-            .with_context(|| format!("fail to parse deadline: {}", a.deadline_raw()))?;
-        let delta = t - chrono::Local::now();
-        write!(buf, " ({})", fmt_time_delta(delta))?;
+        if let Some(t) = a.deadline() {
+            let delta = t - chrono::Local::now();
+            write!(buf, " ({})", fmt_time_delta(delta))?;
+        } else if let Some(raw) = a.deadline_raw() {
+            write!(buf, " ({})", raw)?;
+        } else {
+            write!(buf, " (无截止时间)")?;
+        }
     }
     writeln!(buf, " {D}{}{D:#}", id)?;
 

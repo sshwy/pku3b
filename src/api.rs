@@ -547,12 +547,14 @@ impl CourseAssignmentHandle {
         let deadline = dom
             .select(&scraper::Selector::parse("#assignMeta2 + div").unwrap())
             .next()
-            .context("deadline el not found")?
-            .text()
-            .collect::<String>();
-
-        // replace consecutive whitespaces with a single space
-        let deadline = deadline.split_whitespace().collect::<Vec<_>>().join(" ");
+            .map(|e| {
+                // replace consecutive whitespaces with a single space
+                e.text()
+                    .collect::<String>()
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            });
 
         let attempt = self._get_current_attempt().await?;
 
@@ -618,7 +620,7 @@ impl CourseAssignmentHandle {
 struct CourseAssignmentData {
     descriptions: Vec<String>,
     attachments: Vec<(String, String)>,
-    deadline: String,
+    deadline: Option<String>,
     attempt: Option<String>,
 }
 
@@ -772,12 +774,13 @@ impl CourseAssignment {
 
     /// Try to parse the deadline string into a NaiveDateTime.
     pub fn deadline(&self) -> Option<chrono::DateTime<chrono::Local>> {
+        let d = self.data.deadline.as_deref()?;
         let re = regex::Regex::new(
             r"(\d{4})年(\d{1,2})月(\d{1,2})日 星期. (上午|下午)(\d{1,2}):(\d{1,2})",
         )
         .unwrap();
 
-        if let Some(caps) = re.captures(&self.data.deadline) {
+        if let Some(caps) = re.captures(d) {
             let year: i32 = caps[1].parse().ok()?;
             let month: u32 = caps[2].parse().ok()?;
             let day: u32 = caps[3].parse().ok()?;
@@ -803,8 +806,8 @@ impl CourseAssignment {
         }
     }
 
-    pub fn deadline_raw(&self) -> &str {
-        &self.data.deadline
+    pub fn deadline_raw(&self) -> Option<&str> {
+        self.data.deadline.as_deref()
     }
 
     pub async fn download_attachment(
