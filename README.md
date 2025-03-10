@@ -1,5 +1,7 @@
 # PKU3b: A Better Black Board for PKUers
 
+> This project is currently under active development.
+
 [![Crates.io](https://img.shields.io/crates/v/pku3b)](https://crates.io/crates/pku3b)
 
 pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大学教学网的信息。目前它可以
@@ -9,6 +11,8 @@ pku3b 是一个由 Rust 实现的简单命令行工具，用于爬取北京大�
 - [x] 提交课程作业
 - [x] 查看课程回放列表
 - [x] 下载课程回放（需要 ffmpeg）
+
+如果这个项目为你带来了便利，不妨给个 star 支持一下～
 
 查看作业/下载附件:
 
@@ -70,4 +74,4 @@ pku3b init
 
 众所周知 PKU 的教学网 UI 长得非常次时代，信息获取效率奇低。对此已有的解决方案是借助 [PKU-Art](https://github.com/zhuozhiyongde/PKU-Art) 把 UI 变得赏心悦目一点。
 
-但是如果你和我一样已经进入到早十起不来、签到不想管、不知道每天要上什么课也不想关心、对教学网眼不见为净的状态，那我猜你至少会关注作业的 DDL，或者期末的时候看看回放。于是 pku3b 应运而生。
+但是如果你和我一样已经进入到早十起不来、签到不想管、不知道每天要上什么课也不想关心、对教学网眼不见为净的状态，那我猜你至少会关注作业的 DDL，或者期末的时候看看回放。于是 `pku3b` 应运而生。在开发项目的过程中又有了更多想法，于是功能就逐渐增加了。

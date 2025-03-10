@@ -156,15 +156,13 @@ fn write_course_assignment(
     write!(buf, "{MG}{H2}{}{H2:#}{MG:#}", a.title())?;
     if let Some(att) = a.last_attempt() {
         write!(buf, " ({GR}已完成: {att}{GR:#})")?;
+    } else if let Some(t) = a.deadline() {
+        let delta = t - chrono::Local::now();
+        write!(buf, " ({})", fmt_time_delta(delta))?;
+    } else if let Some(raw) = a.deadline_raw() {
+        write!(buf, " ({})", raw)?;
     } else {
-        if let Some(t) = a.deadline() {
-            let delta = t - chrono::Local::now();
-            write!(buf, " ({})", fmt_time_delta(delta))?;
-        } else if let Some(raw) = a.deadline_raw() {
-            write!(buf, " ({})", raw)?;
-        } else {
-            write!(buf, " (无截止时间)")?;
-        }
+        write!(buf, " (无截止时间)")?;
     }
     writeln!(buf, " {D}{}{D:#}", id)?;
 
