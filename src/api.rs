@@ -306,6 +306,7 @@ impl Course {
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
         let Some(uri) = self.entries.get("课程作业") else {
+            log::warn!("课程作业 entry not found for course {}", self.meta.title());
             return Ok(Vec::new());
         };
 
@@ -428,7 +429,8 @@ impl Course {
     }
     async fn _get_video_list(&self) -> anyhow::Result<Vec<CourseVideoMeta>> {
         let Some(uri) = self.entries().get("课堂实录") else {
-            anyhow::bail!("课堂实录 entry not found");
+            log::warn!("课堂实录 entry not found for course {}", self.meta.title());
+            return Ok(vec![]);
         };
 
         let uri = self.query_launch_link(uri).await?;
