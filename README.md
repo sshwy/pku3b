@@ -94,13 +94,22 @@ Installation complete!
 请按任意键继续. . .
 ```
 
-#### Linux 🐧 & MacOS 🍏
+#### MacOS 🍏
 
-否则你可以从 [Release](https://github.com/sshwy/pku3b/releases) 页面中找到你所使用的操作系统对应的版本，然后下载二进制文件，放到应该放的位置，然后设置系统的环境变量。你也可以不设置环境变量，而是直接通过文件路径来执行这个程序。
+你可以使用 Homebrew 安装 (你需要保证你的终端可以访问 Github):
+
+```bash
+brew install sshwy/tools/pku3b
+```
+
+#### Linux 🐧
+
+你可以从 [Release](https://github.com/sshwy/pku3b/releases) 页面中找到你所使用的操作系统对应的版本，然后下载二进制文件，放到应该放的位置，然后设置系统的环境变量。你也可以不设置环境变量，而是直接通过文件路径来执行这个程序。
 
 ### Install FFmpeg (optional)
 
 如果需要使用下载课程回放的功能，你需要额外安装 `ffmpeg`:
+
 - 在 Linux 上使用发行版的包管理器安装（以 Ubuntu 为例）: `apt install ffmpeg`；
 - 在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`；
 - 在 Windows 上推荐使用 winget 安装: `winget install ffmpeg`。如果您艺高人胆大，也可以手动从官网上下载二进制文件安装，然后将 `ffmpeg` 命令加入系统环境变量。
