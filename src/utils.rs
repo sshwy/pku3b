@@ -1,6 +1,4 @@
-use compio::{buf::buf_try, fs, io, io::AsyncReadAtExt};
-use futures_util::lock::Mutex;
-use std::sync::OnceLock;
+use compio::{buf::buf_try, fs, io::AsyncReadAtExt};
 
 pub mod style {
     use clap::builder::styling::{AnsiColor, Color, Style};
@@ -104,58 +102,4 @@ where
     let (_, r) = buf_try!(@try fs::write(path, r).await);
 
     Ok(r)
-}
-
-/// A simple wrapper around [`fs::Stdin`] which use async-aware mutex and async buf reader, in order to provide async read_line functionality.
-pub struct Stdin {
-    inner: &'static Mutex<io::BufReader<fs::Stdin>>,
-}
-
-impl Stdin {
-    pub async fn read_line(&self, buf: &mut String) -> std::io::Result<usize> {
-        let mut vec_buf = Vec::new();
-        let mut inner = self.inner.lock().await;
-        read_until(&mut *inner, b'\n', &mut vec_buf).await?;
-        *buf = String::from_utf8(vec_buf).unwrap();
-        Ok(buf.len())
-    }
-}
-
-pub fn stdin() -> Stdin {
-    static INSTANCE: OnceLock<Mutex<io::BufReader<fs::Stdin>>> = OnceLock::new();
-    Stdin {
-        inner: INSTANCE.get_or_init(|| Mutex::new(io::BufReader::new(fs::stdin()))),
-    }
-}
-
-async fn read_until<R: io::AsyncBufRead + ?Sized>(
-    r: &mut R,
-    delim: u8,
-    buf: &mut Vec<u8>,
-) -> std::io::Result<usize> {
-    let mut read = 0;
-    loop {
-        let (done, used) = {
-            let available = match r.fill_buf().await {
-                Ok(n) => n,
-                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(e) => return Err(e),
-            };
-            match memchr::memchr(delim, available) {
-                Some(i) => {
-                    buf.extend_from_slice(&available[..=i]);
-                    (true, i + 1)
-                }
-                None => {
-                    buf.extend_from_slice(available);
-                    (false, available.len())
-                }
-            }
-        };
-        r.consume(used);
-        read += used;
-        if done || used == 0 {
-            return Ok(read);
-        }
-    }
 }

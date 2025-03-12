@@ -123,15 +123,10 @@ brew install sshwy/tools/pku3b
 在首次执行命令前你需要登陆教学网。执行以下命令，根据提示输入教学网账号密码来完成初始化设置（只需要执行一次）：
 
 ```bash
-# 目前 windows 上这个命令有 bug
 pku3b init
-
-# Windows 解决方案
-pku3b config username "你的用户名(学号)"
-pku3b config password "你的密码"
 ```
 
-完成初始化设置后即可使用该工具啦。
+完成初始化设置后即可使用该工具啦。如果之后想修改配置，可以使用 `pku3b config -h` 查看帮助。
 
 更多示例:
 
@@ -144,7 +139,9 @@ pku3b config password "你的密码"
 - 🗑️ 查看缓存占用: `pku3b cache`
 - 🗑️ 清空缓存: `pku3b cache clean`
 - ❓ 查看某个命令的使用方法 (以下载课程回放的命令为例): `pku3b help v down`
-- ⚙️ 输出调试日志: `RUST_LOG=debug pku3b [arguments...]`
+- ⚙️ 输出调试日志:
+  - 在 Windows 上：设置终端环境变量（临时）`$env:RUST_LOG = 'info'`，那么在这个终端之后执行的 pku3b 命令都会输出调试日志。
+  - 在 Linux/Mac 上：同样可以设置终端环境变量 `export RUST_LOG=info`；另外一个方法是在执行 pku3b 的命令前面加上 `RUST_LOG=info`，整个命令形如 `RUST_LOG=info pku3b [arguments...]`
 
 ## Motivation 💡
 

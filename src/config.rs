@@ -59,7 +59,7 @@ pub async fn read_cfg(path: impl AsRef<std::path::Path>) -> anyhow::Result<Confi
     let path = path.as_ref();
 
     if !path.exists() {
-        anyhow::bail!("config file not found");
+        anyhow::bail!("file not found");
     }
 
     let buffer = fs::read(path).await?;

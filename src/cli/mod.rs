@@ -162,22 +162,19 @@ async fn command_config(
 ) -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
     log::info!("Config path: '{}'", cfg_path.display());
-    let cfg_res = config::read_cfg(&cfg_path).await;
+    let mut cfg = match config::read_cfg(&cfg_path).await {
+        Ok(r) => r,
+        Err(e) => {
+            anyhow::bail!("fail to read config: {e} (hint: run `pku3b init` to initialize it)")
+        }
+    };
 
     let Some(attr) = attr else {
-        match cfg_res {
-            Ok(cfg) => {
-                let s = toml::to_string_pretty(&cfg)?;
-                println!("{}", s);
-            }
-            Err(_) => {
-                eprintln!("Fail to read config file. Run 'pku3b init' to initialize.");
-            }
-        }
+        let s = toml::to_string_pretty(&cfg)?;
+        println!("{}", s);
         return Ok(());
     };
 
-    let mut cfg = cfg_res.context("read config file")?;
     if let Some(value) = value {
         cfg.update(attr, value)?;
         config::write_cfg(&cfg_path, &cfg).await?;
@@ -195,10 +192,10 @@ async fn read_line(prompt: &str, is_password: bool) -> anyhow::Result<String> {
         let pass = rpassword::prompt_password(prompt.to_owned()).context("read password")?;
         Ok(pass)
     } else {
-        buf_try!(@try fs::stdout().write_all(prompt.to_owned()).await);
-        fs::stdout().flush().await?;
+        print!("{prompt}");
+        std::io::stdout().flush().unwrap();
         let mut s = String::new();
-        utils::stdin().read_line(&mut s).await?;
+        std::io::stdin().read_line(&mut s)?;
         Ok(s.trim().to_string())
     }
 }
