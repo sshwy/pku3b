@@ -254,7 +254,7 @@ impl Course {
 
         let dom = self
             .client
-            .page_by_uri(&uri)
+            .page_by_uri(uri)
             .await
             .context("get course assignments page")?;
 

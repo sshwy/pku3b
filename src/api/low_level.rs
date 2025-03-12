@@ -209,11 +209,11 @@ impl LowLevelClient {
             .get(VIDEO_SUB_INFO)?
             .query(&[
                 ("all", "1"),
-                ("course_id", &course_id),
-                ("sub_id", &sub_id),
+                ("course_id", course_id),
+                ("sub_id", sub_id),
                 ("with_sub_data", "1"),
-                ("app_id", &app_id),
-                ("auth_data", &auth_data),
+                ("app_id", app_id),
+                ("auth_data", auth_data),
             ])?
             .send()
             .await?;
