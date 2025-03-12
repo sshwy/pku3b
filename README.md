@@ -4,6 +4,8 @@
 
 [![Crates.io](https://img.shields.io/crates/v/pku3b)](https://crates.io/crates/pku3b)
 
+如果这个项目为你带来了便利，不妨给个 star ⭐ 支持一下～
+
 pku3b 是一个由 Rust 实现的小巧 (~10MB) 命令行工具，用于爬取北京大学教学网 (<https://course.pku.edu.cn>) 的信息。目前它可以
 
 - 📋 查看课程作业信息（未完成/全部）
@@ -32,8 +34,6 @@ Options:
   -V, --version  Print version
 ```
 
-如果这个项目为你带来了便利，不妨给个 star ⭐ 支持一下～
-
 ## Demo 🎬
 
 查看作业/下载附件:
@@ -46,17 +46,19 @@ Options:
 
 ## Getting Started 🚀
 
-首先你需要安装 `pku3b` 本身。这里提供两种安装方式。**在安装完成后请重新开一个终端窗口，否则会找不到该命令**。
+### [1/3] Install `pku3b`
 
-### Build from Source
+首先你需要安装 `pku3b` 本身。**在安装完成后请重新开一个终端窗口，否则会找不到该命令**。
 
-如果你的电脑上恰好有 rust 工具链，那么建议你使用 cargo 安装（Win/Linux/Mac 均适用，能够保证安装最新版本，如果需要更新，只需再次执行这个命令）：
+#### Build from Source
+
+这个安装方式在 Win/Linux/Mac 上均适用。
+
+如果你的电脑上恰好有 rust 工具链，那么建议你使用 cargo 安装最新版本。如果需要更新，只需再次执行这个命令：
 
 ```bash
 cargo install pku3b
 ```
-
-### Download Released Binaries
 
 #### Windows 🖥️
 
@@ -106,17 +108,17 @@ brew install sshwy/tools/pku3b
 
 你可以从 [Release](https://github.com/sshwy/pku3b/releases) 页面中找到你所使用的操作系统对应的版本，然后下载二进制文件，放到应该放的位置，然后设置系统的环境变量。你也可以不设置环境变量，而是直接通过文件路径来执行这个程序。
 
-### Install FFmpeg (optional)
+### [2/3] Install FFmpeg (optional)
 
 如果需要使用下载课程回放的功能，你需要额外安装 `ffmpeg`:
 
-- 在 Linux 上使用发行版的包管理器安装（以 Ubuntu 为例）: `apt install ffmpeg`；
-- 在 MacOS 上可以使用 Homebrew 安装: `brew install ffmpeg`；
-- 在 Windows 上推荐使用 winget 安装: `winget install ffmpeg`。如果您艺高人胆大，也可以手动从官网上下载二进制文件安装，然后将 `ffmpeg` 命令加入系统环境变量。
+- 在 Windows 🖥️ 上推荐使用 winget 安装: `winget install ffmpeg`。如果您艺高人胆大，也可以手动从官网上下载二进制文件安装，然后将 `ffmpeg` 命令加入系统环境变量。
+- 在 MacOS 🍏 上可以使用 Homebrew 安装: `brew install ffmpeg`；
+- 在 Linux 🐧 上使用发行版的包管理器安装（以 Ubuntu 为例）: `apt install ffmpeg`；
 
 安装完成后请新开一个终端窗口，并执行 `ffmpeg` 命令检查是否安装成功（没有显示“找不到该命令”就说明安装成功）。
 
-### Initialization
+### [3/3] Initialization
 
 在首次执行命令前你需要登陆教学网。执行以下命令，根据提示输入教学网账号密码来完成初始化设置（只需要执行一次）：
 
@@ -142,6 +144,7 @@ pku3b config password "你的密码"
 - 🗑️ 查看缓存占用: `pku3b cache`
 - 🗑️ 清空缓存: `pku3b cache clean`
 - ❓ 查看某个命令的使用方法 (以下载课程回放的命令为例): `pku3b help v down`
+- ⚙️ 输出调试日志: `RUST_LOG=debug pku3b [arguments...]`
 
 ## Motivation 💡
 
