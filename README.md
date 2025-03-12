@@ -3,6 +3,10 @@
 > This project is currently under active development. 🚧
 
 [![Crates.io](https://img.shields.io/crates/v/pku3b)](https://crates.io/crates/pku3b)
+![Issues](https://img.shields.io/github/issues-search?query=repo%3Asshwy%2Fpku3b%20is%3Aopen&label=issues&color=orange)
+![Closed Issues](https://img.shields.io/github/issues-search?query=repo%3Asshwy%2Fpku3b%20is%3Aclosed&label=closed%20issues&color=green)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/sshwy/pku3b/build-release.yml)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/sshwy/pku3b/total)
 
 如果这个项目为你带来了便利，不妨给个 star ⭐ 支持一下～
 
@@ -68,7 +72,7 @@ cargo install pku3b
 (Invoke-WebRequest -Uri "https://github.com/sshwy/pku3b" -Method Head).StatusCode
 ```
 
-为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.4.1`):
+为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.4.2`):
 
 ```powershell
 Invoke-WebRequest `
@@ -76,16 +80,16 @@ Invoke-WebRequest `
   -OutFile "$env:TEMP\script.bat"; `
 Start-Process `
   -FilePath "$env:TEMP\script.bat" `
-  -ArgumentList "0.4.1" `
+  -ArgumentList "0.4.2" `
   -NoNewWindow -Wait
 ```
 
 安装过程大致如下:
 
 ```powershell
-Step 1: Downloading pku3b version 0.4.1...
+Step 1: Downloading pku3b version 0.4.2...
 Download complete.
-Step 2: Extracting pku3b version 0.4.1...
+Step 2: Extracting pku3b version 0.4.2...
 Extraction complete.
 Step 3: Moving pku3b.exe to C:\Users\Sshwy\AppData\Local\pku3b\bin...
 移动了         1 个文件。
