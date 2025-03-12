@@ -225,22 +225,11 @@ impl LowLevelClient {
         Ok(value)
     }
 
-    /// 发送请求给 `url`.
-    pub async fn get_by_url(&self, url: &str) -> anyhow::Result<cyper::Response> {
+    /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求.
+    pub async fn get_by_uri(&self, uri: &str) -> anyhow::Result<cyper::Response> {
         let res = self
             .http_client
-            .get(url)
-            .context("create request failed")?
-            .send()
-            .await?;
-        Ok(res)
-    }
-
-    /// 发送请求给 `https://course.pku.edu.cn/{path_and_query}`.
-    pub async fn get_by_path_query(&self, path_and_query: &str) -> anyhow::Result<cyper::Response> {
-        let res = self
-            .http_client
-            .get(format!("https://course.pku.edu.cn{}", path_and_query))
+            .get(convert_uri(uri)?)
             .context("create request failed")?
             .send()
             .await?;
@@ -248,13 +237,59 @@ impl LowLevelClient {
     }
 
     /// 发送请求给 `https://course.pku.edu.cn/{path_and_query}`, 返回页面 HTML
-    pub async fn page_by_path_query(&self, path_and_query: &str) -> anyhow::Result<Html> {
-        let res = self.get_by_path_query(path_and_query).await?;
+    pub async fn page_by_uri(&self, uri: &str) -> anyhow::Result<Html> {
+        let res = self.get_by_uri(uri).await?;
 
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.text().await?;
         let dom = scraper::Html::parse_document(&rbody);
         Ok(dom)
+    }
+}
+
+/// 将 uri 转换为完整的 url。协议默认为 `https`，域名默认为 `course.pku.edu.cn`。
+pub fn convert_uri(uri: &str) -> anyhow::Result<String> {
+    let uri = http::Uri::from_str(uri).context("parse uri string")?;
+    let http::uri::Parts {
+        scheme,
+        authority,
+        path_and_query,
+        ..
+    } = uri.into_parts();
+
+    let url = format!(
+        "{}://{}{}",
+        scheme.as_ref().map(|s| s.as_str()).unwrap_or("https"),
+        authority
+            .as_ref()
+            .map(|a| a.as_str())
+            .unwrap_or("course.pku.edu.cn"),
+        path_and_query.as_ref().map(|p| p.as_str()).unwrap_or(""),
+    );
+
+    Ok(url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_convert_uri() {
+        let uri = "/path/to/resource";
+        let expected = "https://course.pku.edu.cn/path/to/resource";
+        let result = convert_uri(uri).unwrap();
+        assert_eq!(result, expected);
+
+        let uri = "http://example.com/path/to/resource";
+        let expected = "http://example.com/path/to/resource";
+        let result = convert_uri(uri).unwrap();
+        assert_eq!(result, expected);
+
+        let uri = "https://example.com/path/to/resource";
+        let expected = "https://example.com/path/to/resource";
+        let result = convert_uri(uri).unwrap();
+        assert_eq!(result, expected);
     }
 }

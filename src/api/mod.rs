@@ -254,7 +254,7 @@ impl Course {
 
         let dom = self
             .client
-            .page_by_path_query(&uri)
+            .page_by_uri(&uri)
             .await
             .context("get course assignments page")?;
 
@@ -292,7 +292,7 @@ impl Course {
         )
         .await?;
 
-        log::trace!("assignments: {:?}", assignments);
+        log::debug!("assignments: {:?}", assignments);
 
         let assignments = assignments
             .into_iter()
@@ -328,7 +328,7 @@ impl Course {
         &self.entries
     }
     pub async fn query_launch_link(&self, uri: &str) -> anyhow::Result<String> {
-        let res = self.client.get_by_path_query(uri).await?;
+        let res = self.client.get_by_uri(uri).await?;
         let st = res.status();
         anyhow::ensure!(st.as_u16() == 302, "invalid status: {}", st);
         let loc = res
@@ -374,7 +374,7 @@ impl Course {
         let url = format!("https://course.pku.edu.cn{}", uri);
         let u = url.into_url()?;
 
-        let dom = self.client.page_by_path_query(&uri).await?;
+        let dom = self.client.page_by_uri(&uri).await?;
 
         let videos = dom
             .select(&scraper::Selector::parse("tbody#listContainer_databody > tr").unwrap())
@@ -724,7 +724,7 @@ impl CourseAssignment {
             "downloading attachment from https://course.pku.edu.cn{}",
             uri
         );
-        let res = self.client.get_by_path_query(uri).await?;
+        let res = self.client.get_by_uri(uri).await?;
         anyhow::ensure!(
             res.status().as_u16() == 302,
             "status not 302: {}",
@@ -740,7 +740,7 @@ impl CourseAssignment {
             .to_owned();
 
         log::debug!("redicted to https://course.pku.edu.cn{}", loc);
-        let res = self.client.get_by_path_query(&loc).await?;
+        let res = self.client.get_by_uri(&loc).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.bytes().await?;
@@ -787,7 +787,7 @@ impl CourseVideoHandle {
         &self.meta
     }
     async fn get_iframe_url(&self) -> anyhow::Result<String> {
-        let res = self.client.get_by_url(&self.meta.url).await?;
+        let res = self.client.get_by_uri(&self.meta.url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
         let rbody = res.text().await?;
         let dom = scraper::Html::parse_document(&rbody);
@@ -801,7 +801,7 @@ impl CourseVideoHandle {
             .context("src not found")?
             .to_owned();
 
-        let res = self.client.get_by_url(&src).await?;
+        let res = self.client.get_by_uri(&src).await?;
         anyhow::ensure!(res.status().as_u16() == 302, "status not 302");
         let loc = res
             .headers()
@@ -880,7 +880,7 @@ impl CourseVideoHandle {
     }
 
     async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<bytes::Bytes> {
-        let res = self.client.get_by_url(url).await?;
+        let res = self.client.get_by_uri(url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
         let rbody = res.bytes().await?;
         Ok(rbody)
@@ -1016,7 +1016,7 @@ impl CourseVideo {
     }
 
     async fn _download_segment(&self, seg_url: &str) -> anyhow::Result<bytes::Bytes> {
-        let res = self.client.get_by_url(seg_url).await?;
+        let res = self.client.get_by_uri(seg_url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let bytes = res.bytes().await?;
@@ -1029,7 +1029,7 @@ impl CourseVideo {
             &format!("CourseVideo::get_aes128_uri_{}", url),
             self.client.download_artifact_ttl(),
             async {
-                let r = self.client.get_by_url(url).await?.bytes().await?;
+                let r = self.client.get_by_uri(url).await?.bytes().await?;
                 Ok(r)
             },
         )
