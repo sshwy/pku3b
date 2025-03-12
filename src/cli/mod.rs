@@ -2,7 +2,7 @@ mod cmd_assignment;
 mod cmd_video;
 mod pbar;
 
-use crate::{api, config, utils, walkdir};
+use crate::{api, build, config, utils, walkdir};
 use anyhow::Context as _;
 use clap::{
     CommandFactory, Parser, Subcommand,
@@ -18,7 +18,17 @@ use std::io::Write as _;
 use utils::style::*;
 
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[command(
+    version,
+    long_version(shadow_rs::formatcp!(
+        "{}\nbuild_time: {}\nbuild_env: {}, {}\nbuild_target: {} (on {})",
+        build::PKG_VERSION, build::BUILD_TIME, build::RUST_VERSION, build::RUST_CHANNEL,
+        build::BUILD_TARGET, build::BUILD_OS
+    )),
+    author,
+    about,
+    long_about = "a Better BlackBoard for PKUers. 北京大学教学网命令行工具 (️Win/Linux/Mac), 支持查看/提交作业、下载课程回放."
+)]
 pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

@@ -1,5 +1,3 @@
-use clap::Parser as _;
-
 extern crate directories as dirs;
 
 mod api;
@@ -9,6 +7,11 @@ mod multipart;
 mod qs;
 mod utils;
 mod walkdir;
+
+use shadow_rs::shadow;
+shadow!(build);
+
+use clap::Parser as _;
 
 #[compio::main]
 async fn main() {
