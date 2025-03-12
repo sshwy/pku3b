@@ -1,7 +1,8 @@
+mod low_level;
+
 use anyhow::Context;
 use chrono::TimeZone;
 use cyper::IntoUrl;
-use rand::{distr::Open01, prelude::*};
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
@@ -19,7 +20,7 @@ const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
 const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
 struct ClientInner {
-    http_client: cyper::Client,
+    http_client: low_level::LowLevelClient,
     cache_ttl: Option<std::time::Duration>,
     download_artifact_ttl: Option<std::time::Duration>,
 }
@@ -36,7 +37,7 @@ impl std::fmt::Debug for ClientInner {
 pub struct Client(Arc<ClientInner>);
 
 impl std::ops::Deref for Client {
-    type Target = cyper::Client;
+    type Target = low_level::LowLevelClient;
 
     fn deref(&self) -> &Self::Target {
         &self.0.http_client
@@ -60,7 +61,7 @@ impl Client {
 
         Self(
             ClientInner {
-                http_client,
+                http_client: low_level::LowLevelClient::from_cyper_client(http_client),
                 cache_ttl,
                 download_artifact_ttl,
             }
@@ -74,47 +75,18 @@ impl Client {
 
     pub async fn blackboard(&self, username: &str, password: &str) -> anyhow::Result<Blackboard> {
         let c = &self.0.http_client;
-        let mut rng = rand::rng();
-
-        let res = c
-            .post(OAUTH_LOGIN)?
-            .form(&[
-                ("appid", "blackboard"),
-                ("userName", username),
-                ("password", password),
-                ("randCode", ""),
-                ("smsCode", ""),
-                ("otpCode", ""),
-                ("redirUrl", REDIR_URL),
-            ])?
-            .send()
-            .await?;
-
-        anyhow::ensure!(res.status().is_success(), "status not success");
-
-        let rbody = res.text().await?;
-        let value = serde_json::Value::from_str(&rbody)?;
+        let value = c.oauth_login(username, password).await?;
         let token = value
             .as_object()
-            .context("resp not an object")?
+            .context("value not an object")?
             .get("token")
             .context("password not correct")?
             .as_str()
             .context("property 'token' not string")?
             .to_owned();
+        c.blackboard_sso_login(&token).await?;
 
-        log::debug!("iaaa oauth token: {token}");
-
-        let _rand: f64 = rng.sample(Open01);
-        let _rand = &format!("{_rand:.20}");
-
-        let res = c
-            .get(SSO_LOGIN)?
-            .query(&[("_rand", _rand), ("token", &token)])?
-            .send()
-            .await?;
-
-        anyhow::ensure!(res.status().is_success(), "status not success");
+        log::debug!("iaaa oauth token for {username}: {token}");
 
         Ok(Blackboard {
             client: self.clone(),
@@ -142,27 +114,10 @@ pub struct Blackboard {
     // token: String,
 }
 
-const OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
-const REDIR_URL: &str =
-    "http://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
-const SSO_LOGIN: &str =
-    "https://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
-const BLACKBOARD_HOME_PAGE: &str =
-    "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
-const COURSE_INFO_PAGE: &str = "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
-
 impl Blackboard {
     async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String)>> {
-        let res = self
-            .client
-            .get(BLACKBOARD_HOME_PAGE)?
-            .query(&[("tab_tab_group_id", "_1_1")])?
-            .send()
-            .await?;
+        let dom = self.client.blackboard_homepage().await?;
 
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
         // the first one contains the courses in the current semester
         let ul = dom
             .select(&scraper::Selector::parse("ul.courseListing").unwrap())
@@ -248,22 +203,8 @@ pub struct CourseHandle {
 
 impl CourseHandle {
     pub async fn _get(&self) -> anyhow::Result<HashMap<String, String>> {
-        let res = self
-            .client
-            .get(COURSE_INFO_PAGE)?
-            .query(&[
-                ("method", "search"),
-                ("context", "course_entry"),
-                ("course_id", &self.meta.key),
-                ("handle", "announcements_entry"),
-                ("mode", "view"),
-            ])?
-            .send()
-            .await?;
+        let dom = self.client.blackboard_coursepage(&self.meta.key).await?;
 
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
         let entries = dom
             .select(&scraper::Selector::parse("#courseMenuPalette_contents > li > a").unwrap())
             .map(|a| {
@@ -311,15 +252,12 @@ impl Course {
             return Ok(Vec::new());
         };
 
-        let res = self
+        let dom = self
             .client
-            .get(format!("https://course.pku.edu.cn{}", uri))
-            .context("create request failed")?
-            .send()
-            .await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
+            .page_by_path_query(&uri)
+            .await
+            .context("get course assignments page")?;
+
         let assignments = dom
             .select(&scraper::Selector::parse("#content_listContainer > li").unwrap())
             .map(|li| {
@@ -390,12 +328,7 @@ impl Course {
         &self.entries
     }
     pub async fn query_launch_link(&self, uri: &str) -> anyhow::Result<String> {
-        let res = self
-            .client
-            .get(format!("https://course.pku.edu.cn{}", uri))?
-            .send()
-            .await?;
-
+        let res = self.client.get_by_path_query(uri).await?;
         let st = res.status();
         anyhow::ensure!(st.as_u16() == 302, "invalid status: {}", st);
         let loc = res
@@ -439,13 +372,10 @@ impl Course {
 
         let uri = self.query_launch_link(uri).await?;
         let url = format!("https://course.pku.edu.cn{}", uri);
-
-        let res = self.client.get(&url)?.send().await?;
-
         let u = url.into_url()?;
 
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
+        let dom = self.client.page_by_path_query(&uri).await?;
+
         let videos = dom
             .select(&scraper::Selector::parse("tbody#listContainer_databody > tr").unwrap())
             .map(|tr| {
@@ -511,19 +441,10 @@ impl CourseAssignmentHandle {
     }
 
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
-        let res = self
+        let dom = self
             .client
-            .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
-            .query(&[
-                ("action", "newAttempt"),
-                ("content_id", &self.meta.content_id),
-                ("course_id", &self.meta.course_id),
-            ])?
-            .send()
+            .blackboard_course_assignment_uploadpage(&self.meta.course_id, &self.meta.content_id)
             .await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
 
         let desc = if let Some(el) = dom
             .select(&scraper::Selector::parse("#instructions div.vtbegenerated").unwrap())
@@ -590,20 +511,11 @@ impl CourseAssignmentHandle {
     }
 
     async fn _get_current_attempt(&self) -> anyhow::Result<Option<String>> {
-        let res = self
+        let dom = self
             .client
-            .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
-            .query(&[
-                ("mode", "view"),
-                ("content_id", &self.meta.content_id),
-                ("course_id", &self.meta.course_id),
-            ])?
-            .send()
+            .blackboard_course_assignment_viewpage(&self.meta.course_id, &self.meta.content_id)
             .await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
 
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
         let attempt_label = if let Some(e) = dom
             .select(&scraper::Selector::parse("h3#currentAttempt_label").unwrap())
             .next()
@@ -654,19 +566,10 @@ impl CourseAssignment {
     }
 
     pub async fn get_submit_formfields(&self) -> anyhow::Result<HashMap<String, String>> {
-        let res = self
+        let dom = self
             .client
-            .get("https://course.pku.edu.cn/webapps/assignment/uploadAssignment")?
-            .query(&[
-                ("action", "newAttempt"),
-                ("content_id", &self.meta.content_id),
-                ("course_id", &self.meta.course_id),
-            ])?
-            .send()
+            .blackboard_course_assignment_uploadpage(&self.meta.course_id, &self.meta.content_id)
             .await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let dom = scraper::Html::parse_document(&rbody);
 
         let extract_field = |input: scraper::ElementRef<'_>| {
             let name = input.value().attr("name")?.to_owned();
@@ -755,29 +658,10 @@ impl CourseAssignment {
             )
             .add_field("useless", b"");
 
-        const UPLOAD_URL: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
-
-        let boundary = body.boundary().to_owned();
-        let body = body.build().context("build multipart form body")?;
-        // let content_length = body.len();
-        log::info!("body built: {}", body.len());
-
-        let req = self
+        let res = self
             .client
-            .post(UPLOAD_URL)?
-            .header("origin", "https://course.pku.edu.cn")?
-            .header("accept", "*/*")?
-            .header(
-                "content-type",
-                format!("multipart/form-data; boundary={}", boundary),
-            )?
-            .query(&[("action", "submit")])?
-            .body(body)
-            .build();
-
-        log::debug!("$ cp {:?} {:?}", path.display(), filename);
-
-        let res = self.client.execute(req).await?;
+            .blackboard_course_assignment_uploaddata(body)
+            .await?;
 
         if !res.status().is_success() {
             let st = res.status();
@@ -836,9 +720,11 @@ impl CourseAssignment {
         uri: &str,
         dest: &std::path::Path,
     ) -> anyhow::Result<()> {
-        let url = format!("https://course.pku.edu.cn{}", uri);
-        log::debug!("downloading attachment from {}", url);
-        let res = self.client.get(url)?.send().await?;
+        log::debug!(
+            "downloading attachment from https://course.pku.edu.cn{}",
+            uri
+        );
+        let res = self.client.get_by_path_query(uri).await?;
         anyhow::ensure!(
             res.status().as_u16() == 302,
             "status not 302: {}",
@@ -853,9 +739,8 @@ impl CourseAssignment {
             .context("location header not str")?
             .to_owned();
 
-        let url = format!("https://course.pku.edu.cn{}", loc);
-        log::debug!("redicted to {}", url);
-        let res = self.client.get(url)?.send().await?;
+        log::debug!("redicted to https://course.pku.edu.cn{}", loc);
+        let res = self.client.get_by_path_query(&loc).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.bytes().await?;
@@ -902,7 +787,7 @@ impl CourseVideoHandle {
         &self.meta
     }
     async fn get_iframe_url(&self) -> anyhow::Result<String> {
-        let res = self.client.get(&self.meta.url)?.send().await?;
+        let res = self.client.get_by_url(&self.meta.url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
         let rbody = res.text().await?;
         let dom = scraper::Html::parse_document(&rbody);
@@ -916,7 +801,7 @@ impl CourseVideoHandle {
             .context("src not found")?
             .to_owned();
 
-        let res = self.client.get(&src)?.send().await?;
+        let res = self.client.get_by_url(&src).await?;
         anyhow::ensure!(res.status().as_u16() == 302, "status not 302");
         let loc = res
             .headers()
@@ -942,23 +827,10 @@ impl CourseVideoHandle {
             .context("auth_data not found")?
             .to_owned();
 
-        let res = self
+        let value = self
             .client
-            .get("https://yjapise.pku.edu.cn/courseapi/v2/schedule/get-sub-info-by-auth-data")?
-            .query(&[
-                ("all", "1"),
-                ("course_id", &course_id),
-                ("sub_id", &sub_id),
-                ("with_sub_data", "1"),
-                ("app_id", &app_id),
-                ("auth_data", &auth_data),
-            ])?
-            .send()
+            .blackboard_course_video_sub_info(&course_id, &sub_id, &app_id, &auth_data)
             .await?;
-
-        anyhow::ensure!(res.status().is_success(), "status not success");
-        let rbody = res.text().await?;
-        let value = serde_json::Value::from_str(&rbody)?;
 
         Ok(value)
     }
@@ -1008,7 +880,7 @@ impl CourseVideoHandle {
     }
 
     async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<bytes::Bytes> {
-        let res = self.client.get(url)?.send().await?;
+        let res = self.client.get_by_url(url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
         let rbody = res.bytes().await?;
         Ok(rbody)
@@ -1144,20 +1016,20 @@ impl CourseVideo {
     }
 
     async fn _download_segment(&self, seg_url: &str) -> anyhow::Result<bytes::Bytes> {
-        let res = self.client.get(seg_url)?.send().await?;
+        let res = self.client.get_by_url(seg_url).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let bytes = res.bytes().await?;
         Ok(bytes)
     }
 
-    async fn get_aes128_key(&self, uri: &str) -> anyhow::Result<[u8; 16]> {
+    async fn get_aes128_key(&self, url: &str) -> anyhow::Result<[u8; 16]> {
         // fetch aes128 key from uri
         let r = with_cache_bytes(
-            &format!("CourseVideo::get_aes128_uri_{}", uri),
+            &format!("CourseVideo::get_aes128_uri_{}", url),
             self.client.download_artifact_ttl(),
             async {
-                let r = self.client.get(uri)?.send().await?.bytes().await?;
+                let r = self.client.get_by_url(url).await?.bytes().await?;
                 Ok(r)
             },
         )
