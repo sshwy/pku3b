@@ -104,7 +104,7 @@ enum CacheCommands {
 
 #[derive(Subcommand)]
 enum AssignmentCommands {
-    /// 查看作业列表
+    /// 查看作业列表，按照截止日期排序
     #[command(visible_alias("ls"))]
     List {
         /// 显示所有作业，包括已完成的

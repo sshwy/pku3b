@@ -28,6 +28,17 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
     let courses = try_join_all(futs).await?;
     pb.finish_and_clear();
 
+    let mut all_assignments = courses
+        .iter()
+        .map(|(c, assignments)| assignments.iter().map(move |(id, a)| (c, id, a)))
+        .flatten()
+        // retain only unfinished assignments if not in full mode
+        .filter(|(_, _, a)| all || a.last_attempt().is_none())
+        .collect::<Vec<_>>();
+
+    // sort by deadline
+    all_assignments.sort_by_key(|(_, _, a)| a.deadline());
+
     // prepare output statements
     let mut outbuf = Vec::new();
     let title = if all {
@@ -35,22 +46,11 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
     } else {
         "未完成作业"
     };
-    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
+    let total = all_assignments.len();
+    writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
 
-    for (c, assignments) in courses {
-        if assignments.is_empty() {
-            continue;
-        }
-
-        writeln!(outbuf, "{BL}{H1}[{}]{H1:#}{BL:#}\n", c.meta().title())?;
-        for (id, a) in assignments {
-            // skip finished assignments if not in full mode
-            if a.last_attempt().is_some() && !all {
-                continue;
-            }
-
-            write_course_assignment(&mut outbuf, &id, &a).context("io error")?;
-        }
+    for (c, id, a) in all_assignments {
+        write_course_assignment(&mut outbuf, &id, &c, &a).context("io error")?;
     }
 
     // write to stdout
@@ -151,9 +151,11 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
 fn write_course_assignment(
     buf: &mut Vec<u8>,
     id: &str,
+    c: &api::Course,
     a: &api::CourseAssignment,
 ) -> std::io::Result<()> {
-    write!(buf, "{MG}{H2}{}{H2:#}{MG:#}", a.title())?;
+    write!(buf, "{BL}{B}{}{B:#}{BL:#} {D}>{D:#} ", c.meta().name())?;
+    write!(buf, "{BL}{B}{}{B:#}{BL:#}", a.title())?;
     if let Some(att) = a.last_attempt() {
         write!(buf, " ({GR}已完成: {att}{GR:#})")?;
     } else if let Some(t) = a.deadline() {
@@ -165,17 +167,16 @@ fn write_course_assignment(
         write!(buf, " (无截止时间)")?;
     }
     writeln!(buf, " {D}{}{D:#}", id)?;
-
-    if !a.attachments().is_empty() {
-        writeln!(buf, "\n{H3}附件{H3:#}")?;
-        for (name, _) in a.attachments() {
-            writeln!(buf, "{D}•{D:#} {name}")?;
-        }
-    }
     if !a.descriptions().is_empty() {
-        writeln!(buf, "\n{H3}描述{H3:#}")?;
+        writeln!(buf, "")?;
         for p in a.descriptions() {
             writeln!(buf, "{p}")?;
+        }
+    }
+    if !a.attachments().is_empty() {
+        writeln!(buf, "")?;
+        for (name, _) in a.attachments() {
+            writeln!(buf, "{D}[附件]{D:#} {UL}{name}{UL:#}")?;
         }
     }
     writeln!(buf)?;
