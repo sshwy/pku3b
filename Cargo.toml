@@ -53,12 +53,16 @@ serde = { version = "1.0", features = [
     "serde_derive",
 ], default-features = false }
 serde_json = "1.0"
-shadow-rs = { version = "1.0.1", features = ["build"], default-features = false }
+shadow-rs = { version = "1.0.1", features = [
+    "build",
+], default-features = false }
 toml = "0.8"
 url = "2.5.4"
 
 [build-dependencies]
-shadow-rs = { version = "1.0.1", features = ["build"], default-features = false }
+shadow-rs = { version = "1.0.1", features = [
+    "build",
+], default-features = false }
 
 [features]
 dev = []
@@ -78,7 +82,6 @@ codegen-units = 1
 tracing = { version = "0.1.41" }
 tracing-subscriber = { version = "^0.3.16", features = ["env-filter"] }
 
-[lints.rust]
-unexpected_cfgs = { level = "allow", check-cfg = [
-    'cfg(hyper_unstable_tracing)',
-] }
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = ['cfg(hyper_unstable_tracing)']

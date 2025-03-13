@@ -36,30 +36,31 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 获取作业信息
-    #[command(visible_alias("a"))]
+    /// 获取课程作业信息
+    #[command(visible_alias("a"), arg_required_else_help(true))]
     Assignment {
         /// 强制刷新
         #[arg(short, long, default_value = "false")]
         force: bool,
 
         #[command(subcommand)]
-        command: Option<AssignmentCommands>,
+        command: AssignmentCommands,
     },
 
     /// 获取课程回放/下载课程回放
-    #[command(visible_alias("v"))]
+    #[command(visible_alias("v"), arg_required_else_help(true))]
     Video {
         /// 强制刷新
         #[arg(short, long, default_value = "false")]
         force: bool,
 
         #[command(subcommand)]
-        command: Option<VideoCommands>,
+        command: VideoCommands,
     },
 
     /// (重新) 初始化配置选项
     Init,
+
     /// 显示或修改配置项
     Config {
         // 属性名称
@@ -67,6 +68,7 @@ enum Commands {
         /// 属性值
         value: Option<String>,
     },
+
     /// 查看缓存大小/清除缓存
     Cache {
         #[command(subcommand)]
@@ -102,7 +104,7 @@ enum CacheCommands {
 
 #[derive(Subcommand)]
 enum AssignmentCommands {
-    /// 查看作业
+    /// 查看作业列表
     #[command(visible_alias("ls"))]
     List {
         /// 显示所有作业，包括已完成的
@@ -114,7 +116,7 @@ enum AssignmentCommands {
     Download {
         /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
         id: String,
-        /// 下载目录, 默认为当前目录
+        /// 文件下载目录, 默认为当前目录 `.` (支持相对路径)
         #[arg(default_value = ".")]
         dir: std::path::PathBuf,
     },
@@ -123,7 +125,7 @@ enum AssignmentCommands {
     Submit {
         /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
         id: String,
-        /// 提交文件
+        /// 提交文件路径
         path: std::path::PathBuf,
     },
 }
@@ -279,41 +281,19 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     command_cache_clean(true).await?
                 }
             }
-            Commands::Assignment { force, command } => {
-                if let Some(command) = command {
-                    match command {
-                        AssignmentCommands::List { all } => {
-                            cmd_assignment::list(force, all).await?
-                        }
-                        AssignmentCommands::Download { id, dir } => {
-                            cmd_assignment::download(&id, &dir).await?
-                        }
-                        AssignmentCommands::Submit { id, path } => {
-                            cmd_assignment::submit(&id, &path).await?
-                        }
-                    }
-                } else {
-                    Cli::command()
-                        .get_subcommands_mut()
-                        .find(|s| s.get_name() == "assignment")
-                        .unwrap()
-                        .print_help()?;
+            Commands::Assignment { force, command } => match command {
+                AssignmentCommands::List { all } => cmd_assignment::list(force, all).await?,
+                AssignmentCommands::Download { id, dir } => {
+                    cmd_assignment::download(&id, &dir).await?
                 }
-            }
-            Commands::Video { force, command } => {
-                if let Some(command) = command {
-                    match command {
-                        VideoCommands::List => cmd_video::list(force).await?,
-                        VideoCommands::Download { id } => cmd_video::download(force, id).await?,
-                    }
-                } else {
-                    Cli::command()
-                        .get_subcommands_mut()
-                        .find(|s| s.get_name() == "video")
-                        .unwrap()
-                        .print_help()?;
+                AssignmentCommands::Submit { id, path } => {
+                    cmd_assignment::submit(&id, &path).await?
                 }
-            }
+            },
+            Commands::Video { force, command } => match command {
+                VideoCommands::List => cmd_video::list(force).await?,
+                VideoCommands::Download { id } => cmd_video::download(force, id).await?,
+            },
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
