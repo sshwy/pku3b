@@ -185,12 +185,17 @@ fn write_course_assignment(
 }
 
 pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
+    use utils::style::*;
     if delta < chrono::TimeDelta::zero() {
-        let s = Style::new().fg_color(Some(AnsiColor::Red.into()));
-        return format!("{s}due{s:#}");
+        return format!("{RD}due{RD:#}");
     }
 
-    let s = Style::new().fg_color(Some(AnsiColor::Yellow.into()));
+    let s = if delta > chrono::TimeDelta::days(1) {
+        Style::new().fg_color(Some(AnsiColor::Yellow.into()))
+    } else {
+        Style::new().fg_color(Some(AnsiColor::Red.into()))
+    };
+
     let mut delta = delta.to_std().unwrap();
     let mut res = String::new();
     res.push_str("in ");
