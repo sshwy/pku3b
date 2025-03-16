@@ -7,16 +7,19 @@ use std::str::FromStr as _;
 
 use crate::multipart;
 
-const OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
-const REDIR_URL: &str =
+pub const OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
+pub const REDIR_URL: &str =
     "http://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
-const SSO_LOGIN: &str =
+pub const SSO_LOGIN: &str =
     "https://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
-const BLACKBOARD_HOME_PAGE: &str =
+pub const BLACKBOARD_HOME_PAGE: &str =
     "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
-const COURSE_INFO_PAGE: &str = "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
-const UPLOAD_ASSIGNMENT: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
-const VIDEO_SUB_INFO: &str =
+pub const COURSE_INFO_PAGE: &str =
+    "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
+pub const UPLOAD_ASSIGNMENT: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
+pub const VIDEO_LIST: &str =
+    "https://course.pku.edu.cn/webapps/bb-streammedia-hqy-BBLEARN/videoList.action";
+pub const VIDEO_SUB_INFO: &str =
     "https://yjapise.pku.edu.cn/courseapi/v2/schedule/get-sub-info-by-auth-data";
 
 /// 一个基础的爬虫 client，函数的返回内容均为原始的，未处理的信息.
@@ -196,6 +199,29 @@ impl LowLevelClient {
         Ok(res)
     }
 
+    /// 根据 course_id 获取回放列表页面内容.
+    pub async fn blackboard_course_video_list(&self, course_id: &str) -> anyhow::Result<Html> {
+        let res = self
+            .http_client
+            .get(VIDEO_LIST)?
+            .query(&[
+                ("sortDir", "ASCENDING"),
+                ("numResults", "100"), // 一门课一般不会有超过 100 条回放
+                ("editPaging", "false"),
+                ("course_id", course_id),
+                ("mode", "view"),
+                ("startIndex", "0"),
+            ])?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+        Ok(dom)
+    }
+
     /// 获取视频回放的 sub_info（用于下载 m3u8 playlist）, 返回 JSON 信息
     pub async fn blackboard_course_video_sub_info(
         &self,
@@ -227,16 +253,18 @@ impl LowLevelClient {
 
     /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求.
     pub async fn get_by_uri(&self, uri: &str) -> anyhow::Result<cyper::Response> {
+        let url = convert_uri(uri)?;
+        log::trace!("GET {}", url);
         let res = self
             .http_client
-            .get(convert_uri(uri)?)
+            .get(url)
             .context("create request failed")?
             .send()
             .await?;
         Ok(res)
     }
 
-    /// 发送请求给 `https://course.pku.edu.cn/{path_and_query}`, 返回页面 HTML
+    /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求, 返回页面 HTML
     pub async fn page_by_uri(&self, uri: &str) -> anyhow::Result<Html> {
         let res = self.get_by_uri(uri).await?;
 

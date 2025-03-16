@@ -158,10 +158,10 @@ impl Blackboard {
 
         let courses = courses
             .into_iter()
-            .map(|(key, long_title)| {
+            .map(|(id, long_title)| {
                 Ok(CourseHandle {
                     client: self.client.clone(),
-                    meta: CourseMeta { key, long_title }.into(),
+                    meta: CourseMeta { id, long_title }.into(),
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -172,7 +172,7 @@ impl Blackboard {
 
 #[derive(Debug)]
 pub struct CourseMeta {
-    key: String,
+    id: String,
     long_title: String,
 }
 
@@ -203,7 +203,7 @@ pub struct CourseHandle {
 
 impl CourseHandle {
     pub async fn _get(&self) -> anyhow::Result<HashMap<String, String>> {
-        let dom = self.client.blackboard_coursepage(&self.meta.key).await?;
+        let dom = self.client.blackboard_coursepage(&self.meta.id).await?;
 
         let entries = dom
             .select(&scraper::Selector::parse("#courseMenuPalette_contents > li > a").unwrap())
@@ -221,7 +221,7 @@ impl CourseHandle {
         log::info!("fetching course {}", self.meta.title());
 
         let entries = with_cache(
-            &format!("CourseHandle::_get_{}", self.meta.key),
+            &format!("CourseHandle::_get_{}", self.meta.id),
             self.client.cache_ttl(),
             self._get(),
         )
@@ -247,7 +247,7 @@ impl Course {
         &self.meta
     }
     async fn _get_assignments(&self) -> anyhow::Result<Vec<(String, String)>> {
-        let Some(uri) = self.entries.get("课程作业") else {
+        let Some(uri) = self.entries().get("课程作业") else {
             log::warn!("课程作业 entry not found for course {}", self.meta.title());
             return Ok(Vec::new());
         };
@@ -282,11 +282,11 @@ impl Course {
         log::info!(
             "fetching assignments for {} (key={})",
             self.meta.title(),
-            self.meta.key
+            self.meta.id
         );
 
         let assignments = with_cache(
-            &format!("Course::_get_assignments_{}", self.meta.key),
+            &format!("Course::_get_assignments_{}", self.meta.id),
             self.client.cache_ttl(),
             self._get_assignments(),
         )
@@ -300,10 +300,6 @@ impl Course {
             .filter(|(_, url)| !url.starts_with("/bbcswebdav"))
             .map(|(title, uri)| {
                 let qs = qs::Query::from_str(&uri).context("parse uri qs failed")?;
-                let course_id = qs
-                    .get("course_id")
-                    .context("course_id not found")?
-                    .to_owned();
                 let content_id = qs
                     .get("content_id")
                     .context("content_id not found")?
@@ -312,12 +308,7 @@ impl Course {
                 Ok(CourseAssignmentHandle {
                     client: self.client.clone(),
                     course: self.meta.clone(),
-                    meta: CourseAssignmentMeta {
-                        title,
-                        course_id,
-                        content_id,
-                    }
-                    .into(),
+                    meta: CourseAssignmentMeta { title, content_id }.into(),
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -327,6 +318,7 @@ impl Course {
     pub fn entries(&self) -> &HashMap<String, String> {
         &self.entries
     }
+    #[allow(dead_code)]
     pub async fn query_launch_link(&self, uri: &str) -> anyhow::Result<String> {
         let res = self.client.get_by_uri(uri).await?;
         let st = res.status();
@@ -345,7 +337,7 @@ impl Course {
         log::info!("fetching video list for course {}", self.meta.title());
 
         let videos = with_cache(
-            &format!("Course::get_video_list_{}", self.meta.key),
+            &format!("Course::get_video_list_{}", self.meta.id),
             self.client.cache_ttl(),
             self._get_video_list(),
         )
@@ -365,16 +357,11 @@ impl Course {
         Ok(videos)
     }
     async fn _get_video_list(&self) -> anyhow::Result<Vec<CourseVideoMeta>> {
-        let Some(uri) = self.entries().get("课堂实录") else {
-            log::warn!("课堂实录 entry not found for course {}", self.meta.title());
-            return Ok(vec![]);
-        };
-
-        let uri = self.query_launch_link(uri).await?;
-        let url = format!("https://course.pku.edu.cn{}", uri);
-        let u = url.into_url()?;
-
-        let dom = self.client.page_by_uri(&uri).await?;
+        let u = low_level::VIDEO_LIST.into_url()?;
+        let dom = self
+            .client
+            .blackboard_course_video_list(&self.meta.id)
+            .await?;
 
         let videos = dom
             .select(&scraper::Selector::parse("tbody#listContainer_databody > tr").unwrap())
@@ -419,7 +406,6 @@ impl Course {
 #[derive(Debug)]
 pub struct CourseAssignmentMeta {
     title: String,
-    course_id: String,
     content_id: String,
 }
 
@@ -433,9 +419,8 @@ pub struct CourseAssignmentHandle {
 impl CourseAssignmentHandle {
     pub fn id(&self) -> String {
         let mut hasher = std::hash::DefaultHasher::new();
-        self.course.key.hash(&mut hasher);
+        self.course.id.hash(&mut hasher);
         self.meta.content_id.hash(&mut hasher);
-        self.meta.course_id.hash(&mut hasher);
         let x = hasher.finish();
         format!("{x:x}")
     }
@@ -443,7 +428,7 @@ impl CourseAssignmentHandle {
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
         let dom = self
             .client
-            .blackboard_course_assignment_uploadpage(&self.meta.course_id, &self.meta.content_id)
+            .blackboard_course_assignment_uploadpage(&self.course.id, &self.meta.content_id)
             .await?;
 
         let desc = if let Some(el) = dom
@@ -496,7 +481,7 @@ impl CourseAssignmentHandle {
         let data = with_cache(
             &format!(
                 "CourseAssignmentHandle::_get_{}_{}",
-                self.meta.content_id, self.meta.course_id
+                self.meta.content_id, self.course.id
             ),
             self.client.cache_ttl(),
             self._get(),
@@ -505,6 +490,7 @@ impl CourseAssignmentHandle {
 
         Ok(CourseAssignment {
             client: self.client.clone(),
+            course: self.course.clone(),
             meta: self.meta.clone(),
             data,
         })
@@ -513,7 +499,7 @@ impl CourseAssignmentHandle {
     async fn _get_current_attempt(&self) -> anyhow::Result<Option<String>> {
         let dom = self
             .client
-            .blackboard_course_assignment_viewpage(&self.meta.course_id, &self.meta.content_id)
+            .blackboard_course_assignment_viewpage(&self.course.id, &self.meta.content_id)
             .await?;
 
         let attempt_label = if let Some(e) = dom
@@ -544,6 +530,7 @@ struct CourseAssignmentData {
 
 pub struct CourseAssignment {
     client: Client,
+    course: Arc<CourseMeta>,
     meta: Arc<CourseAssignmentMeta>,
     data: CourseAssignmentData,
 }
@@ -568,7 +555,7 @@ impl CourseAssignment {
     pub async fn get_submit_formfields(&self) -> anyhow::Result<HashMap<String, String>> {
         let dom = self
             .client
-            .blackboard_course_assignment_uploadpage(&self.meta.course_id, &self.meta.content_id)
+            .blackboard_course_assignment_uploadpage(&self.course.id, &self.meta.content_id)
             .await?;
 
         let extract_field = |input: scraper::ElementRef<'_>| {
@@ -777,7 +764,7 @@ impl CourseVideoHandle {
     /// Course video identifier computed from hash.
     pub fn id(&self) -> String {
         let mut hasher = std::hash::DefaultHasher::new();
-        self.course.key.hash(&mut hasher);
+        self.course.id.hash(&mut hasher);
         self.meta.title.hash(&mut hasher);
         self.meta.time.hash(&mut hasher);
         let x = hasher.finish();
