@@ -1,6 +1,6 @@
 [package]
 name = "pku3b"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2024"
 authors = ["Weiyao Huang <jy.cat@qq.com>"]
 license = "MIT"
