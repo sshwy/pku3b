@@ -3,6 +3,7 @@ mod low_level;
 use anyhow::Context;
 use chrono::TimeZone;
 use cyper::IntoUrl;
+use scraper::Selector;
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
@@ -120,13 +121,13 @@ impl Blackboard {
 
         // the first one contains the courses in the current semester
         let ul = dom
-            .select(&scraper::Selector::parse("ul.courseListing").unwrap())
+            .select(&Selector::parse("ul.courseListing").unwrap())
             .nth(0)
             .context("courses not found")?;
 
         let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
         let courses = ul
-            .select(&scraper::Selector::parse("li a").unwrap())
+            .select(&Selector::parse("li a").unwrap())
             .map(|a| {
                 let href = a.value().attr("href").unwrap();
                 let text = a.text().collect::<String>();
@@ -206,7 +207,7 @@ impl CourseHandle {
         let dom = self.client.blackboard_coursepage(&self.meta.id).await?;
 
         let entries = dom
-            .select(&scraper::Selector::parse("#courseMenuPalette_contents > li > a").unwrap())
+            .select(&Selector::parse("#courseMenuPalette_contents > li > a").unwrap())
             .map(|a| {
                 let text = a.text().collect::<String>();
                 let href = a.value().attr("href").unwrap();
@@ -259,12 +260,20 @@ impl Course {
             .context("get course assignments page")?;
 
         let assignments = dom
-            .select(&scraper::Selector::parse("#content_listContainer > li").unwrap())
-            .map(|li| {
-                let title_a = li
-                    .select(&scraper::Selector::parse("h3 > a").unwrap())
-                    .next()
-                    .context("assignment title not found")?;
+            .select(&Selector::parse("#content_listContainer > li").unwrap())
+            // ignore assignments with no title
+            .filter_map(|li| {
+                let r = li.select(&Selector::parse("h3 > a").unwrap()).next();
+                // inspect none
+                if r.is_none() {
+                    log::warn!(
+                        "assignment title not found, li: {}",
+                        li.html().split_whitespace().collect::<Vec<_>>().join(",")
+                    )
+                }
+                r
+            })
+            .map(|title_a| {
                 let title = title_a.text().collect::<String>();
                 let href = title_a
                     .value()
@@ -364,7 +373,7 @@ impl Course {
             .await?;
 
         let videos = dom
-            .select(&scraper::Selector::parse("tbody#listContainer_databody > tr").unwrap())
+            .select(&Selector::parse("tbody#listContainer_databody > tr").unwrap())
             .map(|tr| {
                 let title = tr
                     .child_elements()
@@ -372,7 +381,7 @@ impl Course {
                     .unwrap()
                     .text()
                     .collect::<String>();
-                let s = scraper::Selector::parse("span.table-data-cell-value").unwrap();
+                let s = Selector::parse("span.table-data-cell-value").unwrap();
                 let mut values = tr.select(&s);
                 let time = values
                     .next()
@@ -432,7 +441,7 @@ impl CourseAssignmentHandle {
             .await?;
 
         let desc = if let Some(el) = dom
-            .select(&scraper::Selector::parse("#instructions div.vtbegenerated").unwrap())
+            .select(&Selector::parse("#instructions div.vtbegenerated").unwrap())
             .next()
         {
             el.child_elements()
@@ -443,7 +452,7 @@ impl CourseAssignmentHandle {
         };
 
         let attachments = dom
-            .select(&scraper::Selector::parse("#instructions div.field > a").unwrap())
+            .select(&Selector::parse("#instructions div.field > a").unwrap())
             .map(|a| {
                 let text = a.text().collect::<String>();
                 let href = a.value().attr("href").unwrap();
@@ -457,7 +466,7 @@ impl CourseAssignmentHandle {
             .collect::<anyhow::Result<Vec<_>>>()?;
 
         let deadline = dom
-            .select(&scraper::Selector::parse("#assignMeta2 + div").unwrap())
+            .select(&Selector::parse("#assignMeta2 + div").unwrap())
             .next()
             .map(|e| {
                 // replace consecutive whitespaces with a single space
@@ -503,7 +512,7 @@ impl CourseAssignmentHandle {
             .await?;
 
         let attempt_label = if let Some(e) = dom
-            .select(&scraper::Selector::parse("h3#currentAttempt_label").unwrap())
+            .select(&Selector::parse("h3#currentAttempt_label").unwrap())
             .next()
         {
             e.text().collect::<String>()
@@ -565,10 +574,10 @@ impl CourseAssignment {
         };
 
         let submitformfields = dom
-            .select(&scraper::Selector::parse("form#uploadAssignmentFormId input").unwrap())
+            .select(&Selector::parse("form#uploadAssignmentFormId input").unwrap())
             .map(extract_field)
             .chain(
-                dom.select(&scraper::Selector::parse("div.field input").unwrap())
+                dom.select(&Selector::parse("div.field input").unwrap())
                     .map(extract_field),
             )
             .flatten()
@@ -779,7 +788,7 @@ impl CourseVideoHandle {
         let rbody = res.text().await?;
         let dom = scraper::Html::parse_document(&rbody);
         let iframe = dom
-            .select(&scraper::Selector::parse("#content iframe").unwrap())
+            .select(&Selector::parse("#content iframe").unwrap())
             .next()
             .context("iframe not found")?;
         let src = iframe
