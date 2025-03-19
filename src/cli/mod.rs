@@ -130,6 +130,7 @@ enum AssignmentCommands {
     },
 }
 
+/// Client, courses and spinner are returned. Spinner hasn't stopped.
 async fn load_client_courses(
     force: bool,
 ) -> anyhow::Result<(api::Client, Vec<api::CourseHandle>, pbar::AsyncSpinner)> {
@@ -163,8 +164,7 @@ async fn load_client_courses(
 }
 
 async fn load_courses(force: bool) -> anyhow::Result<Vec<api::CourseHandle>> {
-    let (_, r, sp) = load_client_courses(force).await?;
-    sp.finish_and_clear().await;
+    let (_, r, _) = load_client_courses(force).await?;
     Ok(r)
 }
 
@@ -255,7 +255,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
             std::fs::remove_dir_all(dir.cache_dir())?;
         }
     }
-    sp.finish_and_clear().await;
+    drop(sp);
 
     let sizenum = total_bytes as f64 / 1024.0f64.powi(3);
     if dry_run {

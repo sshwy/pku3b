@@ -8,15 +8,15 @@ use std::str::FromStr as _;
 use crate::multipart;
 
 pub const OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
-pub const REDIR_URL: &str =
+pub const OAUTH_REDIR: &str =
     "http://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
 pub const SSO_LOGIN: &str =
     "https://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
-pub const BLACKBOARD_HOME_PAGE: &str =
-    "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
-pub const COURSE_INFO_PAGE: &str =
-    "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
+pub const BLACKBOARD_HOME: &str = "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
+pub const COURSE_INFO: &str = "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
 pub const UPLOAD_ASSIGNMENT: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
+pub const LIST_CONTENT: &str =
+    "https://course.pku.edu.cn/webapps/blackboard/content/listContent.jsp";
 pub const VIDEO_LIST: &str =
     "https://course.pku.edu.cn/webapps/bb-streammedia-hqy-BBLEARN/videoList.action";
 pub const VIDEO_SUB_INFO: &str =
@@ -51,7 +51,7 @@ impl LowLevelClient {
                 ("randCode", ""),
                 ("smsCode", ""),
                 ("otpCode", ""),
-                ("redirUrl", REDIR_URL),
+                ("redirUrl", OAUTH_REDIR),
             ])?
             .send()
             .await?;
@@ -68,7 +68,7 @@ impl LowLevelClient {
     }
 
     /// 使用 OAuth login 返回的 token 登录教学网。登录状态会记录在 client cookie 中，无需返回值.
-    pub async fn blackboard_sso_login(&self, token: &str) -> anyhow::Result<()> {
+    pub async fn bb_sso_login(&self, token: &str) -> anyhow::Result<()> {
         let mut rng = rand::rng();
 
         let _rand: f64 = rng.sample(rand::distr::Open01);
@@ -86,11 +86,11 @@ impl LowLevelClient {
         Ok(())
     }
 
-    /// 获取教学网主页内容 ([`BLACKBOARD_HOME_PAGE`]), 返回 HTML 文档
-    pub async fn blackboard_homepage(&self) -> anyhow::Result<Html> {
+    /// 获取教学网主页内容 ([`BLACKBOARD_HOME`]), 返回 HTML 文档
+    pub async fn bb_homepage(&self) -> anyhow::Result<Html> {
         let res = self
             .http_client
-            .get(BLACKBOARD_HOME_PAGE)?
+            .get(BLACKBOARD_HOME)?
             .query(&[("tab_tab_group_id", "_1_1")])?
             .send()
             .await?;
@@ -102,11 +102,11 @@ impl LowLevelClient {
         Ok(dom)
     }
 
-    /// 根据课程的 key 获取课程主页内容 ([`COURSE_INFO_PAGE`])
-    pub async fn blackboard_coursepage(&self, key: &str) -> anyhow::Result<Html> {
+    /// 根据课程的 key 获取课程主页内容 ([`COURSE_INFO`])
+    pub async fn bb_coursepage(&self, key: &str) -> anyhow::Result<Html> {
         let res = self
             .http_client
-            .get(COURSE_INFO_PAGE)?
+            .get(COURSE_INFO)?
             .query(&[
                 ("method", "search"),
                 ("context", "course_entry"),
@@ -124,8 +124,28 @@ impl LowLevelClient {
         Ok(dom)
     }
 
+    /// 根据 content_id 和 course_id 获取课程内容列表页面（包含作业、公告和一些其他东西）
+    pub async fn bb_course_content_page(
+        &self,
+        course_id: &str,
+        content_id: &str,
+    ) -> anyhow::Result<Html> {
+        let res = self
+            .http_client
+            .get(LIST_CONTENT)?
+            .query(&[("content_id", content_id), ("course_id", course_id)])?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+        Ok(dom)
+    }
+
     /// 根据 content_id 和 course_id 获取作业上传页面的信息.
-    pub async fn blackboard_course_assignment_uploadpage(
+    pub async fn bb_course_assignment_uploadpage(
         &self,
         course_id: &str,
         content_id: &str,
@@ -149,7 +169,7 @@ impl LowLevelClient {
     }
 
     /// 根据 content_id 和 course_id 获取作业的历史提交页面.
-    pub async fn blackboard_course_assignment_viewpage(
+    pub async fn bb_course_assignment_viewpage(
         &self,
         course_id: &str,
         content_id: &str,
@@ -173,7 +193,7 @@ impl LowLevelClient {
     }
 
     /// 向 [`UPLOAD_ASSIGNMENT`] 发送提交作业的请求
-    pub async fn blackboard_course_assignment_uploaddata(
+    pub async fn bb_course_assignment_uploaddata(
         &self,
         body: multipart::MultipartBuilder<'_>,
     ) -> anyhow::Result<cyper::Response> {
@@ -200,7 +220,7 @@ impl LowLevelClient {
     }
 
     /// 根据 course_id 获取回放列表页面内容.
-    pub async fn blackboard_course_video_list(&self, course_id: &str) -> anyhow::Result<Html> {
+    pub async fn bb_course_video_list(&self, course_id: &str) -> anyhow::Result<Html> {
         let res = self
             .http_client
             .get(VIDEO_LIST)?
@@ -223,7 +243,7 @@ impl LowLevelClient {
     }
 
     /// 获取视频回放的 sub_info（用于下载 m3u8 playlist）, 返回 JSON 信息
-    pub async fn blackboard_course_video_sub_info(
+    pub async fn bb_course_video_sub_info(
         &self,
         course_id: &str,
         sub_id: &str,
@@ -265,6 +285,7 @@ impl LowLevelClient {
     }
 
     /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求, 返回页面 HTML
+    #[allow(unused)]
     pub async fn page_by_uri(&self, uri: &str) -> anyhow::Result<Html> {
         let res = self.get_by_uri(uri).await?;
 

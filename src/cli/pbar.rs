@@ -1,34 +1,18 @@
-use std::sync::{Arc, Weak};
-
-use futures_util::FutureExt;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, WeakProgressBar};
 struct TickerHandle {
-    tx: futures_channel::oneshot::Sender<()>,
+    #[allow(dead_code)]
     handle: compio::runtime::JoinHandle<()>,
 }
 
-impl TickerHandle {
-    async fn stop(self) {
-        let _ = self.tx.send(());
-        self.handle.await.unwrap()
-    }
-}
-
-fn spawn_pb_ticker(pb: Weak<ProgressBar>, interval: std::time::Duration) -> TickerHandle {
-    let (tx, mut rx) = futures_channel::oneshot::channel::<()>();
+fn spawn_pb_ticker(pb: WeakProgressBar, interval: std::time::Duration) -> TickerHandle {
     let h = compio::runtime::spawn(async move {
         while let Some(pb) = pb.upgrade() {
             pb.tick();
-            let wait = compio::time::sleep(interval);
-            let mut wait = std::pin::pin!(wait.fuse());
-            futures_util::select! {
-                _ = rx => break,
-                _ = wait => (),
-            }
+            compio::time::sleep(interval).await;
         }
     });
 
-    TickerHandle { tx, handle: h }
+    TickerHandle { handle: h }
 }
 
 fn pb_style() -> ProgressStyle {
@@ -42,7 +26,8 @@ fn pb_style() -> ProgressStyle {
 
 /// Progress bar that ticks asynchronously
 pub struct AsyncSpinner {
-    pb: Arc<ProgressBar>,
+    pb: ProgressBar,
+    #[allow(dead_code)]
     ticker: TickerHandle,
 }
 
@@ -54,16 +39,17 @@ impl std::ops::Deref for AsyncSpinner {
 }
 
 impl AsyncSpinner {
-    pub async fn finish_and_clear(self) {
-        self.ticker.stop().await;
+    #[allow(unused)]
+    #[deprecated(since = "0.5.1", note = "Use `drop` instead")]
+    pub fn finish_and_clear(self) {
         self.pb.finish_and_clear();
     }
 }
 
 /// Create a new spinner with a default style
 pub fn new_spinner() -> AsyncSpinner {
-    let pb = Arc::new(ProgressBar::new_spinner());
-    let w = Arc::downgrade(&pb);
+    let pb = ProgressBar::new_spinner();
+    let w = pb.downgrade();
     let ticker = spawn_pb_ticker(w, std::time::Duration::from_millis(100));
     AsyncSpinner { pb, ticker }
 }

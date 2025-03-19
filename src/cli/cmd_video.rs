@@ -64,14 +64,13 @@ pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
         }
     }
     let Some(v) = target_video else {
-        sp.finish_and_clear().await;
         anyhow::bail!("video with id {} not found", id);
     };
 
     sp.set_message("fetch video metadata...");
     let v = v.get().await?;
 
-    sp.finish_and_clear().await;
+    drop(sp);
 
     println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
 
@@ -113,7 +112,7 @@ pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
         .output()
         .await
         .context("execute ffmpeg")?;
-    sp.finish_and_clear().await;
+    drop(sp);
 
     if c.status.success() {
         println!("下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}", dest);
