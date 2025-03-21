@@ -26,15 +26,15 @@ A tool for PKU students to check their courses.
 Usage: pku3b [COMMAND]
 
 Commands:
-  assignment  获取作业信息 [aliases: a]
-  video       获取课程回放 [aliases: v]
+  assignment  获取课程作业信息 [aliases: a]
+  video       获取课程回放/下载课程回放 [aliases: v]
   init        (重新) 初始化配置选项
   config      显示或修改配置项
   cache       查看缓存大小/清除缓存
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
+  -h, --help     Print help (see more with '--help')
   -V, --version  Print version
 ```
 
