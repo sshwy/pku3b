@@ -118,38 +118,45 @@ pub struct Blackboard {
 }
 
 impl Blackboard {
-    async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String)>> {
+    async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String, bool)>> {
         let dom = self.client.bb_homepage().await?;
+        let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
+        let ul_sel = Selector::parse("ul.courseListing").unwrap();
+        let sel = Selector::parse("li a").unwrap();
+
+        let f = |a: scraper::ElementRef<'_>| {
+            let href = a.value().attr("href").unwrap();
+            let text = a.text().collect::<String>();
+            // use regex to extract course key (of form key=_80052_1)
+
+            let key = re
+                .captures(href)
+                .and_then(|s| s.get(1))
+                .context("course key not found")?
+                .as_str()
+                .to_owned();
+
+            Ok((key, text))
+        };
 
         // the first one contains the courses in the current semester
-        let ul = dom
-            .select(&Selector::parse("ul.courseListing").unwrap())
-            .nth(0)
-            .context("courses not found")?;
+        let ul = dom.select(&ul_sel).nth(0).context("courses not found")?;
+        let courses = ul.select(&sel).map(f).collect::<anyhow::Result<Vec<_>>>()?;
 
-        let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
-        let courses = ul
-            .select(&Selector::parse("li a").unwrap())
-            .map(|a| {
-                let href = a.value().attr("href").unwrap();
-                let text = a.text().collect::<String>();
-                // use regex to extract course key (of form key=_80052_1)
-
-                let key = re
-                    .captures(href)
-                    .context("course key not found")?
-                    .get(1)
-                    .context("course key not found")?
-                    .as_str()
-                    .to_owned();
-
-                Ok((key, text))
-            })
+        // the second one contains the courses in the previous semester
+        let ul_history = dom.select(&ul_sel).nth(1).context("courses not found")?;
+        let courses_history = ul_history
+            .select(&sel)
+            .map(f)
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        Ok(courses)
+        Ok(courses
+            .into_iter()
+            .map(|(k, t)| (k, t, true))
+            .chain(courses_history.into_iter().map(|(k, t)| (k, t, false)))
+            .collect())
     }
-    pub async fn get_courses(&self) -> anyhow::Result<Vec<CourseHandle>> {
+    pub async fn get_courses(&self, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
         log::info!("fetching courses...");
 
         let courses = with_cache(
@@ -159,15 +166,24 @@ impl Blackboard {
         )
         .await?;
 
-        let courses = courses
+        let mut courses = courses
             .into_iter()
-            .map(|(id, long_title)| {
+            .map(|(id, long_title, is_current)| {
                 Ok(CourseHandle {
                     client: self.client.clone(),
-                    meta: CourseMeta { id, long_title }.into(),
+                    meta: CourseMeta {
+                        id,
+                        long_title,
+                        is_current,
+                    }
+                    .into(),
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
+
+        if only_current {
+            courses.retain(|c| c.meta.is_current);
+        }
 
         Ok(courses)
     }
@@ -177,6 +193,8 @@ impl Blackboard {
 pub struct CourseMeta {
     id: String,
     long_title: String,
+    /// 是否是当前学期的课程
+    is_current: bool,
 }
 
 impl CourseMeta {
@@ -383,7 +401,7 @@ pub struct CourseContentStream {
 impl CourseContentStream {
     fn new(client: Client, course: Arc<CourseMeta>, probe_ids: Vec<String>) -> Self {
         // implicitly deduplicate probe_ids
-        let visited_ids = HashSet::from_iter(probe_ids.into_iter());
+        let visited_ids = HashSet::from_iter(probe_ids);
         let probe_ids = visited_ids.iter().cloned().collect();
         Self {
             batch_size: 8,

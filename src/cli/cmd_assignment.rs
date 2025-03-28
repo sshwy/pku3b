@@ -48,8 +48,8 @@ async fn get_assignments(
     Ok(r)
 }
 
-pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
-    let courses = load_courses(force).await?;
+pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> {
+    let courses = load_courses(force, cur_term).await?;
 
     // fetch each course concurrently
     let m = indicatif::MultiProgress::new();
@@ -89,7 +89,8 @@ pub async fn list(force: bool, all: bool) -> anyhow::Result<()> {
         .collect::<Vec<_>>();
 
     // sort by deadline
-    all_assignments.sort_by_key(|(_, _, a)| a.deadline());
+    log::debug!("sorting assignments...");
+    all_assignments.sort_by_cached_key(|(_, _, a)| a.deadline());
 
     // prepare output statements
     let mut outbuf = Vec::new();
@@ -135,8 +136,8 @@ pub async fn find_assignment(
     Ok(None)
 }
 
-pub async fn download(id: &str, dir: &std::path::Path) -> anyhow::Result<()> {
-    let (_, courses, sp) = load_client_courses(false).await?;
+pub async fn download(id: &str, dir: &std::path::Path, cur_term: bool) -> anyhow::Result<()> {
+    let (_, courses, sp) = load_client_courses(false, cur_term).await?;
 
     sp.set_message("finding assignment...");
     let target_handle = find_assignment(&courses, id).await?;
@@ -173,7 +174,7 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
     if !path.exists() {
         anyhow::bail!("file not found: {:?}", path);
     }
-    let (_, courses, sp) = load_client_courses(false).await?;
+    let (_, courses, sp) = load_client_courses(false, true).await?;
 
     let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
 

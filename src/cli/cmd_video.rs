@@ -1,8 +1,8 @@
 use anyhow::Context;
 
 use super::*;
-pub async fn list(force: bool) -> anyhow::Result<()> {
-    let courses = load_courses(force).await?;
+pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
+    let courses = load_courses(force, cur_term).await?;
 
     let pb = pbar::new(courses.len() as u64);
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
@@ -43,8 +43,8 @@ pub async fn list(force: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn download(force: bool, id: String) -> anyhow::Result<()> {
-    let (_, courses, sp) = load_client_courses(force).await?;
+pub async fn download(force: bool, id: String, cur_term: bool) -> anyhow::Result<()> {
+    let (_, courses, sp) = load_client_courses(force, cur_term).await?;
 
     sp.set_message("finding video...");
     let mut target_video = None;

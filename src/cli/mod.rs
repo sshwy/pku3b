@@ -84,13 +84,20 @@ enum Commands {
 enum VideoCommands {
     /// 获取课程回放列表
     #[command(visible_alias("ls"))]
-    List,
+    List {
+        /// 显示所有学期的课程回放
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
 
     /// 下载课程回放视频 (MP4 格式)，支持断点续传
     #[command(visible_alias("down"))]
     Download {
         /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
         id: String,
+        /// 在所有学期的课程回放范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
     },
 }
 
@@ -110,6 +117,9 @@ enum AssignmentCommands {
         /// 显示所有作业，包括已完成的
         #[arg(short, long, default_value = "false")]
         all: bool,
+        /// 显示所有学期的作业（包括已完成的）
+        #[arg(long, default_value = "false")]
+        all_term: bool,
     },
     /// 下载作业要求和附件到指定文件夹下
     #[command(visible_alias("down"))]
@@ -119,6 +129,9 @@ enum AssignmentCommands {
         /// 文件下载目录, 默认为当前目录 `.` (支持相对路径)
         #[arg(default_value = ".")]
         dir: std::path::PathBuf,
+        /// 在所有学期的作业范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
     },
     /// 提交作业
     #[command(visible_alias("sb"))]
@@ -133,6 +146,7 @@ enum AssignmentCommands {
 /// Client, courses and spinner are returned. Spinner hasn't stopped.
 async fn load_client_courses(
     force: bool,
+    only_current: bool,
 ) -> anyhow::Result<(api::Client, Vec<api::CourseHandle>, pbar::AsyncSpinner)> {
     let client = if force {
         api::Client::new_nocache()
@@ -156,15 +170,15 @@ async fn load_client_courses(
 
     sp.set_message("fetching courses...");
     let courses = blackboard
-        .get_courses()
+        .get_courses(only_current)
         .await
         .context("fetch course handles")?;
 
     Ok((client, courses, sp))
 }
 
-async fn load_courses(force: bool) -> anyhow::Result<Vec<api::CourseHandle>> {
-    let (_, r, _) = load_client_courses(force).await?;
+async fn load_courses(force: bool, only_current: bool) -> anyhow::Result<Vec<api::CourseHandle>> {
+    let (_, r, _) = load_client_courses(force, only_current).await?;
     Ok(r)
 }
 
@@ -282,17 +296,21 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment { force, command } => match command {
-                AssignmentCommands::List { all } => cmd_assignment::list(force, all).await?,
-                AssignmentCommands::Download { id, dir } => {
-                    cmd_assignment::download(&id, &dir).await?
+                AssignmentCommands::List { all, all_term } => {
+                    cmd_assignment::list(force, all || all_term, !all_term).await?
+                }
+                AssignmentCommands::Download { id, dir, all_term } => {
+                    cmd_assignment::download(&id, &dir, !all_term).await?
                 }
                 AssignmentCommands::Submit { id, path } => {
                     cmd_assignment::submit(&id, &path).await?
                 }
             },
             Commands::Video { force, command } => match command {
-                VideoCommands::List => cmd_video::list(force).await?,
-                VideoCommands::Download { id } => cmd_video::download(force, id).await?,
+                VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
+                VideoCommands::Download { id, all_term } => {
+                    cmd_video::download(force, id, !all_term).await?
+                }
             },
 
             #[cfg(feature = "dev")]
