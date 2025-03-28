@@ -372,6 +372,8 @@ impl Course {
 }
 
 pub struct CourseContentStream {
+    /// 一次性发射的请求数量
+    batch_size: usize,
     client: Client,
     course: Arc<CourseMeta>,
     visited_ids: HashSet<String>,
@@ -384,43 +386,56 @@ impl CourseContentStream {
         let visited_ids = HashSet::from_iter(probe_ids.into_iter());
         let probe_ids = visited_ids.iter().cloned().collect();
         Self {
+            batch_size: 8,
             client,
             course,
             visited_ids,
             probe_ids,
         }
     }
-    async fn try_next_batch(&mut self, id: &str) -> anyhow::Result<Vec<CourseContentData>> {
-        let dom = self
-            .client
-            .bb_course_content_page(&self.course.id, id)
-            .await?;
+    async fn try_next_batch(&mut self, ids: &[String]) -> anyhow::Result<Vec<CourseContentData>> {
+        let futs = ids
+            .iter()
+            .map(|id| self.client.bb_course_content_page(&self.course.id, id));
 
-        let contents = dom
-            .select(&Selector::parse("#content_listContainer > li").unwrap())
-            .filter_map(|li| {
-                CourseContentData::from_element(li)
-                    .inspect_err(|e| log::warn!("CourseContentData::from_element error: {e}"))
-                    .ok()
-            })
-            // filter out visited ids
-            .filter(|data| self.visited_ids.insert(data.id.to_owned()))
-            // add the rest new ids to probe_ids
-            .inspect(|data| {
-                if data.has_link {
-                    self.probe_ids.push(data.id.to_owned())
-                }
-            })
-            .collect::<Vec<_>>();
+        let doms = futures_util::future::join_all(futs).await;
 
-        Ok(contents)
+        let mut all_contents = Vec::new();
+        for dom in doms {
+            let dom = dom?;
+            let selector = Selector::parse("#content_listContainer > li").unwrap();
+            let contents = dom
+                .select(&selector)
+                .filter_map(|li| {
+                    CourseContentData::from_element(li)
+                        .inspect_err(|e| log::warn!("CourseContentData::from_element error: {e}"))
+                        .ok()
+                })
+                // filter out visited ids
+                .filter(|data| self.visited_ids.insert(data.id.to_owned()))
+                // add the rest new ids to probe_ids
+                .inspect(|data| {
+                    if data.has_link {
+                        self.probe_ids.push(data.id.to_owned())
+                    }
+                });
+
+            all_contents.extend(contents);
+        }
+
+        Ok(all_contents)
     }
     pub async fn next_batch(&mut self) -> Option<Vec<CourseContentData>> {
-        let id = self.probe_ids.pop()?;
-        match self.try_next_batch(&id).await {
+        let ids = self
+            .probe_ids
+            .split_off(self.probe_ids.len().saturating_sub(self.batch_size));
+        if ids.is_empty() {
+            return None;
+        }
+        match self.try_next_batch(&ids).await {
             Ok(r) => Some(r),
             Err(e) => {
-                log::warn!("try_next_batch error {id}: {e}");
+                log::warn!("try_next_batch error {ids:?}: {e}");
                 return Box::pin(self.next_batch()).await;
             }
         }
