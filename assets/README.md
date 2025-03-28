@@ -7,5 +7,6 @@ e.g.
 
 ```bash
 terminalizer render demo-pku3b-a -o demo-pku3b-a.gif
+terminalizer render demo-pku3b-a-down-i -o demo-pku3b-a-down-i.gif
 terminalizer render demo-pku3b-v -o demo-pku3b-v.gif -s 10 # 10x faster
 ```

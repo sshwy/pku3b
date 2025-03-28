@@ -48,7 +48,10 @@ async fn get_assignments(
     Ok(r)
 }
 
-pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> {
+async fn get_courses_and_assignments(
+    force: bool,
+    cur_term: bool,
+) -> anyhow::Result<Vec<(api::Course, Vec<(String, api::CourseAssignment)>)>> {
     let courses = load_courses(force, cur_term).await?;
 
     // fetch each course concurrently
@@ -80,6 +83,12 @@ pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> 
     m.clear().unwrap();
     drop(pb);
     drop(m);
+
+    Ok(courses)
+}
+
+pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> {
+    let courses = get_courses_and_assignments(force, cur_term).await?;
 
     let mut all_assignments = courses
         .iter()
@@ -136,6 +145,49 @@ pub async fn find_assignment(
     Ok(None)
 }
 
+pub async fn download_interactive(
+    dir: &std::path::Path,
+    force: bool,
+    all: bool,
+    cur_term: bool,
+) -> anyhow::Result<()> {
+    let items = get_courses_and_assignments(force, cur_term).await?;
+
+    let mut all_assignments = items
+        .iter()
+        .flat_map(|(c, assignments)| assignments.iter().map(move |(id, a)| (c, id, a)))
+        // retain only unfinished assignments if not in full mode
+        .filter(|(_, _, a)| all || a.last_attempt().is_none())
+        .collect::<Vec<_>>();
+
+    // sort by deadline
+    log::debug!("sorting assignments...");
+    all_assignments.sort_by_cached_key(|(_, _, a)| a.deadline());
+
+    if all_assignments.is_empty() {
+        println!("没有找到未完成的作业");
+        return Ok(());
+    }
+
+    let mut options = Vec::new();
+
+    for (idx, (c, id, a)) in all_assignments.iter().enumerate() {
+        let mut outbuf = Vec::new();
+        write!(outbuf, "[{}] ", idx + 1)?;
+        write_assignment_title_ln(&mut outbuf, id, c, a).context("io error")?;
+        options.push(String::from_utf8(outbuf).unwrap());
+    }
+
+    let s = inquire::Select::new("请选择要下载的作业", options).raw_prompt()?;
+    let idx = s.index;
+    let (_, _, a) = all_assignments[idx];
+
+    let sp = pbar::new_spinner();
+    download_data(sp, dir, a).await?;
+
+    Ok(())
+}
+
 pub async fn download(id: &str, dir: &std::path::Path, cur_term: bool) -> anyhow::Result<()> {
     let (_, courses, sp) = load_client_courses(false, cur_term).await?;
 
@@ -149,6 +201,15 @@ pub async fn download(id: &str, dir: &std::path::Path, cur_term: bool) -> anyhow
     sp.set_message("fetch assignment metadata...");
     let a = a.get().await?;
 
+    download_data(sp, dir, &a).await?;
+    Ok(())
+}
+
+async fn download_data(
+    sp: pbar::AsyncSpinner,
+    dir: &std::path::Path,
+    a: &api::CourseAssignment,
+) -> anyhow::Result<()> {
     if !dir.exists() {
         compio::fs::create_dir_all(dir).await?;
     }
@@ -203,7 +264,7 @@ pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn write_course_assignment(
+fn write_assignment_title_ln(
     buf: &mut Vec<u8>,
     id: &str,
     c: &api::Course,
@@ -222,6 +283,17 @@ fn write_course_assignment(
         write!(buf, " (无截止时间)")?;
     }
     writeln!(buf, " {D}{}{D:#}", id)?;
+    Ok(())
+}
+
+fn write_course_assignment(
+    buf: &mut Vec<u8>,
+    id: &str,
+    c: &api::Course,
+    a: &api::CourseAssignment,
+) -> std::io::Result<()> {
+    write_assignment_title_ln(buf, id, c, a)?;
+
     if !a.descriptions().is_empty() {
         writeln!(buf)?;
         for p in a.descriptions() {

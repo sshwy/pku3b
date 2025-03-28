@@ -122,12 +122,15 @@ enum AssignmentCommands {
         all_term: bool,
     },
     /// 下载作业要求和附件到指定文件夹下
+    ///
+    /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
     #[command(visible_alias("down"))]
     Download {
-        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
-        id: String,
-        /// 文件下载目录, 默认为当前目录 `.` (支持相对路径)
-        #[arg(default_value = ".")]
+        /// (Optionl) 作业 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        #[arg(group = "download-type")]
+        id: Option<String>,
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short, long, default_value = ".")]
         dir: std::path::PathBuf,
         /// 在所有学期的作业范围中查找
         #[arg(long, default_value = "false")]
@@ -212,25 +215,11 @@ async fn command_config(
     Ok(())
 }
 
-async fn read_line(prompt: &str, is_password: bool) -> anyhow::Result<String> {
-    if is_password {
-        // use tricks to hide password
-        let pass = rpassword::prompt_password(prompt.to_owned()).context("read password")?;
-        Ok(pass)
-    } else {
-        print!("{prompt}");
-        std::io::stdout().flush().unwrap();
-        let mut s = String::new();
-        std::io::stdin().read_line(&mut s)?;
-        Ok(s.trim().to_string())
-    }
-}
-
 async fn command_init() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
 
-    let username = read_line("PKU IAAA Username: ", false).await?;
-    let password = read_line("PKU IAAA Password: ", true).await?;
+    let username = inquire::Text::new("Enter PKU IAAA Username (ID):").prompt()?;
+    let password = inquire::Password::new("Enter PKU IAAA Password:").prompt()?;
 
     let cfg = config::Config { username, password };
     config::write_cfg(&cfg_path, &cfg).await?;
@@ -300,7 +289,12 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     cmd_assignment::list(force, all || all_term, !all_term).await?
                 }
                 AssignmentCommands::Download { id, dir, all_term } => {
-                    cmd_assignment::download(&id, &dir, !all_term).await?
+                    if let Some(id) = id {
+                        cmd_assignment::download(&id, &dir, !all_term).await?
+                    } else {
+                        cmd_assignment::download_interactive(&dir, force, all_term, !all_term)
+                            .await?;
+                    }
                 }
                 AssignmentCommands::Submit { id, path } => {
                     cmd_assignment::submit(&id, &path).await?
