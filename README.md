@@ -72,7 +72,7 @@ cargo install pku3b
 (Invoke-WebRequest -Uri "https://github.com/sshwy/pku3b" -Method Head).StatusCode
 ```
 
-为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.6.0`):
+为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.7.0`):
 
 ```powershell
 Invoke-WebRequest `
@@ -80,16 +80,16 @@ Invoke-WebRequest `
   -OutFile "$env:TEMP\script.bat"; `
 Start-Process `
   -FilePath "$env:TEMP\script.bat" `
-  -ArgumentList "0.6.0" `
+  -ArgumentList "0.7.0" `
   -NoNewWindow -Wait
 ```
 
 安装过程大致如下:
 
 ```powershell
-Step 1: Downloading pku3b version 0.6.0...
+Step 1: Downloading pku3b version 0.7.0...
 Download complete.
-Step 2: Extracting pku3b version 0.6.0...
+Step 2: Extracting pku3b version 0.7.0...
 Extraction complete.
 Step 3: Moving pku3b.exe to C:\Users\Sshwy\AppData\Local\pku3b\bin...
 移动了         1 个文件。
@@ -139,7 +139,8 @@ pku3b init
 - 📂 下载作业附件: `pku3b a down <ID>`: ID 请在作业列表中查看
 - 📤 提交作业: `pku3b a sb <ID> <PATH>`: PATH 为文件路径，可以是各种文件，例如 pdf、zip、txt 等等
 - 🎥 查看课程回放列表: `pku3b v ls`
-- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下。
+- 🎥 查看所有学期课程回放列表: `pku3b v ls --all-term`
+- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。
 - 🗑️ 查看缓存占用: `pku3b cache`
 - 🗑️ 清空缓存: `pku3b cache clean`
 - ❓ 查看某个命令的使用方法 (以下载课程回放的命令为例): `pku3b help v down`
