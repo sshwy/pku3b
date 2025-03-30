@@ -36,7 +36,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 获取课程作业信息
+    /// 获取课程作业信息/下载附件/提交作业
     #[command(visible_alias("a"), arg_required_else_help(true))]
     Assignment {
         /// 强制刷新
@@ -136,13 +136,17 @@ enum AssignmentCommands {
         #[arg(long, default_value = "false")]
         all_term: bool,
     },
-    /// 提交作业
+    /// 提交课程作业
+    ///
+    /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
+    ///
+    /// 如果没有指定文件路径，则会启用交互式模式，列出当前工作目录下所有文件供用户选择
     #[command(visible_alias("sb"))]
     Submit {
         /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
-        id: String,
+        id: Option<String>,
         /// 提交文件路径
-        path: std::path::PathBuf,
+        path: Option<std::path::PathBuf>,
     },
 }
 
@@ -297,7 +301,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     }
                 }
                 AssignmentCommands::Submit { id, path } => {
-                    cmd_assignment::submit(&id, &path).await?
+                    cmd_assignment::submit(id.as_deref(), path.as_deref()).await?
                 }
             },
             Commands::Video { force, command } => match command {

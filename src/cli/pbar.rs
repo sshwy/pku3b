@@ -38,14 +38,6 @@ impl std::ops::Deref for AsyncSpinner {
     }
 }
 
-impl AsyncSpinner {
-    #[allow(unused)]
-    #[deprecated(since = "0.5.1", note = "Use `drop` instead")]
-    pub fn finish_and_clear(self) {
-        self.pb.finish_and_clear();
-    }
-}
-
 /// Create a new spinner with a default style
 pub fn new_spinner() -> AsyncSpinner {
     let pb = ProgressBar::new_spinner();

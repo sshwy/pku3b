@@ -260,7 +260,7 @@ impl CourseHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Course {
     client: Client,
     meta: Arc<CourseMeta>,
@@ -640,7 +640,7 @@ impl CourseAssignmentHandle {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 struct CourseAssignmentData {
     // descriptions: Vec<String>,
     // attachments: Vec<(String, String)>,
@@ -648,6 +648,7 @@ struct CourseAssignmentData {
     attempt: Option<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct CourseAssignment {
     client: Client,
     course: Arc<CourseMeta>,

@@ -145,12 +145,11 @@ pub async fn find_assignment(
     Ok(None)
 }
 
-pub async fn download_interactive(
-    dir: &std::path::Path,
+async fn fetch_and_select_assignment(
     force: bool,
     all: bool,
     cur_term: bool,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(api::Course, String, api::CourseAssignment)> {
     let items = get_courses_and_assignments(force, cur_term).await?;
 
     let mut all_assignments = items
@@ -165,8 +164,7 @@ pub async fn download_interactive(
     all_assignments.sort_by_cached_key(|(_, _, a)| a.deadline());
 
     if all_assignments.is_empty() {
-        println!("没有找到未完成的作业");
-        return Ok(());
+        anyhow::bail!("assignments not found");
     }
 
     let mut options = Vec::new();
@@ -180,10 +178,21 @@ pub async fn download_interactive(
 
     let s = inquire::Select::new("请选择要下载的作业", options).raw_prompt()?;
     let idx = s.index;
-    let (_, _, a) = all_assignments[idx];
+    let (c, id, a) = all_assignments[idx];
+
+    Ok((c.to_owned(), id.to_owned(), a.to_owned()))
+}
+
+pub async fn download_interactive(
+    dir: &std::path::Path,
+    force: bool,
+    all: bool,
+    cur_term: bool,
+) -> anyhow::Result<()> {
+    let a = fetch_and_select_assignment(force, all, cur_term).await?;
 
     let sp = pbar::new_spinner();
-    download_data(sp, dir, a).await?;
+    download_data(sp, dir, &a.2).await?;
 
     Ok(())
 }
@@ -231,23 +240,58 @@ async fn download_data(
     Ok(())
 }
 
-pub async fn submit(id: &str, path: &std::path::Path) -> anyhow::Result<()> {
+pub async fn submit(id: Option<&str>, path: Option<&std::path::Path>) -> anyhow::Result<()> {
+    let (c, a) = match id {
+        Some(id) => {
+            let (_, courses, sp) = load_client_courses(false, true).await?;
+            let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
+            let Some((c, a)) = target_handle else {
+                anyhow::bail!("assignment with id {} not found", id);
+            };
+
+            sp.set_message("fetch assignment metadata...");
+            (c, a.get().await?)
+        }
+        None => {
+            let r = fetch_and_select_assignment(false, false, true).await?;
+            (r.0, r.2)
+        }
+    };
+
+    let path = match path {
+        Some(path) => path.to_owned(),
+        None => {
+            // list the current dir and use inquire::Select to choose a file
+
+            let mut options = Vec::new();
+            // fill options with files in the current dir
+            let entries = std::fs::read_dir(".")?;
+            for entry in entries {
+                let Ok(entry) = entry else {
+                    continue;
+                };
+                let path = entry.path();
+                if path.is_file() {
+                    options.push(path.to_str().unwrap().to_owned());
+                }
+            }
+
+            if options.is_empty() {
+                anyhow::bail!("no files found in current directory");
+            }
+            let s = inquire::Select::new("请选择要提交的文件", options).prompt()?;
+
+            s.into()
+        }
+    };
+
     if !path.exists() {
         anyhow::bail!("file not found: {:?}", path);
     }
-    let (_, courses, sp) = load_client_courses(false, true).await?;
 
-    let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
-
-    let Some((c, a)) = target_handle else {
-        anyhow::bail!("assignment with id {} not found", id);
-    };
-
-    sp.set_message("fetch assignment metadata...");
-    let a = a.get().await?;
-
+    let sp = pbar::new_spinner();
     sp.set_message("submit file...");
-    a.submit_file(path)
+    a.submit_file(path.as_path())
         .await
         .with_context(|| format!("submit {:?} to {:?}", path.display(), a.title()))?;
 
