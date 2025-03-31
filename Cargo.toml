@@ -48,7 +48,6 @@ rand = { version = "0.9.0", features = [
     "thread_rng",
 ], default-features = false }
 regex = "1.11.1"
-rpassword = "7.3.1"
 rustls = "0.23.23"
 scraper = { version = "0.23.1", default-features = false }
 serde = { version = "1.0", features = [
