@@ -293,12 +293,8 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     cmd_assignment::list(force, all || all_term, !all_term).await?
                 }
                 AssignmentCommands::Download { id, dir, all_term } => {
-                    if let Some(id) = id {
-                        cmd_assignment::download(&id, &dir, !all_term).await?
-                    } else {
-                        cmd_assignment::download_interactive(&dir, force, all_term, !all_term)
-                            .await?;
-                    }
+                    cmd_assignment::download(id.as_deref(), &dir, force, all_term, !all_term)
+                        .await?
                 }
                 AssignmentCommands::Submit { id, path } => {
                     cmd_assignment::submit(id.as_deref(), path.as_deref()).await?

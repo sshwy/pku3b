@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Context;
 
 use super::*;
@@ -92,7 +94,11 @@ pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> 
 
     let mut all_assignments = courses
         .iter()
-        .flat_map(|(c, assignments)| assignments.iter().map(move |(id, a)| (c, id, a)))
+        .flat_map(|(c, assignments)| {
+            assignments
+                .iter()
+                .map(move |(id, a)| (c.to_owned(), id.to_owned(), a))
+        })
         // retain only unfinished assignments if not in full mode
         .filter(|(_, _, a)| all || a.last_attempt().is_none())
         .collect::<Vec<_>>();
@@ -112,7 +118,7 @@ pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> 
     writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
 
     for (c, id, a) in all_assignments {
-        write_course_assignment(&mut outbuf, id, c, a).context("io error")?;
+        write_course_assignment(&mut outbuf, &id, &c, a).context("io error")?;
     }
 
     // write to stdout
@@ -121,40 +127,23 @@ pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> 
     Ok(())
 }
 
-pub async fn find_assignment(
-    courses: &[api::CourseHandle],
-    id: &str,
-) -> anyhow::Result<Option<(api::Course, api::CourseAssignmentHandle)>> {
-    let m = indicatif::MultiProgress::new();
-    for c in courses {
-        let c = c.get().await.context("fetch course")?;
-        let assignments = get_assignments(
-            &c,
-            m.add(pbar::new(0).with_prefix(c.meta().name().to_owned())),
-        )
-        .await
-        .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
+type AssignmentListItem = (Arc<api::Course>, String, api::CourseAssignment);
 
-        for a in assignments {
-            if a.id() == id {
-                return Ok(Some((c, a)));
-            }
-        }
-    }
-    m.clear().unwrap();
-    Ok(None)
-}
-
-async fn fetch_and_select_assignment(
+async fn fetch_assignments(
     force: bool,
     all: bool,
     cur_term: bool,
-) -> anyhow::Result<(api::Course, String, api::CourseAssignment)> {
-    let items = get_courses_and_assignments(force, cur_term).await?;
+) -> anyhow::Result<Vec<AssignmentListItem>> {
+    let courses = get_courses_and_assignments(force, cur_term).await?;
 
-    let mut all_assignments = items
-        .iter()
-        .flat_map(|(c, assignments)| assignments.iter().map(move |(id, a)| (c, id, a)))
+    let mut all_assignments = courses
+        .into_iter()
+        .flat_map(|(c, assignments)| {
+            let c = Arc::new(c);
+            assignments
+                .into_iter()
+                .map(move |(id, a)| (c.clone(), id, a))
+        })
         // retain only unfinished assignments if not in full mode
         .filter(|(_, _, a)| all || a.last_attempt().is_none())
         .collect::<Vec<_>>();
@@ -163,13 +152,19 @@ async fn fetch_and_select_assignment(
     log::debug!("sorting assignments...");
     all_assignments.sort_by_cached_key(|(_, _, a)| a.deadline());
 
-    if all_assignments.is_empty() {
+    Ok(all_assignments)
+}
+
+async fn select_assignment(
+    mut items: Vec<AssignmentListItem>,
+) -> anyhow::Result<AssignmentListItem> {
+    if items.is_empty() {
         anyhow::bail!("assignments not found");
     }
 
     let mut options = Vec::new();
 
-    for (idx, (c, id, a)) in all_assignments.iter().enumerate() {
+    for (idx, (c, id, a)) in items.iter().enumerate() {
         let mut outbuf = Vec::new();
         write!(outbuf, "[{}] ", idx + 1)?;
         write_assignment_title_ln(&mut outbuf, id, c, a).context("io error")?;
@@ -178,39 +173,30 @@ async fn fetch_and_select_assignment(
 
     let s = inquire::Select::new("请选择要下载的作业", options).raw_prompt()?;
     let idx = s.index;
-    let (c, id, a) = all_assignments[idx];
+    let r = items.swap_remove(idx);
 
-    Ok((c.to_owned(), id.to_owned(), a.to_owned()))
+    Ok(r)
 }
 
-pub async fn download_interactive(
+pub async fn download(
+    id: Option<&str>,
     dir: &std::path::Path,
     force: bool,
     all: bool,
     cur_term: bool,
 ) -> anyhow::Result<()> {
-    let a = fetch_and_select_assignment(force, all, cur_term).await?;
+    let items = fetch_assignments(force, all, cur_term).await?;
+    let a = match id {
+        Some(id) => match items.into_iter().find(|x| x.1 == id) {
+            Some(r) => r,
+            None => anyhow::bail!("assignment with id {} not found", id),
+        },
+        None => select_assignment(items).await?,
+    };
 
     let sp = pbar::new_spinner();
     download_data(sp, dir, &a.2).await?;
 
-    Ok(())
-}
-
-pub async fn download(id: &str, dir: &std::path::Path, cur_term: bool) -> anyhow::Result<()> {
-    let (_, courses, sp) = load_client_courses(false, cur_term).await?;
-
-    sp.set_message("finding assignment...");
-    let target_handle = find_assignment(&courses, id).await?;
-
-    let Some((_, a)) = target_handle else {
-        anyhow::bail!("assignment with id {} not found", id);
-    };
-
-    sp.set_message("fetch assignment metadata...");
-    let a = a.get().await?;
-
-    download_data(sp, dir, &a).await?;
     Ok(())
 }
 
@@ -241,21 +227,14 @@ async fn download_data(
 }
 
 pub async fn submit(id: Option<&str>, path: Option<&std::path::Path>) -> anyhow::Result<()> {
-    let (c, a) = match id {
-        Some(id) => {
-            let (_, courses, sp) = load_client_courses(false, true).await?;
-            let target_handle = cmd_assignment::find_assignment(&courses, id).await?;
-            let Some((c, a)) = target_handle else {
-                anyhow::bail!("assignment with id {} not found", id);
-            };
+    let items = fetch_assignments(false, false, true).await?;
 
-            sp.set_message("fetch assignment metadata...");
-            (c, a.get().await?)
-        }
-        None => {
-            let r = fetch_and_select_assignment(false, false, true).await?;
-            (r.0, r.2)
-        }
+    let (c, _, a) = match id {
+        Some(id) => match items.into_iter().find(|x| x.1 == id) {
+            Some(r) => r,
+            None => anyhow::bail!("assignment with id {} not found", id),
+        },
+        None => select_assignment(items).await?,
     };
 
     let path = match path {
