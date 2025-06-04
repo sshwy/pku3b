@@ -504,6 +504,28 @@ pub struct CourseContentData {
     attachments: Vec<(String, String)>,
 }
 
+fn collect_text(element: scraper::ElementRef) -> String {
+    let mut text_content = String::new();
+    for node_ref in element.children() {
+        match node_ref.value() {
+            scraper::node::Node::Text(text) => {
+                if !text.trim().is_empty() {
+                    text_content.push_str(text);
+                }
+            }
+            scraper::node::Node::Element(el) => {
+                if el.name() != "script" {
+                    if let Some(child_element) = scraper::ElementRef::wrap(node_ref) {
+                        text_content.push_str(&collect_text(child_element));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    text_content
+}
+
 impl CourseContentData {
     fn from_element(el: scraper::ElementRef<'_>) -> anyhow::Result<Self> {
         anyhow::ensure!(el.value().name() == "li", "not a li element");
@@ -531,7 +553,7 @@ impl CourseContentData {
 
         let descriptions = detail_div
             .select(&Selector::parse("div.vtbegenerated > *").unwrap())
-            .map(|p| p.text().collect::<String>().trim().to_owned())
+            .map(|p| collect_text(p).trim().to_owned())
             .collect::<Vec<_>>();
 
         let attachments = detail_div
