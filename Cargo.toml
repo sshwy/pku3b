@@ -16,6 +16,7 @@ build = "build.rs"
 [dependencies]
 aes = { version = "0.8.4", optional = true }
 anyhow = { version = "1.0", default-features = false }
+base64 = "0.22.1"
 bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
@@ -38,6 +39,7 @@ futures-util = { version = "0.3.31", features = [
     "async-await-macro",
 ], default-features = false }
 http = { version = "1.2.0", default-features = false }
+image = "0.25.8"
 indicatif = "0.17"
 inquire = { version = "0.7.5", features = ["crossterm", "macros"], default-features = false }
 itertools = "0.14.0"
