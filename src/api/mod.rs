@@ -19,7 +19,6 @@ use crate::{
 
 const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
 const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
-const AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
 struct ClientInner {
     http_client: low_level::LowLevelClient,
@@ -52,19 +51,12 @@ impl Client {
         cache_ttl: Option<std::time::Duration>,
         download_artifact_ttl: Option<std::time::Duration>,
     ) -> Self {
-        let mut default_headers = http::HeaderMap::new();
-        default_headers.insert(http::header::USER_AGENT, AGENT.parse().unwrap());
-        let http_client = cyper::Client::builder()
-            .cookie_store(true)
-            .default_headers(default_headers)
-            .build();
-
         log::info!("Cache TTL: {:?}", cache_ttl);
         log::info!("Download Artifact TTL: {:?}", download_artifact_ttl);
 
         Self(
             ClientInner {
-                http_client: low_level::LowLevelClient::from_cyper_client(http_client),
+                http_client: low_level::LowLevelClient::new(),
                 cache_ttl,
                 download_artifact_ttl,
             }
@@ -78,18 +70,7 @@ impl Client {
 
     pub async fn blackboard(&self, username: &str, password: &str) -> anyhow::Result<Blackboard> {
         let c = &self.0.http_client;
-        let value = c.oauth_login(username, password).await?;
-        let token = value
-            .as_object()
-            .context("value not an object")?
-            .get("token")
-            .context("password not correct")?
-            .as_str()
-            .context("property 'token' not string")?
-            .to_owned();
-        c.bb_sso_login(&token).await?;
-
-        log::debug!("iaaa oauth token for {username}: {token}");
+        c.bb_login(username, password).await?;
 
         Ok(Blackboard {
             client: self.clone(),
@@ -284,7 +265,7 @@ impl Course {
                 .iter()
                 .filter_map(|(_, uri)| {
                     let url = low_level::convert_uri(uri).ok()?.into_url().ok()?;
-                    if !low_level::LIST_CONTENT.ends_with(url.path()) {
+                    if !low_level::blackboard::LIST_CONTENT.ends_with(url.path()) {
                         return None;
                     }
 
@@ -346,7 +327,7 @@ impl Course {
         Ok(videos)
     }
     async fn _get_video_list(&self) -> anyhow::Result<Vec<CourseVideoMeta>> {
-        let u = low_level::VIDEO_LIST.into_url()?;
+        let u = low_level::blackboard::VIDEO_LIST.into_url()?;
         let dom = self.client.bb_course_video_list(&self.meta.id).await?;
 
         let videos = dom
