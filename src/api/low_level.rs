@@ -98,6 +98,15 @@ impl LowLevelClient {
         let dom = scraper::Html::parse_document(&rbody);
         Ok(dom)
     }
+
+    pub async fn ttshitu_recognize(
+        &self,
+        username: String,
+        password: String,
+        image_b64: String,
+    ) -> anyhow::Result<String> {
+        crate::ttshitu::recognize(&self.http_client, username, password, image_b64).await
+    }
 }
 
 /// 将 uri 转换为完整的 url。协议默认为 `https`，域名默认为 `course.pku.edu.cn`。

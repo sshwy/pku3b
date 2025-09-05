@@ -4,6 +4,23 @@ use compio::fs;
 pub struct Config {
     pub username: String,
     pub password: String,
+    pub ttshitu: Option<TTShiTuConfig>,
+
+    pub auto_supplement: Option<Vec<SupplementCourseConfig>>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct SupplementCourseConfig {
+    pub page_id: usize,
+    pub name: String,
+    pub teacher: String,
+    pub class_id: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct TTShiTuConfig {
+    pub username: String,
+    pub password: String,
 }
 
 impl Config {
@@ -12,6 +29,20 @@ impl Config {
         match attr {
             ConfigAttrs::Username => writeln!(buf, "{}", self.username)?,
             ConfigAttrs::Password => writeln!(buf, "{}", self.password)?,
+            ConfigAttrs::TTShiTuUsername => {
+                if let Some(tt) = &self.ttshitu {
+                    writeln!(buf, "{}", tt.username)?
+                } else {
+                    writeln!(buf, "<not set>")?
+                }
+            }
+            ConfigAttrs::TTShiTuPassword => {
+                if let Some(tt) = &self.ttshitu {
+                    writeln!(buf, "{}", tt.password)?
+                } else {
+                    writeln!(buf, "<not set>")?
+                }
+            }
         };
         Ok(())
     }
@@ -20,6 +51,26 @@ impl Config {
         match attr {
             ConfigAttrs::Username => self.username = value,
             ConfigAttrs::Password => self.password = value,
+            ConfigAttrs::TTShiTuUsername => {
+                if let Some(tt) = &mut self.ttshitu {
+                    tt.username = value
+                } else {
+                    self.ttshitu = Some(TTShiTuConfig {
+                        username: value,
+                        password: String::new(),
+                    })
+                }
+            }
+            ConfigAttrs::TTShiTuPassword => {
+                if let Some(tt) = &mut self.ttshitu {
+                    tt.password = value
+                } else {
+                    self.ttshitu = Some(TTShiTuConfig {
+                        username: String::new(),
+                        password: value,
+                    })
+                }
+            }
         }
 
         Ok(())
@@ -30,17 +81,26 @@ impl Config {
 pub enum ConfigAttrs {
     Username,
     Password,
+    TTShiTuUsername,
+    TTShiTuPassword,
 }
 
 impl clap::ValueEnum for ConfigAttrs {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Username, Self::Password]
+        &[
+            Self::Username,
+            Self::Password,
+            Self::TTShiTuUsername,
+            Self::TTShiTuPassword,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         match self {
             Self::Username => Some(clap::builder::PossibleValue::new("username")),
             Self::Password => Some(clap::builder::PossibleValue::new("password")),
+            Self::TTShiTuUsername => Some(clap::builder::PossibleValue::new("ttshitu.username")),
+            Self::TTShiTuPassword => Some(clap::builder::PossibleValue::new("ttshitu.password")),
         }
     }
 }

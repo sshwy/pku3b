@@ -83,6 +83,7 @@ impl Client {
 
         Ok(Syllabus {
             client: self.clone(),
+            username: username.to_owned(),
         })
     }
 
@@ -1210,11 +1211,12 @@ impl CourseVideo {
 #[derive(Debug)]
 pub struct Syllabus {
     client: Client,
+    username: String,
 }
 
 impl Syllabus {
     /// 获取选课结果
-    pub async fn get_results(&self) -> anyhow::Result<Vec<SyllabusCourseData>> {
+    pub async fn get_results(&self) -> anyhow::Result<Vec<SyllabusBaseCourseData>> {
         let dom = self.client.sb_resultspage().await?;
         let table_sel = Selector::parse("table.datagrid").unwrap();
         let table = dom.select(&table_sel).nth(0).context("table not found")?;
@@ -1256,7 +1258,7 @@ impl Syllabus {
             col_names
         );
 
-        let mut elected_cources = Vec::new();
+        let mut r = Vec::new();
         for row in rows {
             // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
             if row.child_elements().count() <= 1 {
@@ -1266,7 +1268,7 @@ impl Syllabus {
                 .child_elements()
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
-            elected_cources.push(SyllabusCourseData {
+            r.push(SyllabusBaseCourseData {
                 name: row_values[0].to_owned(),
                 category: row_values[1].to_owned(),
                 score: row_values[2].to_owned(),
@@ -1279,13 +1281,169 @@ impl Syllabus {
                 status: row_values[9].to_owned(),
             });
         }
-        Ok(elected_cources)
+        Ok(r)
+    }
+
+    /// 获取补选总页数，必须在获取补选课程前调用，否则会返回空页面
+    pub async fn get_supplements_total_pages(&self) -> anyhow::Result<usize> {
+        let dom = self.client.sb_supplycancelpage(&self.username).await?;
+        let pagination_sel = Selector::parse("tr[align=\"right\"] > td:first-child").unwrap();
+        let re = regex::Regex::new(r"Page\s*\d+?\s*of\s*(\d+?)").unwrap();
+
+        let td = dom
+            .select(&pagination_sel)
+            .nth(0)
+            .context("table footer not found")?;
+        let text = td.text().collect::<String>();
+        let m = re.captures(&text).context("page count not matched")?;
+
+        let total: usize = m.get(1).context("page count not found")?.as_str().parse()?;
+
+        Ok(total)
+    }
+
+    pub async fn get_supplements(
+        &self,
+        page: usize,
+    ) -> anyhow::Result<Vec<SyllabusSupplementCourseData>> {
+        let dom = self.client.sb_supplementpage(&self.username, page).await?;
+        let table_sel = Selector::parse("table.datagrid").unwrap();
+        let table = dom.select(&table_sel).nth(0).context("table not found")?;
+        let tbody = table
+            .child_elements()
+            .nth(0)
+            .context("table tbody not found")?;
+
+        let mut rows = tbody.child_elements();
+        let header_row = rows.next().context("table header not found")?;
+        anyhow::ensure!(
+            header_row.value().name() == "tr",
+            "header not tr, got {}",
+            header_row.value().name()
+        );
+
+        let col_names = header_row
+            .child_elements()
+            .map(|el| el.text().collect::<String>().trim().to_owned())
+            .collect::<Vec<_>>();
+
+        anyhow::ensure!(
+            col_names
+                == [
+                    "课程名",
+                    "课程类别",
+                    "学分",
+                    "周学时",
+                    "教师",
+                    "班号",
+                    "开课单位",
+                    "年级",
+                    "上课/考试信息",
+                    "自选P/NP",
+                    "限数/已选/候补",
+                    "补选",
+                ],
+            "unexpected column names: {:?}",
+            col_names
+        );
+
+        let mut r = Vec::new();
+        for row in rows {
+            // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
+            if row.child_elements().count() <= 2 {
+                continue;
+            }
+            let row_values = row
+                .child_elements()
+                .map(|el| el.text().collect::<String>().trim().to_owned())
+                .collect::<Vec<_>>();
+            r.push(SyllabusSupplementCourseData {
+                base: SyllabusBaseCourseData {
+                    name: row_values[0].to_owned(),
+                    category: row_values[1].to_owned(),
+                    score: row_values[2].to_owned(),
+                    hours_per_week: row_values[3].to_owned(),
+                    teacher: row_values[4].to_owned(),
+                    class_id: row_values[5].to_owned(),
+                    department: row_values[6].to_owned(),
+                    classroom: row_values[8].to_owned(),
+                    custom_n_or_np: row_values[9].to_owned(),
+                    status: row_values[10].to_owned(),
+                },
+                supplement_url: row
+                    .child_elements()
+                    .last()
+                    .unwrap()
+                    .child_elements()
+                    .nth(0)
+                    .context("<a> not found")?
+                    .attr("href")
+                    .context("supplement url not found")?
+                    .to_string(),
+                page_id: page,
+            });
+        }
+        Ok(r)
+    }
+
+    /// 尝试补选一门课
+    pub async fn elect(
+        &self,
+        course: &SyllabusSupplementCourseData,
+        ttshitu_username: String,
+        ttshitu_password: String,
+    ) -> anyhow::Result<bool> {
+        loop {
+            let image = self.client.sb_draw_servlet().await?;
+            log::trace!("captcha image size: {} bytes", image.len());
+
+            let image_b64 = crate::ttshitu::jpeg_to_b64(&image)?;
+            log::trace!("captcha image base64 size: {} chars", image_b64.len());
+
+            let code = self
+                .client
+                .ttshitu_recognize(
+                    ttshitu_username.clone(),
+                    ttshitu_password.clone(),
+                    image_b64,
+                )
+                .await?;
+            log::debug!("captcha code recognition: {}", code);
+
+            let r = self
+                .client
+                .sb_send_validation(&self.username, &code)
+                .await?;
+            log::trace!("captcha validation response: {}", r);
+            if r == 2 {
+                break;
+            }
+            log::warn!("captcha code incorrect, retrying...");
+        }
+
+        match self
+            .client
+            .sb_elect_by_url(&format!(
+                "https://elective.pku.edu.cn{}",
+                course.supplement_url
+            ))
+            .await
+        {
+            Ok(()) => {
+                log::info!("{} 选择成功", course.name);
+                Ok(true)
+            }
+            Err(e) => {
+                log::warn!("{} 选择失败: {:#}", course.name, e);
+                Ok(false)
+            }
+        }
     }
 }
 
 #[derive(Debug)]
 #[allow(unused)]
-pub struct SyllabusCourseData {
+pub struct SyllabusBaseCourseData {
     /// 课程名
     pub name: String,
     /// 课程类别
@@ -1304,8 +1462,24 @@ pub struct SyllabusCourseData {
     pub classroom: String,
     /// 自选P/NP
     pub custom_n_or_np: String,
-    /// 选课结果
+    /// 选课结果 or 限数/已选/候补
     pub status: String,
+}
+
+#[derive(Debug)]
+pub struct SyllabusSupplementCourseData {
+    pub base: SyllabusBaseCourseData,
+    /// 补选操作 URL
+    pub supplement_url: String,
+    /// 课程位于补退选的第几页
+    pub page_id: usize,
+}
+
+impl std::ops::Deref for SyllabusSupplementCourseData {
+    type Target = SyllabusBaseCourseData;
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
 }
 
 /// 根据文件扩展名返回对应的 MIME 类型
