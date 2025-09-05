@@ -20,11 +20,11 @@ bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
 clap = { version = "4.5.31", features = ["derive"] }
-compio = { version = "0.14", features = [
+compio = { version = "0.15", features = [
     "macros",
     "process",
 ], default-features = false }
-cyper = { version = "0.3.0", default-features = false, features = [
+cyper = { version = "0.4", default-features = false, features = [
     "cookies",
     "rustls",
 ] }
@@ -38,30 +38,30 @@ futures-util = { version = "0.3.31", features = [
     "async-await-macro",
 ], default-features = false }
 http = { version = "1.2.0", default-features = false }
-indicatif = "0.17.11"
+indicatif = "0.17"
 inquire = { version = "0.7.5", features = ["crossterm", "macros"], default-features = false }
 itertools = "0.14.0"
-log = "0.4.26"
+log = "0.4"
 m3u8-rs = { version = "6.0.0", optional = true }
 memchr = "2.7.4"
 rand = { version = "0.9.0", features = [
     "thread_rng",
 ], default-features = false }
 regex = "1.11.1"
-rustls = "0.23.23"
-scraper = { version = "0.23.1", default-features = false }
+rustls = "0.23"
+scraper = { version = "0.23", default-features = false }
 serde = { version = "1.0", features = [
     "serde_derive",
 ], default-features = false }
 serde_json = "1.0"
-shadow-rs = { version = "1.0.1", features = [
+shadow-rs = { version = "1.0", features = [
     "build",
 ], default-features = false }
 toml = "0.8"
-url = "2.5.4"
+url = "2.5"
 
 [build-dependencies]
-shadow-rs = { version = "1.0.1", features = [
+shadow-rs = { version = "1.0", features = [
     "build",
 ], default-features = false }
 
@@ -80,8 +80,8 @@ lto = true
 codegen-units = 1
 
 [target.'cfg(hyper_unstable_tracing)'.dependencies]
-tracing = { version = "0.1.41" }
-tracing-subscriber = { version = "^0.3.16", features = ["env-filter"] }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
