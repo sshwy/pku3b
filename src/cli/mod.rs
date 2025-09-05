@@ -1,4 +1,5 @@
 mod cmd_assignment;
+mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
 
@@ -56,6 +57,13 @@ enum Commands {
 
         #[command(subcommand)]
         command: VideoCommands,
+    },
+
+    /// 选课操作
+    #[command(visible_alias("s"), arg_required_else_help(true))]
+    Syllabus {
+        #[command(subcommand)]
+        command: SyllabusCommands,
     },
 
     /// (重新) 初始化配置选项
@@ -148,6 +156,12 @@ enum AssignmentCommands {
         /// 提交文件路径
         path: Option<std::path::PathBuf>,
     },
+}
+
+#[derive(Subcommand)]
+enum SyllabusCommands {
+    /// 查看选课结果
+    Show,
 }
 
 /// Client, courses and spinner are returned. Spinner hasn't stopped.
@@ -306,6 +320,9 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     cmd_video::download(force, id, !all_term).await?
                 }
             },
+            Commands::Syllabus { command } => match command {
+                SyllabusCommands::Show => cmd_syllabus::show().await?,
+            },
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
@@ -319,5 +336,15 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
 
 #[cfg(feature = "dev")]
 async fn command_debug() -> anyhow::Result<()> {
+    let c = api::Client::new_nocache();
+    let cfg_path = utils::default_config_path();
+    let cfg = config::read_cfg(cfg_path)
+        .await
+        .context("read config file")?;
+    let sy = c.syllabus(&cfg.username, &cfg.password).await?;
+    let r = sy.get_results().await?;
+
+    eprintln!("{r:#?}");
+
     Ok(())
 }

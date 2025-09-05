@@ -1,6 +1,9 @@
 //! Low-level client that send http requests to the target server.
 
+/// 教学网 API
 pub mod blackboard;
+/// 选课系统 API
+pub mod syllabus;
 
 use anyhow::Context as _;
 use rand::Rng as _;

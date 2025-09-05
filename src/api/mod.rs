@@ -77,6 +77,15 @@ impl Client {
         })
     }
 
+    pub async fn syllabus(&self, username: &str, password: &str) -> anyhow::Result<Syllabus> {
+        let c = &self.0.http_client;
+        c.sb_login(username, password).await?;
+
+        Ok(Syllabus {
+            client: self.clone(),
+        })
+    }
+
     pub fn cache_ttl(&self) -> Option<&std::time::Duration> {
         self.0.cache_ttl.as_ref()
     }
@@ -1196,6 +1205,107 @@ impl CourseVideo {
             r => unimplemented!("m3u8 key: {:?}", r),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Syllabus {
+    client: Client,
+}
+
+impl Syllabus {
+    /// 获取选课结果
+    pub async fn get_results(&self) -> anyhow::Result<Vec<SyllabusCourseData>> {
+        let dom = self.client.sb_resultspage().await?;
+        let table_sel = Selector::parse("table.datagrid").unwrap();
+        let table = dom.select(&table_sel).nth(0).context("table not found")?;
+        let tbody = table
+            .child_elements()
+            .nth(0)
+            .context("table tbody not found")?;
+
+        let mut rows = tbody.child_elements();
+        let header_row = rows.next().context("table header not found")?;
+        anyhow::ensure!(
+            header_row.value().name() == "tr",
+            "header not tr, got {}",
+            header_row.value().name()
+        );
+
+        let col_names = header_row
+            .child_elements()
+            .map(|el| el.text().collect::<String>().trim().to_owned())
+            .collect::<Vec<_>>();
+
+        anyhow::ensure!(
+            col_names
+                == [
+                    "课程名",
+                    "课程类别",
+                    "学分",
+                    "周学时",
+                    "教师",
+                    "班号",
+                    "开课单位",
+                    "教室信息",
+                    "自选P/NP",
+                    "选课结果",
+                    "IP地址",
+                    "操作时间",
+                ],
+            "unexpected column names: {:?}",
+            col_names
+        );
+
+        let mut elected_cources = Vec::new();
+        for row in rows {
+            // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
+            if row.child_elements().count() <= 1 {
+                continue;
+            }
+            let row_values = row
+                .child_elements()
+                .map(|el| el.text().collect::<String>().trim().to_owned())
+                .collect::<Vec<_>>();
+            elected_cources.push(SyllabusCourseData {
+                name: row_values[0].to_owned(),
+                category: row_values[1].to_owned(),
+                score: row_values[2].to_owned(),
+                hours_per_week: row_values[3].to_owned(),
+                teacher: row_values[4].to_owned(),
+                class_id: row_values[5].to_owned(),
+                department: row_values[6].to_owned(),
+                classroom: row_values[7].to_owned(),
+                custom_n_or_np: row_values[8].to_owned(),
+                status: row_values[9].to_owned(),
+            });
+        }
+        Ok(elected_cources)
+    }
+}
+
+#[derive(Debug)]
+#[allow(unused)]
+pub struct SyllabusCourseData {
+    /// 课程名
+    pub name: String,
+    /// 课程类别
+    pub category: String,
+    /// 学分
+    pub score: String,
+    /// 周学时
+    pub hours_per_week: String,
+    /// 教师
+    pub teacher: String,
+    /// 班号
+    pub class_id: String,
+    /// 开课单位
+    pub department: String,
+    /// 教室信息
+    pub classroom: String,
+    /// 自选P/NP
+    pub custom_n_or_np: String,
+    /// 选课结果
+    pub status: String,
 }
 
 /// 根据文件扩展名返回对应的 MIME 类型
