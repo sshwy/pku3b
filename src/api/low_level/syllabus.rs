@@ -96,6 +96,7 @@ impl LowLevelClient {
             .get(SUPPLY_CANCEL)?
             .query(&[("xh", username)])?
             .header(http::header::REFERER, HELP_CONTROLLER)?
+            .header(http::header::CACHE_CONTROL, "max-age=0")?
             .send()
             .await?;
 
@@ -116,6 +117,7 @@ impl LowLevelClient {
                 ("netui_row", &format!("electableListGrid;{}", page * 20)),
             ])?
             .header(http::header::REFERER, SUPPLY_CANCEL)?
+            .header(http::header::CACHE_CONTROL, "max-age=0")?
             .send()
             .await?;
 
