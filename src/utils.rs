@@ -46,17 +46,16 @@ where
 
     let path = &projectdir().cache_dir().join(&name);
 
-    if let Ok(f) = fs::File::open(path).await {
-        if let Some(ttl) = ttl {
-            if f.metadata().await?.modified()?.elapsed()? < *ttl {
-                let r = f.read_to_end_at(Vec::new(), 0).await;
-                let (_, buf) = buf_try!(@try r);
-                // ignore deserialization error
-                if let Ok(r) = serde_json::from_slice(&buf) {
-                    log::trace!("cache hit: {}", name);
-                    return Ok(r);
-                }
-            }
+    if let Ok(f) = fs::File::open(path).await
+        && let Some(ttl) = ttl
+        && f.metadata().await?.modified()?.elapsed()? < *ttl
+    {
+        let r = f.read_to_end_at(Vec::new(), 0).await;
+        let (_, buf) = buf_try!(@try r);
+        // ignore deserialization error
+        if let Ok(r) = serde_json::from_slice(&buf) {
+            log::trace!("cache hit: {}", name);
+            return Ok(r);
         }
     }
 
@@ -86,15 +85,14 @@ where
 
     let path = &projectdir().cache_dir().join(&name);
 
-    if let Ok(f) = fs::File::open(path).await {
-        if let Some(ttl) = ttl {
-            if f.metadata().await?.modified()?.elapsed()? < *ttl {
-                let r = f.read_to_end_at(Vec::new(), 0).await;
-                let (_, buf) = buf_try!(@try r);
-                log::trace!("cache hit: {}", name);
-                return Ok(bytes::Bytes::from(buf));
-            }
-        }
+    if let Ok(f) = fs::File::open(path).await
+        && let Some(ttl) = ttl
+        && f.metadata().await?.modified()?.elapsed()? < *ttl
+    {
+        let r = f.read_to_end_at(Vec::new(), 0).await;
+        let (_, buf) = buf_try!(@try r);
+        log::trace!("cache hit: {}", name);
+        return Ok(bytes::Bytes::from(buf));
     }
 
     let r = fut.await?;

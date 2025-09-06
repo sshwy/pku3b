@@ -204,7 +204,7 @@ impl CourseMeta {
         let i = s
             .char_indices()
             .filter(|(_, c)| *c == '(')
-            .last()
+            .next_back()
             .unwrap()
             .0;
         s.split_at(i).0.trim()
@@ -505,10 +505,10 @@ fn collect_text(element: scraper::ElementRef) -> String {
                 }
             }
             scraper::node::Node::Element(el) => {
-                if el.name() != "script" {
-                    if let Some(child_element) = scraper::ElementRef::wrap(node_ref) {
-                        text_content.push_str(&collect_text(child_element));
-                    }
+                if el.name() != "script"
+                    && let Some(child_element) = scraper::ElementRef::wrap(node_ref)
+                {
+                    text_content.push_str(&collect_text(child_element));
                 }
             }
             _ => {}
@@ -1083,10 +1083,10 @@ impl CourseVideo {
             key.keyformat.as_deref().unwrap_or("identity")
         }
 
-        if let Some(newkey) = &seg.key {
-            if key.is_none_or(|k| fallback_keyformat(k) == fallback_keyformat(newkey)) {
-                return Some(newkey);
-            }
+        if let Some(newkey) = &seg.key
+            && key.is_none_or(|k| fallback_keyformat(k) == fallback_keyformat(newkey))
+        {
+            return Some(newkey);
         }
         key
     }

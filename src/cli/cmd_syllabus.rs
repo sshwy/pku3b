@@ -149,7 +149,7 @@ pub async fn unset_autoelective() -> anyhow::Result<()> {
         anyhow::bail!("您还没有设置自动补退选课程");
     };
 
-    let idx = select_supplement_course_config(&items).await?;
+    let idx = select_supplement_course_config(items).await?;
 
     items.remove(idx);
 

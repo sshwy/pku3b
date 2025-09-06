@@ -132,10 +132,10 @@ pub async fn read_cfg(path: impl AsRef<std::path::Path>) -> anyhow::Result<Confi
 pub async fn write_cfg(path: impl AsRef<std::path::Path>, cfg: &Config) -> anyhow::Result<()> {
     let path = path.as_ref();
     // Create the parent directory if it does not exist
-    if let Some(par) = path.parent() {
-        if !par.exists() {
-            fs::create_dir_all(par).await?;
-        }
+    if let Some(par) = path.parent()
+        && !par.exists()
+    {
+        fs::create_dir_all(par).await?;
     }
 
     let content = toml::to_string(cfg)?;
