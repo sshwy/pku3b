@@ -238,12 +238,13 @@ pub async fn launch_autoelective(interval: u64) -> anyhow::Result<()> {
                 continue;
             };
 
-            sy.elect(
-                &data[index],
-                ttshitu.username.clone(),
-                ttshitu.password.clone(),
-            )
-            .await?;
+            let c = &data[index];
+
+            if !c.is_full()? {
+                println!("{GR}有名额，正在尝试选课...{GR:#}");
+                sy.elect(c, ttshitu.username.clone(), ttshitu.password.clone())
+                    .await?;
+            }
         }
 
         discards.sort();

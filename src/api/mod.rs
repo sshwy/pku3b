@@ -1418,7 +1418,7 @@ impl Syllabus {
             if r == 2 {
                 break;
             }
-            log::warn!("captcha code incorrect, retrying...");
+            log::warn!("验证码不正确，正在重试...");
         }
 
         match self
@@ -1430,7 +1430,7 @@ impl Syllabus {
             .await
         {
             Ok(()) => {
-                log::info!("{} 选择成功", course.name);
+                log::info!("{} 选择完成", course.name);
                 Ok(true)
             }
             Err(e) => {
@@ -1462,8 +1462,26 @@ pub struct SyllabusBaseCourseData {
     pub classroom: String,
     /// 自选P/NP
     pub custom_n_or_np: String,
-    /// 选课结果 or 限数/已选/候补
+    /// 选课结果 or 限数/已选/候补 or 限数/已选
     pub status: String,
+}
+
+impl SyllabusBaseCourseData {
+    pub fn is_full(&self) -> anyhow::Result<bool> {
+        status_is_full(&self.status)
+    }
+}
+
+fn status_is_full(status: &str) -> anyhow::Result<bool> {
+    let tokens = status.split('/').collect::<Vec<_>>();
+    match tokens.as_slice() {
+        [limit, selected] => {
+            let limit: usize = limit.trim().parse()?;
+            let selected: usize = selected.trim().parse()?;
+            Ok(selected >= limit)
+        }
+        _ => anyhow::bail!("unexpected status format: {}", status),
+    }
 }
 
 #[derive(Debug)]
@@ -1529,5 +1547,13 @@ mod tests {
         assert_eq!(get_mime_type("png"), "image/png");
         assert_eq!(get_mime_type("mp3"), "audio/mpeg");
         assert_eq!(get_mime_type("unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_status_is_full() {
+        assert_eq!(status_is_full("30 /25 ").unwrap(), false);
+        assert_eq!(status_is_full(" 30/ 30").unwrap(), true);
+        assert_eq!(status_is_full("30 / 35 ").unwrap(), true);
+        assert!(status_is_full("invalid").is_err());
     }
 }
