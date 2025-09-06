@@ -1387,6 +1387,7 @@ impl Syllabus {
     }
 
     /// 尝试补选一门课
+    #[cfg(feature = "autoelect")]
     pub async fn elect(
         &self,
         course: &SyllabusSupplementCourseData,
@@ -1467,11 +1468,13 @@ pub struct SyllabusBaseCourseData {
 }
 
 impl SyllabusBaseCourseData {
+    #[cfg(feature = "autoelect")]
     pub fn is_full(&self) -> anyhow::Result<bool> {
         status_is_full(&self.status)
     }
 }
 
+#[cfg(feature = "autoelect")]
 fn status_is_full(status: &str) -> anyhow::Result<bool> {
     let tokens = status.split('/').collect::<Vec<_>>();
     match tokens.as_slice() {
@@ -1485,6 +1488,7 @@ fn status_is_full(status: &str) -> anyhow::Result<bool> {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct SyllabusSupplementCourseData {
     pub base: SyllabusBaseCourseData,
     /// 补选操作 URL
@@ -1550,6 +1554,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "autoelect")]
     fn test_status_is_full() {
         assert_eq!(status_is_full("30 /25 ").unwrap(), false);
         assert_eq!(status_is_full(" 30/ 30").unwrap(), true);

@@ -99,6 +99,7 @@ impl LowLevelClient {
         Ok(dom)
     }
 
+    #[cfg(feature = "ttshitu")]
     pub async fn ttshitu_recognize(
         &self,
         username: String,

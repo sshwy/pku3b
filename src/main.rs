@@ -5,6 +5,7 @@ mod cli;
 mod config;
 mod multipart;
 mod qs;
+#[cfg(feature = "ttshitu")]
 mod ttshitu;
 mod utils;
 mod walkdir;

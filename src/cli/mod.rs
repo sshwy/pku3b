@@ -67,6 +67,7 @@ enum Commands {
     },
 
     /// 图形验证码识别测试 (需要配置 TT 识图)
+    #[cfg(feature = "ttshitu")]
     TestTtshitu { image_path: Option<String> },
 
     /// (重新) 初始化配置选项
@@ -170,6 +171,7 @@ enum SyllabusCommands {
     /// 取消课程的快捷选课配置
     Unset,
     /// 启动自动补退选程序
+    #[cfg(feature = "autoelect")]
     Launch {
         /// 等待间隔（秒）默认为 5s
         #[arg(short = 't', long, default_value = "5")]
@@ -305,6 +307,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "ttshitu")]
 async fn command_test_ttshitu(image_path: Option<String>) -> anyhow::Result<()> {
     let c = cyper::Client::new();
 
@@ -438,10 +441,13 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 SyllabusCommands::Show => cmd_syllabus::show().await?,
                 SyllabusCommands::Set => cmd_syllabus::set_autoelective().await?,
                 SyllabusCommands::Unset => cmd_syllabus::unset_autoelective().await?,
+                #[cfg(feature = "autoelect")]
                 SyllabusCommands::Launch { interval } => {
                     cmd_syllabus::launch_autoelective(interval).await?
                 }
             },
+
+            #[cfg(feature = "ttshitu")]
             Commands::TestTtshitu { image_path } => {
                 command_test_ttshitu(image_path).await?;
             }

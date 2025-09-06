@@ -183,6 +183,7 @@ async fn select_supplement_course_config(
     Ok(idx)
 }
 
+#[cfg(feature = "autoelect")]
 pub async fn launch_autoelective(interval: u64) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 

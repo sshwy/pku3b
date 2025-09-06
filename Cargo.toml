@@ -16,7 +16,7 @@ build = "build.rs"
 [dependencies]
 aes = { version = "0.8.4", optional = true }
 anyhow = { version = "1.0", default-features = false }
-base64 = "0.22.1"
+base64 = { version = "0.22.1", optional = true }
 bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
@@ -39,9 +39,12 @@ futures-util = { version = "0.3.31", features = [
     "async-await-macro",
 ], default-features = false }
 http = { version = "1.2.0", default-features = false }
-image = "0.25.8"
+image = { version = "0.25.8", optional = true }
 indicatif = "0.17"
-inquire = { version = "0.7.5", features = ["crossterm", "macros"], default-features = false }
+inquire = { version = "0.7.5", features = [
+    "crossterm",
+    "macros",
+], default-features = false }
 itertools = "0.14.0"
 log = "0.4"
 m3u8-rs = { version = "6.0.0", optional = true }
@@ -56,26 +59,26 @@ serde = { version = "1.0", features = [
     "serde_derive",
 ], default-features = false }
 serde_json = "1.0"
-shadow-rs = { version = "1.0", features = [
-    "build",
-], default-features = false }
+shadow-rs = { version = "1.0", features = ["build"], default-features = false }
 toml = "0.8"
 url = "2.5"
 
 [build-dependencies]
-shadow-rs = { version = "1.0", features = [
-    "build",
-], default-features = false }
+shadow-rs = { version = "1.0", features = ["build"], default-features = false }
 
 [features]
 dev = []
-default = ["video-download"]
+default = ["video-download", "autoelect"]
 
 # support for downloading videos
 aes = ["dep:aes"]
 cbc = ["dep:cbc"]
 m3u8-rs = ["dep:m3u8-rs"]
 video-download = ["m3u8-rs", "aes", "cbc"]
+
+# support for auto elective
+autoelect = ["ttshitu"]
+ttshitu = ["dep:image", "dep:base64"]
 
 [profile.release]
 lto = true
