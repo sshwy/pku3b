@@ -477,7 +477,7 @@ async fn command_debug() -> anyhow::Result<()> {
     for i in 0..total {
         log::warn!("fetching page {i}/{total}");
         let data = sy.get_supplements(i).await?;
-        r.extend(data.into_iter().map(|d| d.name));
+        r.extend(data.into_iter().map(|d| d.base.name));
     }
 
     eprintln!("{r:#?}");
