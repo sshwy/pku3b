@@ -40,14 +40,14 @@ impl LowLevelClient {
         }
     }
 
-    /// 向 [`OAUTH_LOGIN`] 发送登录请求，并返回 JSON (形如 { token: "..." })
+    /// 向 [`OAUTH_LOGIN`] 发送登录请求，并返回 token
     async fn oauth_login(
         &self,
         appid: &str,
         username: &str,
         password: &str,
         redir: &str,
-    ) -> anyhow::Result<serde_json::Value> {
+    ) -> anyhow::Result<String> {
         let res = self
             .http_client
             .post(OAUTH_LOGIN)?
@@ -70,8 +70,14 @@ impl LowLevelClient {
         );
 
         let rbody = res.text().await?;
-        let value = serde_json::Value::from_str(&rbody).context("fail to parse response json")?;
-        Ok(value)
+
+        #[derive(serde::Deserialize)]
+        struct ResData {
+            token: String,
+        }
+        let data: ResData = serde_json::from_str(&rbody).context("fail to parse response")?;
+
+        Ok(data.token)
     }
 
     /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求.

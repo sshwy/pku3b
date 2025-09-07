@@ -13,17 +13,9 @@ pub const VALIDATE: &str = "https://elective.pku.edu.cn/elective2008/edu/pku/stu
 impl LowLevelClient {
     /// 使用 OAuth login 返回的 token 登录选课网。登录状态会记录在 client cookie 中，无需返回值.
     pub async fn sb_login(&self, username: &str, password: &str) -> anyhow::Result<()> {
-        let value = self
+        let token = self
             .oauth_login("syllabus", username, password, OAUTH_REDIR)
             .await?;
-        let token = value
-            .as_object()
-            .context("value not an object")?
-            .get("token")
-            .context("password not correct")?
-            .as_str()
-            .context("property 'token' not string")?
-            .to_owned();
 
         log::debug!("iaaa oauth token for {username}: {token}");
 
