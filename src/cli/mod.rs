@@ -490,7 +490,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 SyllabusCommands::Unset => cmd_syllabus::unset_autoelective().await?,
                 #[cfg(feature = "autoelect")]
                 SyllabusCommands::Launch { interval } => {
-                    cmd_syllabus::launch_autoelective(interval, dual).await?
+                    cmd_syllabus::launch_autoelective(interval, dual).await?;
                 }
             },
 
