@@ -77,9 +77,24 @@ impl Client {
         })
     }
 
-    pub async fn syllabus(&self, username: &str, password: &str) -> anyhow::Result<Syllabus> {
+    pub async fn syllabus(
+        &self,
+        username: &str,
+        password: &str,
+        dual: Option<DualDegree>,
+    ) -> anyhow::Result<Syllabus> {
         let c = &self.0.http_client;
-        c.sb_login(username, password).await?;
+
+        if let Some(dual) = dual {
+            let sttp = if matches!(dual, DualDegree::Major) {
+                "bzx"
+            } else {
+                "bfx"
+            };
+            c.sb_login_dual_degree(username, password, sttp).await?;
+        } else {
+            c.sb_login(username, password).await?;
+        }
 
         Ok(Syllabus {
             client: self.clone(),
@@ -1517,6 +1532,14 @@ impl std::ops::Deref for SyllabusSupplementCourseData {
     fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum DualDegree {
+    /// 主修
+    Major,
+    /// 辅双
+    Minor,
 }
 
 /// 根据文件扩展名返回对应的 MIME 类型

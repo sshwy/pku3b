@@ -4,7 +4,7 @@ use crate::api::SyllabusSupplementCourseData;
 
 use super::*;
 
-pub async fn show() -> anyhow::Result<()> {
+pub async fn show(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 
     let sp = pbar::new_spinner();
@@ -16,7 +16,7 @@ pub async fn show() -> anyhow::Result<()> {
         .context("read config file")?;
 
     sp.set_message("logging in to syllabus...");
-    let sy = c.syllabus(&cfg.username, &cfg.password).await?;
+    let sy = c.syllabus(&cfg.username, &cfg.password, dual).await?;
 
     sp.set_message("fetching results...");
     let rs = sy.get_results().await?;
@@ -40,7 +40,7 @@ pub async fn show() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn set_autoelective() -> anyhow::Result<()> {
+pub async fn set_autoelective(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 
     let sp = pbar::new_spinner();
@@ -52,7 +52,7 @@ pub async fn set_autoelective() -> anyhow::Result<()> {
         .context("read config file")?;
 
     sp.set_message("logging in to syllabus...");
-    let sy = c.syllabus(&cfg.username, &cfg.password).await?;
+    let sy = c.syllabus(&cfg.username, &cfg.password, dual).await?;
 
     sp.set_message("fetching total pages...");
     let total = sy.get_supplements_total_pages().await?;
@@ -184,7 +184,10 @@ async fn select_supplement_course_config(
 }
 
 #[cfg(feature = "autoelect")]
-pub async fn launch_autoelective(interval: u64) -> anyhow::Result<()> {
+pub async fn launch_autoelective(
+    interval: u64,
+    dual: Option<api::DualDegree>,
+) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 
     let sp = pbar::new_spinner();
@@ -206,7 +209,7 @@ pub async fn launch_autoelective(interval: u64) -> anyhow::Result<()> {
     };
 
     sp.set_message("logging in to syllabus...");
-    let sy = c.syllabus(&cfg.username, &cfg.password).await?;
+    let sy = c.syllabus(&cfg.username, &cfg.password, dual).await?;
 
     drop(sp);
 

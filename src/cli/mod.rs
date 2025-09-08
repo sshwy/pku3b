@@ -62,6 +62,10 @@ enum Commands {
     /// 选课操作
     #[command(visible_alias("s"), arg_required_else_help(true))]
     Syllabus {
+        /// 双学位类型
+        #[arg(short = 'd', long)]
+        dual: Option<api::DualDegree>,
+
         #[command(subcommand)]
         command: SyllabusCommands,
     },
@@ -189,6 +193,19 @@ enum SyllabusCommands {
         #[arg(short = 't', long, default_value = "15")]
         interval: u64,
     },
+}
+
+impl clap::ValueEnum for api::DualDegree {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Major, Self::Minor]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::Major => Some(clap::builder::PossibleValue::new("major")),
+            Self::Minor => Some(clap::builder::PossibleValue::new("minor")),
+        }
+    }
 }
 
 /// Client, courses and spinner are returned. Spinner hasn't stopped.
@@ -467,13 +484,13 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     cmd_video::download(force, id, !all_term).await?
                 }
             },
-            Commands::Syllabus { command } => match command {
-                SyllabusCommands::Show => cmd_syllabus::show().await?,
-                SyllabusCommands::Set => cmd_syllabus::set_autoelective().await?,
+            Commands::Syllabus { dual, command } => match command {
+                SyllabusCommands::Show => cmd_syllabus::show(dual).await?,
+                SyllabusCommands::Set => cmd_syllabus::set_autoelective(dual).await?,
                 SyllabusCommands::Unset => cmd_syllabus::unset_autoelective().await?,
                 #[cfg(feature = "autoelect")]
                 SyllabusCommands::Launch { interval } => {
-                    cmd_syllabus::launch_autoelective(interval).await?
+                    cmd_syllabus::launch_autoelective(interval, dual).await?
                 }
             },
 
@@ -500,7 +517,7 @@ async fn command_debug() -> anyhow::Result<()> {
     let cfg = config::read_cfg(cfg_path)
         .await
         .context("read config file")?;
-    let sy = c.syllabus(&cfg.username, &cfg.password).await?;
+    let sy = c.syllabus(&cfg.username, &cfg.password, None).await?;
 
     log::warn!("fetching total pages...");
     let total = sy.get_supplements_total_pages().await?;

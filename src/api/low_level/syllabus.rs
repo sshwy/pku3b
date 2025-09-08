@@ -30,7 +30,7 @@ impl LowLevelClient {
             .send()
             .await?;
 
-        // redir to http
+        log::trace!("redir to http");
         anyhow::ensure!(
             res.status().is_redirection(),
             "error status {}",
@@ -41,7 +41,7 @@ impl LowLevelClient {
         };
         let url = url.to_str().context("Location not valid str")?;
 
-        // redir to https
+        log::trace!("redir to https");
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(
             res.status().is_redirection(),
@@ -53,7 +53,84 @@ impl LowLevelClient {
         };
         let url = url.to_str().context("Location not valid str")?;
 
-        // final redir
+        log::trace!("final redir");
+        let res = self.get_by_uri(url).await?;
+        anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
+
+        let cookies = self
+            .http_client
+            .cookie_value("https://elective.pku.edu.cn")?;
+        log::debug!("cookies after sb login: {cookies:?}");
+
+        Ok(())
+    }
+
+    /// 使用 OAuth login 返回的 token 登录选课网。登录状态会记录在 client cookie 中，无需返回值.
+    pub async fn sb_login_dual_degree(
+        &self,
+        username: &str,
+        password: &str,
+        dual_sttp: &str,
+    ) -> anyhow::Result<()> {
+        let token = self
+            .oauth_login("syllabus", username, password, OAUTH_REDIR)
+            .await?;
+
+        log::debug!("iaaa oauth token for {username}: {token}");
+
+        let mut rng = rand::rng();
+        let _rand: f64 = rng.sample(rand::distr::Open01);
+        let _rand = format!("{_rand:.20}");
+
+        let res = self
+            .http_client
+            .get(SSO_LOGIN)?
+            .query(&[("_rand", _rand.as_str()), ("token", &token)])?
+            .send()
+            .await?;
+        anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
+
+        let body = res.text().await?;
+        let re = regex::Regex::new(r"\?sida=(\S+?)&sttp=(?:bzx|bfx)").unwrap();
+        let sida = re
+            .captures(&body)
+            .context("no sida in response")?
+            .get(1)
+            .context("no sida in response")?
+            .as_str();
+        anyhow::ensure!(sida.len() == 32, "invalid sida {}", sida);
+
+        let res = self
+            .http_client
+            .get(SSO_LOGIN)?
+            .query(&[("sida", sida), ("sttp", dual_sttp)])?
+            .send()
+            .await?;
+
+        log::trace!("redir to http");
+        anyhow::ensure!(
+            res.status().is_redirection(),
+            "error status {}",
+            res.status()
+        );
+        let Some(url) = res.headers().get("Location") else {
+            anyhow::bail!("no Location header");
+        };
+        let url = url.to_str().context("Location not valid str")?;
+
+        log::trace!("redir to https");
+        let res = self.get_by_uri(url).await?;
+        anyhow::ensure!(
+            res.status().is_redirection(),
+            "error status {}",
+            res.status()
+        );
+        let Some(url) = res.headers().get("Location") else {
+            anyhow::bail!("no Location header");
+        };
+        let url = url.to_str().context("Location not valid str")?;
+
+        log::trace!("final redir");
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
 
