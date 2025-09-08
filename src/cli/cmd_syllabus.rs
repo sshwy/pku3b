@@ -212,7 +212,8 @@ pub async fn launch_autoelective(interval: u64) -> anyhow::Result<()> {
 
     let mut items = items;
     loop {
-        println!("\n\n{BL}{B}共 {} 个课程{B:#}", items.len());
+        let time = chrono::Local::now();
+        println!("\n\n{BL}{B}共 {} 个课程{B:#} {D}{}{D:#}", items.len(), time);
         sy.get_supplements_total_pages().await?;
         let mut discards = Vec::new();
 
