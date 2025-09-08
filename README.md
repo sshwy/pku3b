@@ -1,7 +1,5 @@
 # PKU3b: A Better Black Board for PKUers 🎓
 
-> This project is currently under active development. 🚧
-
 [![Crates.io](https://img.shields.io/crates/v/pku3b)](https://crates.io/crates/pku3b)
 ![Issues](https://img.shields.io/github/issues-search?query=repo%3Asshwy%2Fpku3b%20is%3Aopen&label=issues&color=orange)
 ![Closed Issues](https://img.shields.io/github/issues-search?query=repo%3Asshwy%2Fpku3b%20is%3Aclosed&label=closed%20issues&color=green)
@@ -17,6 +15,7 @@ pku3b 是一个由 Rust 实现的小巧 (~10MB) 命令行工具，用于爬取�
 - 📤 提交课程作业
 - 🎥 查看课程回放列表
 - ⏯️ 下载课程回放（需要 ffmpeg）
+- 🎓 快捷选课（你懂我什么意思吧）
 
 基本用法如下：
 
@@ -28,7 +27,9 @@ Usage: pku3b [COMMAND]
 Commands:
   assignment  获取课程作业信息/下载附件/提交作业 [aliases: a]
   video       获取课程回放/下载课程回放 [aliases: v]
-  init        (重新) 初始化配置选项
+  syllabus    选课操作 [aliases: s]
+  ttshitu     图形验证码识别 [aliases: tt]
+  init        (重新) 初始化用户名/密码
   config      显示或修改配置项
   cache       查看缓存大小/清除缓存
   help        Print this message or the help of the given subcommand(s)
@@ -36,6 +37,17 @@ Commands:
 Options:
   -h, --help     Print help (see more with '--help')
   -V, --version  Print version
+```
+
+## 【新增】选课操作流程
+
+```bash
+pku3b ttshitu init # 初始化 TT 识图账号密码
+pku3b ttshitu test # 测试一下是否配置成功
+pku3b s set # 交互式选择课程并加入快捷选课列表
+pku3b s unset # 交互式选择课程并移除快捷选课列表
+pku3b config # 通过查看配置来查看快捷选课列表
+pku3b s launch # 启动快捷选课循环
 ```
 
 ## Demo 🎬
@@ -72,7 +84,7 @@ cargo install pku3b
 (Invoke-WebRequest -Uri "https://github.com/sshwy/pku3b" -Method Head).StatusCode
 ```
 
-为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.8.1`):
+为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.9.1`):
 
 ```powershell
 Invoke-WebRequest `
@@ -80,16 +92,16 @@ Invoke-WebRequest `
   -OutFile "$env:TEMP\script.bat"; `
 Start-Process `
   -FilePath "$env:TEMP\script.bat" `
-  -ArgumentList "0.8.1" `
+  -ArgumentList "0.9.1" `
   -NoNewWindow -Wait
 ```
 
 安装过程大致如下:
 
 ```powershell
-Step 1: Downloading pku3b version 0.8.1...
+Step 1: Downloading pku3b version 0.9.1...
 Download complete.
-Step 2: Extracting pku3b version 0.8.1...
+Step 2: Extracting pku3b version 0.9.1...
 Extraction complete.
 Step 3: Moving pku3b.exe to C:\Users\Sshwy\AppData\Local\pku3b\bin...
 移动了         1 个文件。
