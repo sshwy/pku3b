@@ -66,11 +66,15 @@ enum Commands {
         command: SyllabusCommands,
     },
 
-    /// 图形验证码识别测试 (需要配置 TT 识图)
+    /// 图形验证码识别
     #[cfg(feature = "ttshitu")]
-    TestTtshitu { image_path: Option<String> },
+    #[command(visible_alias("tt"), arg_required_else_help(true))]
+    Ttshitu {
+        #[command(subcommand)]
+        command: TtshituCommands,
+    },
 
-    /// (重新) 初始化配置选项
+    /// (重新) 初始化用户名/密码
     Init,
 
     /// 显示或修改配置项
@@ -119,6 +123,14 @@ enum CacheCommands {
     Show,
     /// 清除缓存
     Clean,
+}
+
+#[derive(Subcommand)]
+enum TtshituCommands {
+    /// 初始化图形验证码识别账户
+    Init,
+    /// 测试图形验证码识别
+    Test { image_path: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -174,7 +186,7 @@ enum SyllabusCommands {
     #[cfg(feature = "autoelect")]
     Launch {
         /// 等待间隔（秒）默认为 5s
-        #[arg(short = 't', long, default_value = "5")]
+        #[arg(short = 't', long, default_value = "15")]
         interval: u64,
     },
 }
@@ -251,8 +263,8 @@ async fn command_config(
 async fn command_init() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
 
-    let username = inquire::Text::new("Enter PKU IAAA Username (ID):").prompt()?;
-    let password = inquire::Password::new("Enter PKU IAAA Password:").prompt()?;
+    let username = inquire::Text::new("输入 PKU IAAA 学号:").prompt()?;
+    let password = inquire::Text::new("输入 PKU IAAA 密码:").prompt()?;
 
     let cfg = config::Config {
         username,
@@ -304,6 +316,24 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     } else {
         println!("缓存已清空 (释放 {B}{:.2}GB{B:#})", sizenum);
     }
+    Ok(())
+}
+
+#[cfg(feature = "ttshitu")]
+async fn command_ttshitu_init() -> anyhow::Result<()> {
+    let cfg_path = utils::default_config_path();
+    let mut cfg = config::read_cfg(&cfg_path)
+        .await
+        .context("read config file")?;
+
+    let username = inquire::Text::new("输入 TT 识图用户名:").prompt()?;
+    let password = inquire::Text::new("输入 TT 识图密码:").prompt()?;
+
+    cfg.ttshitu = Some(config::TTShiTuConfig { username, password });
+
+    config::write_cfg(cfg_path, &cfg).await?;
+
+    println!("TT 识图配置已更新");
     Ok(())
 }
 
@@ -448,9 +478,10 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             },
 
             #[cfg(feature = "ttshitu")]
-            Commands::TestTtshitu { image_path } => {
-                command_test_ttshitu(image_path).await?;
-            }
+            Commands::Ttshitu { command } => match command {
+                TtshituCommands::Init => command_ttshitu_init().await?,
+                TtshituCommands::Test { image_path } => command_test_ttshitu(image_path).await?,
+            },
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
