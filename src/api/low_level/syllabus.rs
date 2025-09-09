@@ -255,7 +255,7 @@ impl LowLevelClient {
         Ok(res_data.valid.parse()?)
     }
 
-    pub async fn sb_elect_by_url(&self, url: &str) -> anyhow::Result<()> {
+    pub async fn sb_elect_by_url(&self, url: &str) -> anyhow::Result<Html> {
         let res = self
             .http_client
             .get(url)?
@@ -264,7 +264,9 @@ impl LowLevelClient {
             .await?;
 
         anyhow::ensure!(res.status().is_success(), "status not success");
-        Ok(())
+        let rbody = res.text().await?;
+        let dom = scraper::Html::parse_document(&rbody);
+        Ok(dom)
     }
 }
 

@@ -1299,8 +1299,10 @@ impl Syllabus {
         Ok(r)
     }
 
-    /// 获取补选总页数，必须在获取补选课程前调用，否则会返回空页面
-    pub async fn get_supplements_total_pages(&self) -> anyhow::Result<usize> {
+    /// 获取补选总页数和已选上课程，必须在获取补选课程前调用，否则会返回空页面
+    pub async fn get_supplements_total_and_elected(
+        &self,
+    ) -> anyhow::Result<(usize, Vec<SyllabusBaseCourseData>)> {
         let dom = self.client.sb_supplycancelpage(&self.username).await?;
         let pagination_sel = Selector::parse("tr[align=\"right\"] > td:first-child").unwrap();
         let re = regex::Regex::new(r"Page\s*\d+?\s*of\s*(\d+?)").unwrap();
@@ -1314,7 +1316,72 @@ impl Syllabus {
 
         let total: usize = m.get(1).context("page count not found")?.as_str().parse()?;
 
-        Ok(total)
+        let table_sel = Selector::parse("table.datagrid").unwrap();
+        let table = dom.select(&table_sel).nth(1).context("table not found")?;
+        let tbody = table
+            .child_elements()
+            .nth(0)
+            .context("table tbody not found")?;
+
+        let mut rows = tbody.child_elements();
+        let header_row = rows.next().context("table header not found")?;
+        anyhow::ensure!(
+            header_row.value().name() == "tr",
+            "header not tr, got {}",
+            header_row.value().name()
+        );
+
+        let col_names = header_row
+            .child_elements()
+            .map(|el| el.text().collect::<String>().trim().to_owned())
+            .collect::<Vec<_>>();
+
+        anyhow::ensure!(
+            col_names
+                == [
+                    "课程名",
+                    "课程类别",
+                    "学分",
+                    "周学时",
+                    "教师",
+                    "班号",
+                    "开课单位",
+                    "年级",
+                    "上课/考试信息",
+                    "自选P/NP",
+                    "限数/已选",
+                    "选课状态",
+                    "退选",
+                ],
+            "unexpected column names: {:?}",
+            col_names
+        );
+
+        let mut r = Vec::new();
+        for row in rows {
+            // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
+            if row.child_elements().count() <= 3 {
+                continue;
+            }
+            let row_values = row
+                .child_elements()
+                .map(|el| el.text().collect::<String>().trim().to_owned())
+                .collect::<Vec<_>>();
+            r.push(SyllabusBaseCourseData {
+                name: row_values[0].to_owned(),
+                category: row_values[1].to_owned(),
+                score: row_values[2].to_owned(),
+                hours_per_week: row_values[3].to_owned(),
+                teacher: row_values[4].to_owned(),
+                class_id: row_values[5].to_owned(),
+                department: row_values[6].to_owned(),
+                classroom: row_values[8].to_owned(),
+                custom_n_or_np: row_values[9].to_owned(),
+                status: row_values[10].to_owned(),
+            });
+        }
+
+        Ok((total, r))
     }
 
     pub async fn get_supplements(
@@ -1450,6 +1517,7 @@ impl Syllabus {
                 break;
             }
             log::warn!("验证码不正确，正在重试...");
+            compio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
 
         match self
@@ -1460,8 +1528,14 @@ impl Syllabus {
             ))
             .await
         {
-            Ok(()) => {
-                log::info!("{} 选择完成", course.name);
+            Ok(dom) => {
+                let td_sel = Selector::parse("td#msgTips").unwrap();
+                if let Some(td) = dom.select(&td_sel).nth(0) {
+                    let text = td.text().collect::<String>().trim().to_owned();
+                    println!("{}: {}", course.name, text);
+                } else {
+                    log::warn!("{} 选择完成，没有找到提示信息", course.name);
+                }
                 Ok(true)
             }
             Err(e) => {

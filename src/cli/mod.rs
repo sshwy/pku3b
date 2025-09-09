@@ -520,7 +520,7 @@ async fn command_debug() -> anyhow::Result<()> {
     let sy = c.syllabus(&cfg.username, &cfg.password, None).await?;
 
     log::warn!("fetching total pages...");
-    let total = sy.get_supplements_total_pages().await?;
+    let total = sy.get_supplements_total_and_elected().await?.0;
     let mut r = Vec::new();
     for i in 0..total {
         log::warn!("fetching page {i}/{total}");
