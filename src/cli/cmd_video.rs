@@ -43,7 +43,17 @@ pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn download(force: bool, id: String, cur_term: bool) -> anyhow::Result<()> {
+pub async fn download(
+    outdir: Option<&std::path::Path>,
+    force: bool,
+    id: String,
+    cur_term: bool,
+) -> anyhow::Result<()> {
+    let outdir = outdir.unwrap_or(std::path::Path::new("."));
+    if !outdir.exists() {
+        anyhow::bail!("output directory {:?} not exists", outdir.display());
+    }
+
     let (_, courses, sp) = load_client_courses(force, cur_term).await?;
 
     sp.set_message("finding video...");
@@ -93,12 +103,14 @@ pub async fn download(force: bool, id: String, cur_term: bool) -> anyhow::Result
     // merge all segments into one file
     let merged = dir.join("merged").with_extension("ts");
     merge_segments(&merged, &paths).await?;
+
     let dest = format!("{}_{}.mp4", v.course_name(), v.meta().title());
+    let dest = outdir.join(&dest);
     log::info!("Merged segments to {}", merged.display());
     log::info!(
         r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
         merged.display(),
-        dest,
+        dest.display(),
     );
 
     // convert the merged ts file to mp4. overwrite existing file
@@ -115,7 +127,10 @@ pub async fn download(force: bool, id: String, cur_term: bool) -> anyhow::Result
     drop(sp);
 
     if c.status.success() {
-        println!("下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}", dest);
+        println!(
+            "下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}",
+            dest.display()
+        );
     } else {
         anyhow::bail!("ffmpeg failed with exit code {:?}", c.status.code());
     }

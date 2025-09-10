@@ -115,9 +115,14 @@ enum VideoCommands {
     Download {
         /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
         id: String,
+
         /// 在所有学期的课程回放范围中查找
         #[arg(long, default_value = "false")]
         all_term: bool,
+
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short = 'o', long)]
+        outdir: Option<std::path::PathBuf>,
     },
 }
 
@@ -480,9 +485,11 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             },
             Commands::Video { force, command } => match command {
                 VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
-                VideoCommands::Download { id, all_term } => {
-                    cmd_video::download(force, id, !all_term).await?
-                }
+                VideoCommands::Download {
+                    outdir,
+                    id,
+                    all_term,
+                } => cmd_video::download(outdir.as_deref(), force, id, !all_term).await?,
             },
             Commands::Syllabus { dual, command } => match command {
                 SyllabusCommands::Show => cmd_syllabus::show(dual).await?,
