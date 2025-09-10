@@ -5,6 +5,7 @@ pub struct Config {
     pub username: String,
     pub password: String,
     pub ttshitu: Option<TTShiTuConfig>,
+    pub bark: Option<BarkConfig>,
 
     pub auto_supplement: Option<Vec<SupplementCourseConfig>>,
 }
@@ -23,6 +24,11 @@ pub struct TTShiTuConfig {
     pub password: String,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct BarkConfig {
+    pub token: String,
+}
+
 impl Config {
     pub fn display(&self, attr: ConfigAttrs, buf: &mut Vec<u8>) -> anyhow::Result<()> {
         use std::io::Write as _;
@@ -39,6 +45,13 @@ impl Config {
             ConfigAttrs::TTShiTuPassword => {
                 if let Some(tt) = &self.ttshitu {
                     writeln!(buf, "{}", tt.password)?
+                } else {
+                    writeln!(buf, "<not set>")?
+                }
+            }
+            ConfigAttrs::BarkToken => {
+                if let Some(bark) = &self.bark {
+                    writeln!(buf, "{}", bark.token)?
                 } else {
                     writeln!(buf, "<not set>")?
                 }
@@ -71,6 +84,11 @@ impl Config {
                     })
                 }
             }
+            ConfigAttrs::BarkToken => {
+                self.bark = Some(BarkConfig {
+                    token: value,
+                })
+            }
         }
 
         Ok(())
@@ -83,6 +101,7 @@ pub enum ConfigAttrs {
     Password,
     TTShiTuUsername,
     TTShiTuPassword,
+    BarkToken,
 }
 
 impl clap::ValueEnum for ConfigAttrs {
@@ -92,6 +111,7 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::Password,
             Self::TTShiTuUsername,
             Self::TTShiTuPassword,
+            Self::BarkToken,
         ]
     }
 
@@ -101,6 +121,7 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::Password => Some(clap::builder::PossibleValue::new("password")),
             Self::TTShiTuUsername => Some(clap::builder::PossibleValue::new("ttshitu.username")),
             Self::TTShiTuPassword => Some(clap::builder::PossibleValue::new("ttshitu.password")),
+            Self::BarkToken => Some(clap::builder::PossibleValue::new("bark.token")),
         }
     }
 }

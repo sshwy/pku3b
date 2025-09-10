@@ -16,6 +16,7 @@ pku3b 是一个由 Rust 实现的小巧 (~10MB) 命令行工具，用于爬取�
 - 🎥 查看课程回放列表
 - ⏯️ 下载课程回放（需要 ffmpeg）
 - 🎓 快捷选课（你懂我什么意思吧）
+- 📱 Bark 通知推送（可选，用于选课成功通知）
 
 基本用法如下：
 
@@ -29,6 +30,7 @@ Commands:
   video       获取课程回放/下载课程回放 [aliases: v]
   syllabus    选课操作 [aliases: s]
   ttshitu     图形验证码识别 [aliases: tt]
+  bark        Bark通知设置 [aliases: b]
   init        (重新) 初始化用户名/密码
   config      显示或修改配置项
   cache       查看缓存大小/清除缓存
@@ -44,11 +46,31 @@ Options:
 ```bash
 pku3b ttshitu init # 初始化 TT 识图账号密码
 pku3b ttshitu test # 测试一下是否配置成功
+pku3b bark init # 【可选】初始化 Bark 通知令牌，用于选课成功通知
+pku3b bark test # 【可选】测试 Bark 通知是否配置成功
 pku3b s set # 交互式选择课程并加入快捷选课列表
 pku3b s unset # 交互式选择课程并移除快捷选课列表
 pku3b config # 通过查看配置来查看快捷选课列表
-pku3b s launch # 启动快捷选课循环
+pku3b s launch # 启动快捷选课循环（如配置了 Bark 会自动发送通知）
 ```
+
+### Bark 通知功能 📱
+
+pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865) 发送选课通知到 iPhone/iPad：
+
+- **选课开始通知**: 自动选课程序启动时发送
+- **选课成功通知**: 成功选上课程时发送
+- **选课启动失败通知**: 配置错误或初始化失败时发送
+- **登录失败通知**: 无法登录选课网时发送
+- **选课循环中断通知**: 选课过程中出现异常时发送
+
+配置步骤：
+1. 在 App Store 下载 Bark 应用
+2. 获取你的 Bark 推送令牌
+3. 执行 `pku3b bark init` 配置令牌
+4. 执行 `pku3b bark test` 测试通知功能
+
+**注意：Bark 通知是完全可选的功能，不配置也不会影响选课程序的正常运行。**
 
 ## Demo 🎬
 
@@ -155,6 +177,8 @@ pku3b init
 - 🎥 查看课程回放列表: `pku3b v ls`
 - 🎥 查看所有学期课程回放列表: `pku3b v ls --all-term`
 - ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。
+- 📱 初始化 Bark 通知: `pku3b bark init` 或 `pku3b b init`
+- 📱 测试 Bark 通知: `pku3b bark test` 或 `pku3b b test`
 - 🗑️ 查看缓存占用: `pku3b cache`
 - 🗑️ 清空缓存: `pku3b cache clean`
 - ❓ 查看某个命令的使用方法 (以下载课程回放的命令为例): `pku3b help v down`
