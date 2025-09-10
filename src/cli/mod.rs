@@ -1,4 +1,5 @@
 mod cmd_assignment;
+mod cmd_bark;
 mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
@@ -78,6 +79,13 @@ enum Commands {
         command: TtshituCommands,
     },
 
+    /// Bark通知设置
+    #[command(visible_alias("b"), arg_required_else_help(true))]
+    Bark {
+        #[command(subcommand)]
+        command: BarkCommands,
+    },
+
     /// (重新) 初始化用户名/密码
     Init,
 
@@ -135,6 +143,14 @@ enum TtshituCommands {
     Init,
     /// 测试图形验证码识别
     Test { image_path: Option<String> },
+}
+
+#[derive(Subcommand)]
+enum BarkCommands {
+    /// 初始化 Bark 通知令牌
+    Init,
+    /// 测试 Bark 通知
+    Test,
 }
 
 #[derive(Subcommand)]
@@ -287,6 +303,7 @@ async fn command_init() -> anyhow::Result<()> {
         username,
         password,
         ttshitu: None,
+        bark: None,
         auto_supplement: None,
     };
     config::write_cfg(&cfg_path, &cfg).await?;
@@ -498,6 +515,11 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             Commands::Ttshitu { command } => match command {
                 TtshituCommands::Init => command_ttshitu_init().await?,
                 TtshituCommands::Test { image_path } => command_test_ttshitu(image_path).await?,
+            },
+
+            Commands::Bark { command } => match command {
+                BarkCommands::Init => cmd_bark::command_bark_init().await?,
+                BarkCommands::Test => cmd_bark::command_bark_test().await?,
             },
 
             #[cfg(feature = "dev")]
