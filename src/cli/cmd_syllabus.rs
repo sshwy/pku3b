@@ -199,36 +199,12 @@ pub async fn launch_autoelective(
         .context("read config file")?;
 
     let Some(items) = cfg.auto_supplement else {
-        // 发送配置错误通知
-        if let Some(bark) = &cfg.bark {
-            let _ = super::cmd_bark::send_bark_notification(
-                &bark.token,
-                "PKU3B 选课启动失败",
-                "您还没有设置自动补退选课程"
-            ).await;
-        }
         anyhow::bail!("您还没有设置自动补退选课程");
     };
     if items.is_empty() {
-        // 发送配置错误通知
-        if let Some(bark) = &cfg.bark {
-            let _ = super::cmd_bark::send_bark_notification(
-                &bark.token,
-                "PKU3B 选课启动失败",
-                "自动补退选课程列表为空"
-            ).await;
-        }
         anyhow::bail!("您还没有设置自动补退选课程");
     }
     let Some(ttshitu) = &cfg.ttshitu else {
-        // 发送配置错误通知
-        if let Some(bark) = &cfg.bark {
-            let _ = super::cmd_bark::send_bark_notification(
-                &bark.token,
-                "PKU3B 选课启动失败",
-                "您还没有设置 TT 识图"
-            ).await;
-        }
         anyhow::bail!("您还没有设置 TT 识图");
     };
     drop(sp);
