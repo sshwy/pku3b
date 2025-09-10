@@ -947,7 +947,7 @@ impl CourseVideoHandle {
         Ok(loc)
     }
 
-    async fn get_sub_info(&self, loc: &str) -> anyhow::Result<serde_json::Value> {
+    async fn get_sub_info(&self, loc: &str) -> anyhow::Result<String> {
         let qs = qs::Query::from_str(loc).context("parse loc qs failed")?;
         let course_id = qs
             .get("course_id")
@@ -960,56 +960,57 @@ impl CourseVideoHandle {
             .context("auth_data not found")?
             .to_owned();
 
-        let value = self
+        let body = self
             .client
             .bb_course_video_sub_info(&course_id, &sub_id, &app_id, &auth_data)
             .await?;
 
-        Ok(value)
+        Ok(body)
     }
 
-    fn get_m3u8_path(&self, sub_info: serde_json::Value) -> anyhow::Result<String> {
-        let sub_content = sub_info
-            .as_object()
-            .context("sub_info not object")?
-            .get("list")
-            .context("sub_info.list not found")?
-            .as_array()
-            .context("sub_info.list not array")?
-            .first()
-            .context("sub_info.list empty")?
-            .as_object()
-            .context("sub_info.list[0] not object")?
-            .get("sub_content")
-            .context("sub_info.list[0].sub_content not found")?
-            .as_str()
-            .context("sub_info.list[0].sub_content not string")?;
+    fn get_media_path(&self, text: &str) -> anyhow::Result<MediaPath> {
+        let sub = serde_json::from_str::<SubInfo>(text).context("parse sub info failed")?;
 
-        let sub_content = serde_json::Value::from_str(sub_content)?;
+        #[derive(Debug, serde::Deserialize)]
+        struct SubInfo {
+            list: Vec<SubItem>,
+        }
 
-        let save_playback = sub_content
-            .as_object()
-            .context("sub_content not object")?
-            .get("save_playback")
-            .context("sub_content.save_playback not found")?
-            .as_object()
-            .context("sub_content.save_playback not object")?;
+        #[derive(Debug, serde::Deserialize)]
+        struct SubItem {
+            sub_content: String,
+        }
 
-        let is_m3u8 = save_playback
-            .get("is_m3u8")
-            .context("sub_content.save_playback.is_m3u8 not found")?
-            .as_str()
-            .context("sub_content.save_playback.is_m3u8 not string")?;
+        #[derive(Debug, serde::Deserialize)]
+        struct SubContent {
+            save_playback: SavePlayback,
+        }
 
-        anyhow::ensure!(is_m3u8 == "yes", "not m3u8");
+        #[derive(Debug, serde::Deserialize)]
+        struct SavePlayback {
+            is_m3u8: String,
+            contents: String,
+        }
 
-        let url = save_playback
-            .get("contents")
-            .context("save_playback.contents not found")?
-            .as_str()
-            .context("save_playback.contents not string")?;
+        let Some(item) = sub.list.first() else {
+            anyhow::bail!("sub list is empty, got {}", text);
+        };
 
-        Ok(url.to_owned())
+        let sub_content = serde_json::from_str::<SubContent>(&item.sub_content)
+            .context("parse sub content failed")?;
+
+        let is_m3u8 = sub_content.save_playback.is_m3u8;
+        let url = sub_content.save_playback.contents;
+
+        if is_m3u8 == "yes" {
+            return Ok(MediaPath::M3u8(url));
+        }
+
+        if url.ends_with(".mp4") {
+            return Ok(MediaPath::Mp4(url));
+        }
+
+        anyhow::bail!("not m3u8 or mp4, got {}", item.sub_content);
     }
 
     async fn get_m3u8_playlist(&self, url: &str) -> anyhow::Result<bytes::Bytes> {
@@ -1021,10 +1022,20 @@ impl CourseVideoHandle {
 
     async fn _get(&self) -> anyhow::Result<(String, bytes::Bytes)> {
         let loc = self.get_iframe_url().await?;
-        let info = self.get_sub_info(&loc).await?;
-        let pl_url = self.get_m3u8_path(info)?;
-        let pl_raw = self.get_m3u8_playlist(&pl_url).await?;
-        Ok((pl_url, pl_raw))
+        loop {
+            let info = self.get_sub_info(&loc).await?;
+            let media = self.get_media_path(&info)?;
+            match media {
+                MediaPath::M3u8(pl_url) => {
+                    let pl_raw = self.get_m3u8_playlist(&pl_url).await?;
+                    break Ok((pl_url, pl_raw));
+                }
+                MediaPath::Mp4(url) => {
+                    log::warn!("mp4 ({url}) not supported yet, try again...");
+                    compio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+            }
+        }
     }
 
     pub async fn get(&self) -> anyhow::Result<CourseVideo> {
@@ -1053,6 +1064,11 @@ impl CourseVideoHandle {
             }),
         }
     }
+}
+
+enum MediaPath {
+    M3u8(String),
+    Mp4(String),
 }
 
 #[derive(Debug)]

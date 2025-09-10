@@ -195,14 +195,14 @@ impl LowLevelClient {
         Ok(dom)
     }
 
-    /// 获取视频回放的 sub_info（用于下载 m3u8 playlist）, 返回 JSON 信息
+    /// 获取视频回放的 sub_info（用于下载 m3u8 playlist）, 返回 response body
     pub async fn bb_course_video_sub_info(
         &self,
         course_id: &str,
         sub_id: &str,
         app_id: &str,
         auth_data: &str,
-    ) -> anyhow::Result<serde_json::Value> {
+    ) -> anyhow::Result<String> {
         let res = self
             .http_client
             .get(VIDEO_SUB_INFO)?
@@ -220,8 +220,7 @@ impl LowLevelClient {
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.text().await?;
-        let value = serde_json::Value::from_str(&rbody)?;
-        Ok(value)
+        Ok(rbody)
     }
 }
 
