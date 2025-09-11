@@ -64,6 +64,7 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - **选课循环中断通知**: 选课过程中出现异常时发送
 
 配置步骤：
+
 1. 在 App Store 下载 Bark 应用
 2. 获取你的 Bark 推送令牌
 3. 执行 `pku3b bark init` 配置令牌

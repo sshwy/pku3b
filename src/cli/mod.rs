@@ -1,4 +1,5 @@
 mod cmd_assignment;
+#[cfg(feature = "bark")]
 mod cmd_bark;
 mod cmd_syllabus;
 mod cmd_video;
@@ -80,6 +81,7 @@ enum Commands {
     },
 
     /// Bark通知设置
+    #[cfg(feature = "bark")]
     #[command(visible_alias("b"), arg_required_else_help(true))]
     Bark {
         #[command(subcommand)]
@@ -524,6 +526,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 TtshituCommands::Test { image_path } => command_test_ttshitu(image_path).await?,
             },
 
+            #[cfg(feature = "bark")]
             Commands::Bark { command } => match command {
                 BarkCommands::Init => cmd_bark::command_bark_init().await?,
                 BarkCommands::Test => cmd_bark::command_bark_test().await?,

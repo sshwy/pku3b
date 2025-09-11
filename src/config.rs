@@ -84,11 +84,7 @@ impl Config {
                     })
                 }
             }
-            ConfigAttrs::BarkToken => {
-                self.bark = Some(BarkConfig {
-                    token: value,
-                })
-            }
+            ConfigAttrs::BarkToken => self.bark = Some(BarkConfig { token: value }),
         }
 
         Ok(())

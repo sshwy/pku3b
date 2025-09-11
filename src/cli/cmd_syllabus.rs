@@ -215,6 +215,7 @@ pub async fn launch_autoelective(
     Ok(autoelective_loop(sy_ctor, interval, &ttshitu, items, cfg.bark.as_ref()).await)
 }
 
+#[cfg(feature = "autoelect")]
 async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
     sy_ctor: impl Fn() -> R,
     interval: u64,
@@ -226,20 +227,23 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
         sy: &api::Syllabus,
         interval: u64,
         ttshitu: &config::TTShiTuConfig,
-        bark_cfg: Option<&config::BarkConfig>,
+        #[allow(unused)] bark_cfg: Option<&config::BarkConfig>,
         mut items: Vec<config::SupplementCourseConfig>,
     ) -> anyhow::Result<std::convert::Infallible> {
         // Send the course selection start notification (optional)
+        #[cfg(feature = "bark")]
         if let Some(bark) = bark_cfg {
             if let Err(e) = super::cmd_bark::send_bark_notification(
                 &bark.token,
                 "PKU3B 自动选课",
-                &format!("开始监控 {} 门课程", items.len())
-            ).await {
+                &format!("开始监控 {} 门课程", items.len()),
+            )
+            .await
+            {
                 log::warn!("Bark 通知发送失败: {}", e);
             }
         }
-        
+
         loop {
             let time = chrono::Local::now();
             println!("\n\n{BL}{B}共 {} 个课程{B:#} {D}{}{D:#}", items.len(), time);
@@ -259,18 +263,21 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
                         c.teacher,
                         c.class_id
                     );
-                    
+
                     // Send a successful course selection notification (optional)
+                    #[cfg(feature = "bark")]
                     if let Some(bark) = bark_cfg {
                         if let Err(e) = super::cmd_bark::send_bark_notification(
                             &bark.token,
                             "PKU3B 选课成功",
-                            &format!("已成功选上课程: {} {} {}班", c.name, c.teacher, c.class_id)
-                        ).await {
+                            &format!("已成功选上课程: {} {} {}班", c.name, c.teacher, c.class_id),
+                        )
+                        .await
+                        {
                             log::warn!("Bark 通知发送失败: {}", e);
                         }
                     }
-                    
+
                     discards.push(cidx);
                     continue;
                 }
@@ -322,18 +329,21 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
                 Ok(sy) => break sy,
                 Err(e) => {
                     log::error!("登录选课网失败: {}", e);
-                    
+
                     // 发送登录失败通知（可选）
+                    #[cfg(feature = "bark")]
                     if let Some(bark) = bark_cfg {
                         if let Err(bark_err) = super::cmd_bark::send_bark_notification(
                             &bark.token,
                             "PKU3B 选课登录失败",
-                            &format!("登录选课网失败，正在重试: {}", e)
-                        ).await {
+                            &format!("登录选课网失败，正在重试: {}", e),
+                        )
+                        .await
+                        {
                             log::warn!("Bark 通知发送失败: {}", bark_err);
                         }
                     }
-                    
+
                     println!("{D}等待 {} 秒后继续...{D:#}", interval);
                     compio::time::sleep(std::time::Duration::from_secs(interval)).await;
                 }
@@ -344,14 +354,17 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
 
         log::error!("自动选课循环异常: {}", e);
         log::warn!("正在重新登录...");
-        
+
         // 发送选课循环异常通知（可选）
+        #[cfg(feature = "bark")]
         if let Some(bark) = bark_cfg {
             if let Err(bark_err) = super::cmd_bark::send_bark_notification(
                 &bark.token,
                 "PKU3B 选课循环中断",
-                &format!("选课循环出现异常，正在重新登录: {}", e)
-            ).await {
+                &format!("选课循环出现异常，正在重新登录: {}", e),
+            )
+            .await
+            {
                 log::warn!("Bark 通知发送失败: {}", bark_err);
             }
         }

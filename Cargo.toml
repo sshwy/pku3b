@@ -62,14 +62,14 @@ serde_json = "1.0"
 shadow-rs = { version = "1.0", features = ["build"], default-features = false }
 toml = "0.8"
 url = "2.5"
-urlencoding = "2.1"
+urlencoding = { version = "2.1", optional = true }
 
 [build-dependencies]
 shadow-rs = { version = "1.0", features = ["build"], default-features = false }
 
 [features]
 dev = []
-default = ["video-download", "autoelect"]
+default = ["video-download", "autoelect", "bark"]
 
 # support for downloading videos
 aes = ["dep:aes"]
@@ -80,6 +80,7 @@ video-download = ["m3u8-rs", "aes", "cbc"]
 # support for auto elective
 autoelect = ["ttshitu"]
 ttshitu = ["dep:image", "dep:base64"]
+bark = ["dep:urlencoding"]
 
 [profile.release]
 lto = true
