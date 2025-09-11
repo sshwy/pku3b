@@ -228,7 +228,7 @@ impl LowLevelClient {
         let _rand: f64 = rng.sample(rand::distr::Open01);
         let _rand = format!("{_rand:.20}");
 
-        let body = format!("xh={}&validCode={}", username, code);
+        let body = format!("xh={username}&validCode={code}");
 
         let res = self
             .http_client

@@ -42,7 +42,7 @@ where
         type_id.hash(&mut hasher);
         hasher.finish()
     };
-    let name = format!("with_cache-{:x}", name_hash);
+    let name = format!("with_cache-{name_hash:x}");
 
     let path = &projectdir().cache_dir().join(&name);
 
@@ -54,7 +54,7 @@ where
         let (_, buf) = buf_try!(@try r);
         // ignore deserialization error
         if let Ok(r) = serde_json::from_slice(&buf) {
-            log::trace!("cache hit: {}", name);
+            log::trace!("cache hit: {name}");
             return Ok(r);
         }
     }
@@ -81,7 +81,7 @@ where
         name.hash(&mut hasher);
         hasher.finish()
     };
-    let name = format!("with_cache_bytes-{:x}", name_hash);
+    let name = format!("with_cache_bytes-{name_hash:x}");
 
     let path = &projectdir().cache_dir().join(&name);
 
@@ -91,7 +91,7 @@ where
     {
         let r = f.read_to_end_at(Vec::new(), 0).await;
         let (_, buf) = buf_try!(@try r);
-        log::trace!("cache hit: {}", name);
+        log::trace!("cache hit: {name}");
         return Ok(bytes::Bytes::from(buf));
     }
 

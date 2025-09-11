@@ -285,7 +285,7 @@ async fn command_config(
 
     let Some(attr) = attr else {
         let s = toml::to_string_pretty(&cfg)?;
-        println!("{}", s);
+        println!("{s}");
         return Ok(());
     };
 
@@ -353,9 +353,9 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
 
     let sizenum = total_bytes as f64 / 1024.0f64.powi(3);
     if dry_run {
-        println!("缓存大小: {B}{:.2}GB{B:#}", sizenum);
+        println!("缓存大小: {B}{sizenum:.2}GB{B:#}");
     } else {
-        println!("缓存已清空 (释放 {B}{:.2}GB{B:#})", sizenum);
+        println!("缓存已清空 (释放 {B}{sizenum:.2}GB{B:#})");
     }
     Ok(())
 }

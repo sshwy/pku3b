@@ -83,7 +83,7 @@ impl LowLevelClient {
     /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求.
     pub async fn get_by_uri(&self, uri: &str) -> anyhow::Result<cyper::Response> {
         let url = convert_uri(uri)?;
-        log::trace!("GET {}", url);
+        log::trace!("GET {url}");
         let res = self
             .http_client
             .get(url)

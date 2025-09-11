@@ -51,8 +51,8 @@ impl Client {
         cache_ttl: Option<std::time::Duration>,
         download_artifact_ttl: Option<std::time::Duration>,
     ) -> Self {
-        log::info!("Cache TTL: {:?}", cache_ttl);
-        log::info!("Download Artifact TTL: {:?}", download_artifact_ttl);
+        log::info!("Cache TTL: {cache_ttl:?}");
+        log::info!("Download Artifact TTL: {download_artifact_ttl:?}");
 
         Self(
             ClientInner {
@@ -735,7 +735,7 @@ impl CourseAssignment {
             .to_string_lossy()
             .to_string();
         let content_type = get_mime_type(&ext);
-        log::info!("content type: {}", content_type);
+        log::info!("content type: {content_type}");
 
         let filename = path
             .file_name()
@@ -744,7 +744,7 @@ impl CourseAssignment {
             .to_string();
 
         let map = self.get_submit_formfields().await?;
-        log::trace!("map: {:#?}", map);
+        log::trace!("map: {map:#?}");
 
         macro_rules! add_field_from_map {
             ($body:ident, $name:expr) => {
@@ -803,7 +803,7 @@ impl CourseAssignment {
                 anyhow::bail!("invalid status {} (caused by unknown server error)", st);
             }
 
-            log::debug!("response: {}", rbody);
+            log::debug!("response: {rbody}");
             anyhow::bail!("invalid status {}", st);
         }
 
@@ -853,10 +853,7 @@ impl CourseAssignment {
         uri: &str,
         dest: &std::path::Path,
     ) -> anyhow::Result<()> {
-        log::debug!(
-            "downloading attachment from https://course.pku.edu.cn{}",
-            uri
-        );
+        log::debug!("downloading attachment from https://course.pku.edu.cn{uri}");
         let res = self.client.get_by_uri(uri).await?;
         anyhow::ensure!(
             res.status().as_u16() == 302,
@@ -872,7 +869,7 @@ impl CourseAssignment {
             .context("location header not str")?
             .to_owned();
 
-        log::debug!("redicted to https://course.pku.edu.cn{}", loc);
+        log::debug!("redicted to https://course.pku.edu.cn{loc}");
         let res = self.client.get_by_uri(&loc).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
@@ -1144,7 +1141,7 @@ impl CourseVideo {
         // fetch maybe encrypted segment data
         let seg_url: String = self.pl_url.join(&seg.uri).context("join seg url")?.into();
         let mut bytes = with_cache_bytes(
-            &format!("CourseVideo::download_segment_{}", seg_url),
+            &format!("CourseVideo::download_segment_{seg_url}"),
             self.client.download_artifact_ttl(),
             self._download_segment(&seg_url),
         )
@@ -1175,7 +1172,7 @@ impl CourseVideo {
     async fn get_aes128_key(&self, url: &str) -> anyhow::Result<[u8; 16]> {
         // fetch aes128 key from uri
         let r = with_cache_bytes(
-            &format!("CourseVideo::get_aes128_uri_{}", url),
+            &format!("CourseVideo::get_aes128_uri_{url}"),
             self.client.download_artifact_ttl(),
             async {
                 let r = self.client.get_by_uri(url).await?.bytes().await?;
@@ -1522,13 +1519,13 @@ impl Syllabus {
                     image_b64,
                 )
                 .await?;
-            log::debug!("captcha code recognition: {}", code);
+            log::debug!("captcha code recognition: {code}");
 
             let r = self
                 .client
                 .sb_send_validation(&self.username, &code)
                 .await?;
-            log::trace!("captcha validation response: {}", r);
+            log::trace!("captcha validation response: {r}");
             if r == 2 {
                 break;
             }
@@ -1684,9 +1681,9 @@ mod tests {
     #[test]
     #[cfg(feature = "autoelect")]
     fn test_status_is_full() {
-        assert_eq!(status_is_full("30 /25 ").unwrap(), false);
-        assert_eq!(status_is_full(" 30/ 30").unwrap(), true);
-        assert_eq!(status_is_full("30 / 35 ").unwrap(), true);
+        assert!(!status_is_full("30 /25 ").unwrap());
+        assert!(status_is_full(" 30/ 30").unwrap());
+        assert!(status_is_full("30 / 35 ").unwrap());
         assert!(status_is_full("invalid").is_err());
     }
 }

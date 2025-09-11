@@ -162,7 +162,7 @@ impl LowLevelClient {
             .header("accept", "*/*")?
             .header(
                 "content-type",
-                format!("multipart/form-data; boundary={}", boundary),
+                format!("multipart/form-data; boundary={boundary}"),
             )?
             .query(&[("action", "submit")])?
             .body(body)

@@ -17,7 +17,7 @@ pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     let mut outbuf = Vec::new();
     let title = "课程回放";
 
-    writeln!(outbuf, "{D}>{D:#} {B}{}{B:#} {D}<{D:#}\n", title)?;
+    writeln!(outbuf, "{D}>{D:#} {B}{title}{B:#} {D}<{D:#}\n")?;
 
     for (c, vs) in courses {
         if vs.is_empty() {
@@ -159,7 +159,7 @@ async fn download_segments(
         let path = dir.join(&v.segment(i).uri).with_extension("ts");
 
         if !path.exists() {
-            log::debug!("key: {:?}", key);
+            log::debug!("key: {key:?}");
             let seg = v
                 .get_segment_data(i, key)
                 .await

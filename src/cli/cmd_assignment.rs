@@ -218,7 +218,7 @@ async fn download_data(
         ));
         a.download_attachment(uri, &dir.join(name))
             .await
-            .with_context(|| format!("download attachment '{}'", name))?;
+            .with_context(|| format!("download attachment '{name}'"))?;
     }
 
     drop(sp);
@@ -301,11 +301,11 @@ fn write_assignment_title_ln(
         let delta = t - chrono::Local::now();
         write!(buf, " ({})", fmt_time_delta(delta))?;
     } else if let Some(raw) = a.deadline_raw() {
-        write!(buf, " ({})", raw)?;
+        write!(buf, " ({raw})")?;
     } else {
         write!(buf, " (无截止时间)")?;
     }
-    writeln!(buf, " {D}{}{D:#}", id)?;
+    writeln!(buf, " {D}{id}{D:#}")?;
     Ok(())
 }
 
@@ -362,5 +362,5 @@ pub fn fmt_time_delta(delta: chrono::TimeDelta) -> String {
         delta = std::time::Duration::from_secs(delta.as_secs() % 60);
     }
     res.push_str(&format!("{}s", delta.as_secs()));
-    format!("{s}{}{s:#}", res)
+    format!("{s}{res}{s:#}")
 }

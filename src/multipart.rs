@@ -26,7 +26,7 @@ impl<'a> MultipartBuilder<'a> {
             .collect();
 
         Self {
-            boundary: format!("----WebKitFormBoundary{}", boundary),
+            boundary: format!("----WebKitFormBoundary{boundary}"),
             fields: Vec::new(),
         }
     }
@@ -75,13 +75,13 @@ impl<'a> MultipartBuilder<'a> {
                 format!("Content-Disposition: form-data; name=\"{}\"", field.name).as_bytes(),
             );
             if let Some(filename) = field.filename {
-                output.extend_from_slice(format!("; filename=\"{}\"", filename).as_bytes());
+                output.extend_from_slice(format!("; filename=\"{filename}\"").as_bytes());
             }
             output.extend_from_slice(b"\r\n");
 
             // Content-Type (optional)
             if let Some(content_type) = field.content_type {
-                output.extend_from_slice(format!("Content-Type: {}\r\n", content_type).as_bytes());
+                output.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
             }
             output.extend_from_slice(b"\r\n");
 

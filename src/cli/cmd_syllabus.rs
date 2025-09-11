@@ -34,7 +34,7 @@ pub async fn show(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
             c.status, c.name, c.teacher, c.class_id, c.category, c.department
         )?;
 
-        println!("{}", line);
+        println!("{line}");
     }
 
     Ok(())
@@ -212,7 +212,7 @@ pub async fn launch_autoelective(
     let sy_ctor = || c.syllabus(&cfg.username, &cfg.password, dual.clone());
     let items = items;
 
-    Ok(autoelective_loop(sy_ctor, interval, &ttshitu, items, cfg.bark.as_ref()).await)
+    Ok(autoelective_loop(sy_ctor, interval, ttshitu, items, cfg.bark.as_ref()).await)
 }
 
 #[cfg(feature = "autoelect")]
@@ -240,7 +240,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
             )
             .await
             {
-                log::warn!("Bark 通知发送失败: {}", e);
+                log::warn!("Bark 通知发送失败: {e}");
             }
         }
 
@@ -274,7 +274,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
                         )
                         .await
                         {
-                            log::warn!("Bark 通知发送失败: {}", e);
+                            log::warn!("Bark 通知发送失败: {e}");
                         }
                     }
 
@@ -318,7 +318,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
                 items.remove(i);
             }
 
-            println!("{D}等待 {} 秒后继续...{D:#}", interval);
+            println!("{D}等待 {interval} 秒后继续...{D:#}");
             compio::time::sleep(std::time::Duration::from_secs(interval)).await;
         }
     }
@@ -328,7 +328,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
             match sy_ctor().await {
                 Ok(sy) => break sy,
                 Err(e) => {
-                    log::error!("登录选课网失败: {}", e);
+                    log::error!("登录选课网失败: {e}");
 
                     // 发送登录失败通知（可选）
                     #[cfg(feature = "bark")]
@@ -336,15 +336,15 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
                         if let Err(bark_err) = super::cmd_bark::send_bark_notification(
                             &bark.token,
                             "PKU3B 选课登录失败",
-                            &format!("登录选课网失败，正在重试: {}", e),
+                            &format!("登录选课网失败，正在重试: {e}"),
                         )
                         .await
                         {
-                            log::warn!("Bark 通知发送失败: {}", bark_err);
+                            log::warn!("Bark 通知发送失败: {bark_err}");
                         }
                     }
 
-                    println!("{D}等待 {} 秒后继续...{D:#}", interval);
+                    println!("{D}等待 {interval} 秒后继续...{D:#}");
                     compio::time::sleep(std::time::Duration::from_secs(interval)).await;
                 }
             }
@@ -352,7 +352,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
 
         let Err(e) = run_loop(&sy, interval, ttshitu, bark_cfg, items.clone()).await;
 
-        log::error!("自动选课循环异常: {}", e);
+        log::error!("自动选课循环异常: {e}");
         log::warn!("正在重新登录...");
 
         // 发送选课循环异常通知（可选）
@@ -361,11 +361,11 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
             if let Err(bark_err) = super::cmd_bark::send_bark_notification(
                 &bark.token,
                 "PKU3B 选课循环中断",
-                &format!("选课循环出现异常，正在重新登录: {}", e),
+                &format!("选课循环出现异常，正在重新登录: {e}"),
             )
             .await
             {
-                log::warn!("Bark 通知发送失败: {}", bark_err);
+                log::warn!("Bark 通知发送失败: {bark_err}");
             }
         }
     }
