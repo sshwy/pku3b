@@ -106,7 +106,7 @@ cargo install pku3b
 (Invoke-WebRequest -Uri "https://github.com/sshwy/pku3b" -Method Head).StatusCode
 ```
 
-为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.9.2`):
+为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.10.0`):
 
 ```powershell
 Invoke-WebRequest `
@@ -114,16 +114,16 @@ Invoke-WebRequest `
   -OutFile "$env:TEMP\script.bat"; `
 Start-Process `
   -FilePath "$env:TEMP\script.bat" `
-  -ArgumentList "0.9.2" `
+  -ArgumentList "0.10.0" `
   -NoNewWindow -Wait
 ```
 
 安装过程大致如下:
 
 ```powershell
-Step 1: Downloading pku3b version 0.9.2...
+Step 1: Downloading pku3b version 0.10.0...
 Download complete.
-Step 2: Extracting pku3b version 0.9.2...
+Step 2: Extracting pku3b version 0.10.0...
 Extraction complete.
 Step 3: Moving pku3b.exe to C:\Users\Sshwy\AppData\Local\pku3b\bin...
 移动了         1 个文件。
