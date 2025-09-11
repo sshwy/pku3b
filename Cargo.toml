@@ -14,42 +14,42 @@ exclude = ["/assets"]
 build = "build.rs"
 
 [dependencies]
-aes = { version = "0.8.4", optional = true }
+aes = { version = "0.8", optional = true }
 anyhow = { version = "1.0", default-features = false }
-base64 = { version = "0.22.1", optional = true }
+base64 = { version = "0.22", optional = true }
 bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
-chrono = { version = "0.4.40", default-features = false, features = ["clock"] }
-clap = { version = "4.5.31", features = ["derive"] }
-compio = { version = "0.15", features = [
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4.5", features = ["derive"] }
+compio = { version = "0.16", features = [
     "macros",
     "process",
 ], default-features = false }
-cyper = { version = "0.4", default-features = false, features = [
+cyper = { version = "0.5", default-features = false, features = [
     "cookies",
     "rustls",
 ] }
 directories = "6.0.0"
-env_logger = { version = "0.11.6", features = [
+env_logger = { version = "0.11", features = [
     "auto-color",
 ], default-features = false }
-futures-channel = "0.3.31"
-futures-util = { version = "0.3.31", features = [
+futures-channel = "0.3"
+futures-util = { version = "0.3", features = [
     "alloc",
     "async-await-macro",
 ], default-features = false }
 http = { version = "1.2.0", default-features = false }
-image = { version = "0.25.8", optional = true }
+image = { version = "0.25", optional = true }
 indicatif = "0.17"
-inquire = { version = "0.7.5", features = [
+inquire = { version = "0.7", features = [
     "crossterm",
     "macros",
 ], default-features = false }
 itertools = "0.14.0"
 log = "0.4"
-m3u8-rs = { version = "6.0.0", optional = true }
-memchr = "2.7.4"
-rand = { version = "0.9.0", features = [
+m3u8-rs = { version = "6.0", optional = true }
+memchr = "2.7"
+rand = { version = "0.9", features = [
     "thread_rng",
 ], default-features = false }
 regex = "1.11.1"
