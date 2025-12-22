@@ -146,21 +146,21 @@ impl Blackboard {
         };
 
         // the first one contains the courses in the current semester
-        let ul = dom.select(&ul_sel).nth(0).context("courses not found")?;
-        let courses = ul.select(&sel).map(f).collect::<anyhow::Result<Vec<_>>>()?;
-
         // the second one contains the courses in the previous semester
-        let ul_history = dom.select(&ul_sel).nth(1).context("courses not found")?;
-        let courses_history = ul_history
-            .select(&sel)
-            .map(f)
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let mut courses = Vec::new();
+        for (i, ul) in dom.select(&ul_sel).enumerate() {
+            let is_current = i == 0;
+            let iter = ul.select(&sel).map(f).map_ok(|(k, t)| (k, t, is_current));
+            courses.extend(iter);
+        }
 
-        Ok(courses
-            .into_iter()
-            .map(|(k, t)| (k, t, true))
-            .chain(courses_history.into_iter().map(|(k, t)| (k, t, false)))
-            .collect())
+        if courses.is_empty() {
+            anyhow::bail!("courses not found");
+        }
+
+        let courses = courses.into_iter().collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(courses)
     }
     pub async fn get_courses(&self, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
         log::info!("fetching courses...");
