@@ -229,12 +229,7 @@ impl CourseMeta {
     /// Cousre Name
     pub fn name(&self) -> &str {
         let s = self.title();
-        let i = s
-            .char_indices()
-            .filter(|(_, c)| *c == '(')
-            .next_back()
-            .unwrap()
-            .0;
+        let i = s.char_indices().rfind(|(_, c)| *c == '(').unwrap().0;
         s.split_at(i).0.trim()
     }
 }
