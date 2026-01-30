@@ -21,11 +21,11 @@ bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 clap = { version = "4.5", features = ["derive"] }
-compio = { version = "0.16", features = [
+compio = { version = "0.17", features = [
     "macros",
     "process",
 ], default-features = false }
-cyper = { version = "0.5", default-features = false, features = [
+cyper = { version = "0.7", default-features = false, features = [
     "cookies",
     "rustls",
 ] }
