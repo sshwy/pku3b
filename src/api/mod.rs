@@ -127,10 +127,12 @@ impl Blackboard {
     async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String, bool)>> {
         let dom = self.client.bb_homepage().await?;
         let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
+        let portlet_sel = Selector::parse("div.portlet").unwrap();
+        let title_in_portlet_sel = Selector::parse("span.moduleTitle").unwrap();
         let ul_sel = Selector::parse("ul.courseListing").unwrap();
         let sel = Selector::parse("li a").unwrap();
 
-        let f = |a: scraper::ElementRef<'_>| {
+        let to_key_text = |a: scraper::ElementRef<'_>| {
             let href = a.value().attr("href").unwrap();
             let text = a.text().collect::<String>();
             // use regex to extract course key (of form key=_80052_1)
@@ -148,10 +150,21 @@ impl Blackboard {
         // the first one contains the courses in the current semester
         // the second one contains the courses in the previous semester
         let mut courses = Vec::new();
-        for (i, ul) in dom.select(&ul_sel).enumerate() {
-            let is_current = i == 0;
-            let iter = ul.select(&sel).map(f).map_ok(|(k, t)| (k, t, is_current));
-            courses.extend(iter);
+
+        for portlet in dom.select(&portlet_sel) {
+            let title = portlet.select(&title_in_portlet_sel).nth(0).unwrap();
+            let title = title.text().collect::<String>();
+            log::info!("scanning portlet: {title}");
+            let is_current = title.contains("当前");
+            for ul in portlet.select(&ul_sel) {
+                let items = ul
+                    .select(&sel)
+                    .map(to_key_text)
+                    .map_ok(|(k, t)| (k, t, is_current))
+                    .collect::<Vec<_>>();
+                log::info!("found {} courses, is_current: {is_current}", items.len());
+                courses.extend(items);
+            }
         }
 
         if courses.is_empty() {
