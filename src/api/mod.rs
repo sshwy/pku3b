@@ -1357,6 +1357,7 @@ impl Syllabus {
             .map(|el| el.text().collect::<String>().trim().to_owned())
             .collect::<Vec<_>>();
 
+        let has_course_id_col = col_names.first().map(|s| s.as_str()) == Some("课程号");
         anyhow::ensure!(
             col_names
                 == [
@@ -1373,11 +1374,29 @@ impl Syllabus {
                     "限数/已选",
                     "选课状态",
                     "退选",
+                ]
+                || col_names
+                    == [
+                        "课程号",
+                        "课程名",
+                        "课程类别",
+                        "学分",
+                        "周学时",
+                        "教师",
+                        "班号",
+                        "开课单位",
+                        "年级",
+                        "上课/考试信息",
+                        "自选P/NP",
+                        "限数/已选",
+                        "选课状态",
+                        "退选",
                 ],
             "unexpected column names: {:?}",
             col_names
         );
 
+        let offset = usize::from(has_course_id_col);
         let mut r = Vec::new();
         for row in rows {
             // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
@@ -1389,16 +1408,16 @@ impl Syllabus {
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
             r.push(SyllabusBaseCourseData {
-                name: row_values[0].to_owned(),
-                category: row_values[1].to_owned(),
-                score: row_values[2].to_owned(),
-                hours_per_week: row_values[3].to_owned(),
-                teacher: row_values[4].to_owned(),
-                class_id: row_values[5].to_owned(),
-                department: row_values[6].to_owned(),
-                classroom: row_values[8].to_owned(),
-                custom_n_or_np: row_values[9].to_owned(),
-                status: row_values[10].to_owned(),
+                name: row_values[0 + offset].to_owned(),
+                category: row_values[1 + offset].to_owned(),
+                score: row_values[2 + offset].to_owned(),
+                hours_per_week: row_values[3 + offset].to_owned(),
+                teacher: row_values[4 + offset].to_owned(),
+                class_id: row_values[5 + offset].to_owned(),
+                department: row_values[6 + offset].to_owned(),
+                classroom: row_values[8 + offset].to_owned(),
+                custom_n_or_np: row_values[9 + offset].to_owned(),
+                status: row_values[10 + offset].to_owned(),
             });
         }
 
@@ -1430,6 +1449,7 @@ impl Syllabus {
             .map(|el| el.text().collect::<String>().trim().to_owned())
             .collect::<Vec<_>>();
 
+        let has_course_id_col = col_names.first().map(|s| s.as_str()) == Some("课程号");
         anyhow::ensure!(
             col_names
                 == [
@@ -1460,11 +1480,44 @@ impl Syllabus {
                         "自选P/NP",
                         "限数/已选",
                         "补选",
+                    ]
+                || col_names
+                    == [
+                        "课程号",
+                        "课程名",
+                        "课程类别",
+                        "学分",
+                        "周学时",
+                        "教师",
+                        "班号",
+                        "开课单位",
+                        "年级",
+                        "上课/考试信息",
+                        "自选P/NP",
+                        "限数/已选/候补",
+                        "补选",
+                    ]
+                || col_names
+                    == [
+                        "课程号",
+                        "课程名",
+                        "课程类别",
+                        "学分",
+                        "周学时",
+                        "教师",
+                        "班号",
+                        "开课单位",
+                        "年级",
+                        "上课/考试信息",
+                        "自选P/NP",
+                        "限数/已选",
+                        "补选",
                     ],
             "unexpected column names: {:?}",
             col_names
         );
 
+        let offset = usize::from(has_course_id_col);
         let mut r = Vec::new();
         for row in rows {
             // 对应 "Page 1 of 1  First / Previous   Next / Last" 这一行
@@ -1477,16 +1530,16 @@ impl Syllabus {
                 .collect::<Vec<_>>();
             r.push(SyllabusSupplementCourseData {
                 base: SyllabusBaseCourseData {
-                    name: row_values[0].to_owned(),
-                    category: row_values[1].to_owned(),
-                    score: row_values[2].to_owned(),
-                    hours_per_week: row_values[3].to_owned(),
-                    teacher: row_values[4].to_owned(),
-                    class_id: row_values[5].to_owned(),
-                    department: row_values[6].to_owned(),
-                    classroom: row_values[8].to_owned(),
-                    custom_n_or_np: row_values[9].to_owned(),
-                    status: row_values[10].to_owned(),
+                    name: row_values[0 + offset].to_owned(),
+                    category: row_values[1 + offset].to_owned(),
+                    score: row_values[2 + offset].to_owned(),
+                    hours_per_week: row_values[3 + offset].to_owned(),
+                    teacher: row_values[4 + offset].to_owned(),
+                    class_id: row_values[5 + offset].to_owned(),
+                    department: row_values[6 + offset].to_owned(),
+                    classroom: row_values[8 + offset].to_owned(),
+                    custom_n_or_np: row_values[9 + offset].to_owned(),
+                    status: row_values[10 + offset].to_owned(),
                 },
                 supplement_url: row
                     .child_elements()
