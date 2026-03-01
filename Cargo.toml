@@ -24,6 +24,7 @@ clap = { version = "4.5", features = ["derive"] }
 compio = { version = "0.17", features = [
     "macros",
     "process",
+    "polling",
 ], default-features = false }
 cyper = { version = "0.7", default-features = false, features = [
     "cookies",

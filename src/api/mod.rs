@@ -1277,6 +1277,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1305,16 +1306,16 @@ impl Syllabus {
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
             r.push(SyllabusBaseCourseData {
-                name: row_values[0].to_owned(),
-                category: row_values[1].to_owned(),
-                score: row_values[2].to_owned(),
-                hours_per_week: row_values[3].to_owned(),
-                teacher: row_values[4].to_owned(),
-                class_id: row_values[5].to_owned(),
-                department: row_values[6].to_owned(),
-                classroom: row_values[7].to_owned(),
-                custom_n_or_np: row_values[8].to_owned(),
-                status: row_values[9].to_owned(),
+                name: row_values[1].to_owned(),
+                category: row_values[2].to_owned(),
+                score: row_values[3].to_owned(),
+                hours_per_week: row_values[4].to_owned(),
+                teacher: row_values[5].to_owned(),
+                class_id: row_values[6].to_owned(),
+                department: row_values[7].to_owned(),
+                classroom: row_values[8].to_owned(),
+                custom_n_or_np: row_values[9].to_owned(),
+                status: row_values[10].to_owned(),
             });
         }
         Ok(r)
@@ -1360,6 +1361,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1389,16 +1391,16 @@ impl Syllabus {
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
             r.push(SyllabusBaseCourseData {
-                name: row_values[0].to_owned(),
-                category: row_values[1].to_owned(),
-                score: row_values[2].to_owned(),
-                hours_per_week: row_values[3].to_owned(),
-                teacher: row_values[4].to_owned(),
-                class_id: row_values[5].to_owned(),
-                department: row_values[6].to_owned(),
-                classroom: row_values[8].to_owned(),
-                custom_n_or_np: row_values[9].to_owned(),
-                status: row_values[10].to_owned(),
+                name: row_values[1].to_owned(),
+                category: row_values[2].to_owned(),
+                score: row_values[3].to_owned(),
+                hours_per_week: row_values[4].to_owned(),
+                teacher: row_values[5].to_owned(),
+                class_id: row_values[6].to_owned(),
+                department: row_values[7].to_owned(),
+                classroom: row_values[9].to_owned(),
+                custom_n_or_np: row_values[10].to_owned(),
+                status: row_values[11].to_owned(),
             });
         }
 
@@ -1433,6 +1435,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1448,6 +1451,7 @@ impl Syllabus {
                 ]
                 || col_names
                     == [
+                        "课程号",
                         "课程名",
                         "课程类别",
                         "学分",
@@ -1477,16 +1481,16 @@ impl Syllabus {
                 .collect::<Vec<_>>();
             r.push(SyllabusSupplementCourseData {
                 base: SyllabusBaseCourseData {
-                    name: row_values[0].to_owned(),
-                    category: row_values[1].to_owned(),
-                    score: row_values[2].to_owned(),
-                    hours_per_week: row_values[3].to_owned(),
-                    teacher: row_values[4].to_owned(),
-                    class_id: row_values[5].to_owned(),
-                    department: row_values[6].to_owned(),
-                    classroom: row_values[8].to_owned(),
-                    custom_n_or_np: row_values[9].to_owned(),
-                    status: row_values[10].to_owned(),
+                    name: row_values[1].to_owned(),
+                    category: row_values[2].to_owned(),
+                    score: row_values[3].to_owned(),
+                    hours_per_week: row_values[4].to_owned(),
+                    teacher: row_values[5].to_owned(),
+                    class_id: row_values[6].to_owned(),
+                    department: row_values[7].to_owned(),
+                    classroom: row_values[9].to_owned(),
+                    custom_n_or_np: row_values[10].to_owned(),
+                    status: row_values[11].to_owned(),
                 },
                 supplement_url: row
                     .child_elements()
