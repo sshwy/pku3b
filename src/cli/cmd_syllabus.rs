@@ -210,7 +210,6 @@ pub async fn launch_autoelective(
     drop(sp);
 
     let sy_ctor = || c.syllabus(&cfg.username, &cfg.password, dual.clone());
-    let items = items;
 
     Ok(autoelective_loop(sy_ctor, interval, ttshitu, items, cfg.bark.as_ref()).await)
 }
