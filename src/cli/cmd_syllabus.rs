@@ -364,5 +364,8 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
         {
             log::warn!("Bark 通知发送失败: {bark_err}");
         }
+
+        println!("{D}等待 {interval} 秒后继续...{D:#}");
+        compio::time::sleep(std::time::Duration::from_secs(interval)).await;
     }
 }
