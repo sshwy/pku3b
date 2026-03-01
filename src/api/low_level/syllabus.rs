@@ -30,7 +30,7 @@ impl LowLevelClient {
             .send()
             .await?;
 
-        log::trace!("redir to http");
+        log::trace!("Expection: redir to http url");
         anyhow::ensure!(
             res.status().is_redirection(),
             "error status {}",
@@ -41,7 +41,7 @@ impl LowLevelClient {
         };
         let url = url.to_str().context("Location not valid str")?;
 
-        log::trace!("redir to https");
+        log::trace!("Expection: redir to https url");
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(
             res.status().is_redirection(),
