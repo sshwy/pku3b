@@ -122,6 +122,7 @@ enum VideoCommands {
 
     /// 下载课程回放视频 (MP4 格式)，支持断点续传
     #[command(visible_alias("down"))]
+    #[cfg(feature = "video-download")]
     Download {
         /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
         id: String,
@@ -504,6 +505,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             },
             Commands::Video { force, command } => match command {
                 VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
+                #[cfg(feature = "video-download")]
                 VideoCommands::Download {
                     outdir,
                     id,

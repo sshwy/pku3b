@@ -43,6 +43,7 @@ pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "video-download")]
 pub async fn download(
     outdir: Option<&std::path::Path>,
     force: bool,
@@ -138,6 +139,7 @@ pub async fn download(
     Ok(())
 }
 
+#[cfg(feature = "video-download")]
 async fn download_segments(
     v: &api::CourseVideo,
     dir: impl AsRef<std::path::Path>,

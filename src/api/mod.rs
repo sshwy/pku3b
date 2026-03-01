@@ -1043,6 +1043,7 @@ impl CourseVideoHandle {
         }
     }
 
+    #[cfg(feature = "m3u8-rs")]
     pub async fn get(&self) -> anyhow::Result<CourseVideo> {
         let (pl_url, pl_raw) = self._get().await.with_context(|| {
             format!(
@@ -1083,6 +1084,7 @@ pub struct CourseVideo {
     meta: Arc<CourseVideoMeta>,
     pl_raw: bytes::Bytes,
     pl_url: url::Url,
+    #[cfg(feature = "m3u8-rs")]
     pl: m3u8_rs::MediaPlaylist,
 }
 
@@ -1099,6 +1101,7 @@ impl CourseVideo {
         self.pl_raw.clone()
     }
 
+    #[cfg(feature = "m3u8-rs")]
     pub fn len_segments(&self) -> usize {
         self.pl.segments.len()
     }
@@ -1109,6 +1112,7 @@ impl CourseVideo {
     /// Initialization Section declared by an EXT-X-MAP tag that appears
     /// between it and the next EXT-X-KEY tag in the Playlist file with the
     /// same KEYFORMAT attribute (or the end of the Playlist file).
+    #[cfg(feature = "m3u8-rs")]
     pub fn refresh_key<'a>(
         &'a self,
         index: usize,
@@ -1127,11 +1131,13 @@ impl CourseVideo {
         key
     }
 
+    #[cfg(feature = "m3u8-rs")]
     pub fn segment(&self, index: usize) -> &m3u8_rs::MediaSegment {
         &self.pl.segments[index]
     }
 
     /// Fetch the segment data for the given index. If `key` is provided, the segment will be decrypted.
+    #[cfg(feature = "video-download")]
     pub async fn get_segment_data<'a>(
         &'a self,
         index: usize,
@@ -1200,6 +1206,7 @@ impl CourseVideo {
         Ok(key)
     }
 
+    #[cfg(feature = "video-download")]
     async fn decrypt_segment(
         &self,
         key: &m3u8_rs::Key,
