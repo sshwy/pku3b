@@ -273,6 +273,7 @@ pub async fn download(
     force: bool,
     cur_term: bool,
     overwrite: bool,
+    suffix_on_conflict: bool,
 ) -> anyhow::Result<()> {
     let items = fetch_ppts(force, cur_term).await?;
 
@@ -285,7 +286,7 @@ pub async fn download(
     };
 
     let sp = pbar::new_spinner();
-    download_data(sp, dir, &a.2, overwrite, false).await?;
+    download_data(sp, dir, &a.2, overwrite, suffix_on_conflict).await?;
 
     Ok(())
 }
@@ -295,6 +296,7 @@ pub async fn download_course(
     force: bool,
     cur_term: bool,
     overwrite: bool,
+    suffix_on_conflict: bool,
 ) -> anyhow::Result<()> {
     let items = fetch_ppts(force, cur_term).await?;
     let course = select_course_name(&items)?;
@@ -303,7 +305,7 @@ pub async fn download_course(
     for (_, _ppt_id, ppt) in selected.into_iter() {
         let sp = pbar::new_spinner();
         sp.set_message(format!("downloading '{}'", ppt.title()));
-        download_data(sp, dir, &ppt, overwrite, true).await?;
+        download_data(sp, dir, &ppt, overwrite, suffix_on_conflict).await?;
     }
 
     Ok(())

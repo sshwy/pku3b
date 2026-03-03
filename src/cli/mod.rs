@@ -179,6 +179,10 @@ enum PptCommands {
         /// 覆盖同名文件
         #[arg(short, long, default_value = "false")]
         overwrite: bool,
+
+        /// 遇到同名文件时自动添加递增数字后缀（如 file(1).pdf）
+        #[arg(long, default_value = "false")]
+        suffix_on_conflict: bool,
     },
 }
 
@@ -564,14 +568,30 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     dir,
                     all_term,
                     overwrite,
+                    suffix_on_conflict,
                 } => {
                     if course {
                         if id.is_some() {
                             anyhow::bail!("cannot use both ppt id and course name together");
                         }
-                        cmd_ppt::download_course(&dir, force, !all_term, overwrite).await?
+                        cmd_ppt::download_course(
+                            &dir,
+                            force,
+                            !all_term,
+                            overwrite,
+                            suffix_on_conflict,
+                        )
+                        .await?
                     } else {
-                        cmd_ppt::download(id.as_deref(), &dir, force, !all_term, overwrite).await?
+                        cmd_ppt::download(
+                            id.as_deref(),
+                            &dir,
+                            force,
+                            !all_term,
+                            overwrite,
+                            suffix_on_conflict,
+                        )
+                        .await?
                     }
                 }
             },
