@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 
 pub const OAUTH_REDIR: &str = "http://elective.pku.edu.cn:80/elective2008/ssoLogin.do";
@@ -30,7 +32,30 @@ impl LowLevelClient {
             .send()
             .await?;
 
-        log::trace!("redir to http");
+        log::trace!("Expection: redir to http url");
+        if res.status() == http::StatusCode::OK {
+            // Check for dual degree selection page
+            let res = res.text().await?;
+            let res = Html::parse_document(res.as_str());
+            let selector1 = scraper::Selector::parse("#div1").expect("Static CSS selector should parse");
+            let selector2 = scraper::Selector::parse("#div2").expect("Static CSS selector should parse");
+
+            fn get_div_content_by_selector(html: &Html, selector: &scraper::Selector) -> Option<String> {
+                html
+                    .select(selector)
+                    .next()
+                    .map(|element_ref| element_ref.inner_html())
+            }
+            let text1 = get_div_content_by_selector(&res, &selector1)
+                .ok_or(anyhow::anyhow!("Dual degree selection page expected but not detected. Is the page updated?"))?;
+            let text2 = get_div_content_by_selector(&res, &selector2)
+                .ok_or(anyhow::anyhow!("Dual degree selection page expected but not detected. Is the page updated?"))?;
+            if text1 == "主 修" && text2 == "辅 双" {
+                anyhow::bail!("major or minor degree unspecified. Use `pku3b s -d major|minor` to specify.");
+            } else {
+                anyhow::bail!("Unexpected HTTP 200. Redirect expected.");
+            }
+        }
         anyhow::ensure!(
             res.status().is_redirection(),
             "error status {}",
@@ -41,7 +66,7 @@ impl LowLevelClient {
         };
         let url = url.to_str().context("Location not valid str")?;
 
-        log::trace!("redir to https");
+        log::trace!("Expection: redir to https url");
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(
             res.status().is_redirection(),

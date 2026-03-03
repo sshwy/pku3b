@@ -127,10 +127,12 @@ impl Blackboard {
     async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String, bool)>> {
         let dom = self.client.bb_homepage().await?;
         let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
+        let portlet_sel = Selector::parse("div.portlet").unwrap();
+        let title_in_portlet_sel = Selector::parse("span.moduleTitle").unwrap();
         let ul_sel = Selector::parse("ul.courseListing").unwrap();
         let sel = Selector::parse("li a").unwrap();
 
-        let f = |a: scraper::ElementRef<'_>| {
+        let to_key_text = |a: scraper::ElementRef<'_>| {
             let href = a.value().attr("href").unwrap();
             let text = a.text().collect::<String>();
             // use regex to extract course key (of form key=_80052_1)
@@ -146,21 +148,32 @@ impl Blackboard {
         };
 
         // the first one contains the courses in the current semester
-        let ul = dom.select(&ul_sel).nth(0).context("courses not found")?;
-        let courses = ul.select(&sel).map(f).collect::<anyhow::Result<Vec<_>>>()?;
-
         // the second one contains the courses in the previous semester
-        let ul_history = dom.select(&ul_sel).nth(1).context("courses not found")?;
-        let courses_history = ul_history
-            .select(&sel)
-            .map(f)
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let mut courses = Vec::new();
 
-        Ok(courses
-            .into_iter()
-            .map(|(k, t)| (k, t, true))
-            .chain(courses_history.into_iter().map(|(k, t)| (k, t, false)))
-            .collect())
+        for portlet in dom.select(&portlet_sel) {
+            let title = portlet.select(&title_in_portlet_sel).nth(0).unwrap();
+            let title = title.text().collect::<String>();
+            log::info!("scanning portlet: {title}");
+            let is_current = title.contains("当前");
+            for ul in portlet.select(&ul_sel) {
+                let items = ul
+                    .select(&sel)
+                    .map(to_key_text)
+                    .map_ok(|(k, t)| (k, t, is_current))
+                    .collect::<Vec<_>>();
+                log::info!("found {} courses, is_current: {is_current}", items.len());
+                courses.extend(items);
+            }
+        }
+
+        if courses.is_empty() {
+            anyhow::bail!("courses not found");
+        }
+
+        let courses = courses.into_iter().collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(courses)
     }
     pub async fn get_courses(&self, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
         log::info!("fetching courses...");
@@ -216,12 +229,7 @@ impl CourseMeta {
     /// Cousre Name
     pub fn name(&self) -> &str {
         let s = self.title();
-        let i = s
-            .char_indices()
-            .filter(|(_, c)| *c == '(')
-            .next_back()
-            .unwrap()
-            .0;
+        let i = s.char_indices().rfind(|(_, c)| *c == '(').unwrap().0;
         s.split_at(i).0.trim()
     }
 }
@@ -1385,6 +1393,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1413,16 +1422,16 @@ impl Syllabus {
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
             r.push(SyllabusBaseCourseData {
-                name: row_values[0].to_owned(),
-                category: row_values[1].to_owned(),
-                score: row_values[2].to_owned(),
-                hours_per_week: row_values[3].to_owned(),
-                teacher: row_values[4].to_owned(),
-                class_id: row_values[5].to_owned(),
-                department: row_values[6].to_owned(),
-                classroom: row_values[7].to_owned(),
-                custom_n_or_np: row_values[8].to_owned(),
-                status: row_values[9].to_owned(),
+                name: row_values[1].to_owned(),
+                category: row_values[2].to_owned(),
+                score: row_values[3].to_owned(),
+                hours_per_week: row_values[4].to_owned(),
+                teacher: row_values[5].to_owned(),
+                class_id: row_values[6].to_owned(),
+                department: row_values[7].to_owned(),
+                classroom: row_values[8].to_owned(),
+                custom_n_or_np: row_values[9].to_owned(),
+                status: row_values[10].to_owned(),
             });
         }
         Ok(r)
@@ -1468,6 +1477,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1497,16 +1507,16 @@ impl Syllabus {
                 .map(|el| el.text().collect::<String>().trim().to_owned())
                 .collect::<Vec<_>>();
             r.push(SyllabusBaseCourseData {
-                name: row_values[0].to_owned(),
-                category: row_values[1].to_owned(),
-                score: row_values[2].to_owned(),
-                hours_per_week: row_values[3].to_owned(),
-                teacher: row_values[4].to_owned(),
-                class_id: row_values[5].to_owned(),
-                department: row_values[6].to_owned(),
-                classroom: row_values[8].to_owned(),
-                custom_n_or_np: row_values[9].to_owned(),
-                status: row_values[10].to_owned(),
+                name: row_values[1].to_owned(),
+                category: row_values[2].to_owned(),
+                score: row_values[3].to_owned(),
+                hours_per_week: row_values[4].to_owned(),
+                teacher: row_values[5].to_owned(),
+                class_id: row_values[6].to_owned(),
+                department: row_values[7].to_owned(),
+                classroom: row_values[9].to_owned(),
+                custom_n_or_np: row_values[10].to_owned(),
+                status: row_values[11].to_owned(),
             });
         }
 
@@ -1541,6 +1551,7 @@ impl Syllabus {
         anyhow::ensure!(
             col_names
                 == [
+                    "课程号",
                     "课程名",
                     "课程类别",
                     "学分",
@@ -1556,6 +1567,7 @@ impl Syllabus {
                 ]
                 || col_names
                     == [
+                        "课程号",
                         "课程名",
                         "课程类别",
                         "学分",
@@ -1585,16 +1597,16 @@ impl Syllabus {
                 .collect::<Vec<_>>();
             r.push(SyllabusSupplementCourseData {
                 base: SyllabusBaseCourseData {
-                    name: row_values[0].to_owned(),
-                    category: row_values[1].to_owned(),
-                    score: row_values[2].to_owned(),
-                    hours_per_week: row_values[3].to_owned(),
-                    teacher: row_values[4].to_owned(),
-                    class_id: row_values[5].to_owned(),
-                    department: row_values[6].to_owned(),
-                    classroom: row_values[8].to_owned(),
-                    custom_n_or_np: row_values[9].to_owned(),
-                    status: row_values[10].to_owned(),
+                    name: row_values[1].to_owned(),
+                    category: row_values[2].to_owned(),
+                    score: row_values[3].to_owned(),
+                    hours_per_week: row_values[4].to_owned(),
+                    teacher: row_values[5].to_owned(),
+                    class_id: row_values[6].to_owned(),
+                    department: row_values[7].to_owned(),
+                    classroom: row_values[9].to_owned(),
+                    custom_n_or_np: row_values[10].to_owned(),
+                    status: row_values[11].to_owned(),
                 },
                 supplement_url: row
                     .child_elements()
