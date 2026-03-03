@@ -1,6 +1,7 @@
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
+mod cmd_ppt;
 mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
@@ -59,6 +60,17 @@ enum Commands {
 
         #[command(subcommand)]
         command: VideoCommands,
+    },
+
+    /// 获取课程 PPT 列表/下载 PPT
+    #[command(visible_alias("p"), arg_required_else_help(true))]
+    Ppt {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+
+        #[command(subcommand)]
+        command: PptCommands,
     },
 
     /// 选课操作
@@ -133,6 +145,40 @@ enum VideoCommands {
         /// 文件下载目录 (支持相对路径)
         #[arg(short = 'o', long)]
         outdir: Option<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum PptCommands {
+    /// 获取课程 PPT 列表
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有学期的 PPT
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+
+    /// 下载 PPT 附件到指定目录
+    #[command(visible_alias("down"))]
+    Download {
+        /// (Optionl) PPT ID (可通过 `pku3b ppt list` 查看)
+        id: Option<String>,
+
+        /// 交互式选择课程并下载该课程的全部课程文件
+        #[arg(short, long, default_value = "false")]
+        course: bool,
+
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short, long, default_value = ".")]
+        dir: std::path::PathBuf,
+
+        /// 在所有学期的课程文件范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+
+        /// 覆盖同名文件
+        #[arg(short, long, default_value = "false")]
+        overwrite: bool,
     },
 }
 
@@ -509,6 +555,25 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     id,
                     all_term,
                 } => cmd_video::download(outdir.as_deref(), force, id, !all_term).await?,
+            },
+            Commands::Ppt { force, command } => match command {
+                PptCommands::List { all_term } => cmd_ppt::list(force, !all_term).await?,
+                PptCommands::Download {
+                    id,
+                    course,
+                    dir,
+                    all_term,
+                    overwrite,
+                } => {
+                    if course {
+                        if id.is_some() {
+                            anyhow::bail!("cannot use both ppt id and course name together");
+                        }
+                        cmd_ppt::download_course(&dir, force, !all_term, overwrite).await?
+                    } else {
+                        cmd_ppt::download(id.as_deref(), &dir, force, !all_term, overwrite).await?
+                    }
+                }
             },
             Commands::Syllabus { dual, command } => match command {
                 SyllabusCommands::Show => cmd_syllabus::show(dual).await?,

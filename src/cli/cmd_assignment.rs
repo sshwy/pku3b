@@ -4,7 +4,7 @@ use anyhow::Context;
 
 use super::*;
 
-async fn get_contents(
+pub(crate) async fn get_contents(
     c: &api::Course,
     pb: indicatif::ProgressBar,
 ) -> anyhow::Result<Vec<api::CourseContent>> {
