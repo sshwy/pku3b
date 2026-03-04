@@ -1,6 +1,7 @@
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
+mod cmd_document;
 mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
@@ -48,6 +49,17 @@ enum Commands {
 
         #[command(subcommand)]
         command: AssignmentCommands,
+    },
+
+    /// 获取课程文档/课件/下载文档附件
+    #[command(visible_alias("doc"), arg_required_else_help(true))]
+    Document {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+
+        #[command(subcommand)]
+        command: DocumentCommands,
     },
 
     /// 获取课程回放/下载课程回放
@@ -198,6 +210,32 @@ enum AssignmentCommands {
         id: Option<String>,
         /// 提交文件路径
         path: Option<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum DocumentCommands {
+    /// 查看课程文档/课件列表
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有学期的课程文档（包括已完成的）
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+    /// 下载课程文档/课件附件到指定文件夹下
+    ///
+    /// 如果没有指定文档 ID，则会启用交互式模式，列出所有文档供用户选择
+    #[command(visible_alias("down"))]
+    Download {
+        /// (Optional) 文档 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b doc ls` 查看)
+        #[arg(group = "download-type")]
+        id: Option<String>,
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short, long, default_value = ".")]
+        dir: std::path::PathBuf,
+        /// 在所有学期的文档范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
     },
 }
 
@@ -500,6 +538,14 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
                 AssignmentCommands::Submit { id, path } => {
                     cmd_assignment::submit(id.as_deref(), path.as_deref()).await?
+                }
+            },
+            Commands::Document { force, command } => match command {
+                DocumentCommands::List { all_term } => {
+                    cmd_document::list(force, false, !all_term).await?
+                }
+                DocumentCommands::Download { id, dir, all_term } => {
+                    cmd_document::download(id.as_deref(), &dir, force, !all_term).await?
                 }
             },
             Commands::Video { force, command } => match command {

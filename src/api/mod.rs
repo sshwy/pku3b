@@ -401,6 +401,28 @@ impl Course {
 
         Ok(videos)
     }
+
+    /// List all documents/materials in this course
+    pub async fn list_documents(&self) -> anyhow::Result<Vec<CourseDocumentHandle>> {
+        log::info!("fetching document list for course {}", self.meta.title());
+
+        let mut stream = self.content_stream();
+        let mut documents = Vec::new();
+
+        while let Some(batch) = stream.next_batch().await {
+            for data in batch {
+                if let CourseContentKind::Document = data.kind {
+                    documents.push(CourseDocumentHandle {
+                        client: self.client.clone(),
+                        course: self.meta.clone(),
+                        content: data.into(),
+                    });
+                }
+            }
+        }
+
+        Ok(documents)
+    }
 }
 
 pub struct CourseContentStream {
@@ -491,6 +513,18 @@ impl CourseContent {
     pub fn into_assignment_opt(self) -> Option<CourseAssignmentHandle> {
         if let CourseContentKind::Assignment = self.data.kind {
             Some(CourseAssignmentHandle {
+                client: self.client,
+                course: self.course,
+                content: self.data,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn into_document_opt(self) -> Option<CourseDocumentHandle> {
+        if let CourseContentKind::Document = self.data.kind {
+            Some(CourseDocumentHandle {
                 client: self.client,
                 course: self.course,
                 content: self.data,
@@ -878,6 +912,69 @@ impl CourseAssignment {
             .to_owned();
 
         log::debug!("redicted to https://course.pku.edu.cn{loc}");
+        let res = self.client.get_by_uri(&loc).await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.bytes().await?;
+        let r = compio::fs::write(dest, rbody).await;
+        compio::buf::buf_try!(@try r);
+        Ok(())
+    }
+}
+
+/// Handle for course document/material download
+#[derive(Debug, Clone)]
+pub struct CourseDocumentHandle {
+    client: Client,
+    course: Arc<CourseMeta>,
+    content: Arc<CourseContentData>,
+}
+
+impl CourseDocumentHandle {
+    /// Document identifier computed from hash
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.id.hash(&mut hasher);
+        self.content.id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+
+    pub fn title(&self) -> &str {
+        &self.content.title
+    }
+
+    pub fn descriptions(&self) -> &[String] {
+        &self.content.descriptions
+    }
+
+    pub fn attachments(&self) -> &[(String, String)] {
+        &self.content.attachments
+    }
+
+    /// Download a document attachment to the specified path
+    pub async fn download_attachment(
+        &self,
+        uri: &str,
+        dest: &std::path::Path,
+    ) -> anyhow::Result<()> {
+        log::debug!("downloading document attachment from https://course.pku.edu.cn{uri}");
+        let res = self.client.get_by_uri(uri).await?;
+        anyhow::ensure!(
+            res.status().as_u16() == 302,
+            "status not 302: {}",
+            res.status()
+        );
+
+        let loc = res
+            .headers()
+            .get("location")
+            .context("location header not found")?
+            .to_str()
+            .context("location header not str")?
+            .to_owned();
+
+        log::debug!("redirected to https://course.pku.edu.cn{loc}");
         let res = self.client.get_by_uri(&loc).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
