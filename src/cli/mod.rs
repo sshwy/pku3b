@@ -2,6 +2,7 @@ mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
 mod cmd_document;
+mod cmd_notice;
 mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
@@ -60,6 +61,17 @@ enum Commands {
 
         #[command(subcommand)]
         command: DocumentCommands,
+    },
+
+    /// 获取课程公告/通知
+    #[command(visible_alias("notice"), arg_required_else_help(true))]
+    Notice {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+
+        #[command(subcommand)]
+        command: NoticeCommands,
     },
 
     /// 获取课程回放/下载课程回放
@@ -234,6 +246,17 @@ enum DocumentCommands {
         #[arg(short, long, default_value = ".")]
         dir: std::path::PathBuf,
         /// 在所有学期的文档范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum NoticeCommands {
+    /// 查看课程公告/通知列表
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有学期的课程公告（包括已完成的）
         #[arg(long, default_value = "false")]
         all_term: bool,
     },
@@ -546,6 +569,11 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
                 DocumentCommands::Download { id, dir, all_term } => {
                     cmd_document::download(id.as_deref(), &dir, force, !all_term).await?
+                }
+            },
+            Commands::Notice { force, command } => match command {
+                NoticeCommands::List { all_term } => {
+                    cmd_notice::list(force, !all_term).await?
                 }
             },
             Commands::Video { force, command } => match command {
