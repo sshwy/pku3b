@@ -423,6 +423,28 @@ impl Course {
 
         Ok(documents)
     }
+
+    /// List all announcements/notifications in this course
+    pub async fn list_announcements(&self) -> anyhow::Result<Vec<CourseAnnouncementHandle>> {
+        log::info!("fetching announcement list for course {}", self.meta.title());
+
+        let mut stream = self.content_stream();
+        let mut announcements = Vec::new();
+
+        while let Some(batch) = stream.next_batch().await {
+            for data in batch {
+                if let CourseContentKind::Announcement = data.kind {
+                    announcements.push(CourseAnnouncementHandle {
+                        client: self.client.clone(),
+                        course: self.meta.clone(),
+                        content: data.into(),
+                    });
+                }
+            }
+        }
+
+        Ok(announcements)
+    }
 }
 
 pub struct CourseContentStream {
@@ -533,12 +555,25 @@ impl CourseContent {
             None
         }
     }
+
+    pub fn into_announcement_opt(self) -> Option<CourseAnnouncementHandle> {
+        if let CourseContentKind::Announcement = self.data.kind {
+            Some(CourseAnnouncementHandle {
+                client: self.client,
+                course: self.course,
+                content: self.data,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 enum CourseContentKind {
     Document,
     Assignment,
+    Announcement,
     Unknown,
 }
 
@@ -582,6 +617,7 @@ impl CourseContentData {
         let kind = match img.attr("alt") {
             Some("作业") => CourseContentKind::Assignment,
             Some("项目") | Some("文件") => CourseContentKind::Document,
+            Some("通知") | Some("公告") => CourseContentKind::Announcement,
             alt => {
                 log::warn!("unknown content kind: {alt:?}");
                 CourseContentKind::Unknown
@@ -982,6 +1018,37 @@ impl CourseDocumentHandle {
         let r = compio::fs::write(dest, rbody).await;
         compio::buf::buf_try!(@try r);
         Ok(())
+    }
+}
+
+/// Handle for course announcement/notifications
+#[derive(Debug, Clone)]
+pub struct CourseAnnouncementHandle {
+    client: Client,
+    course: Arc<CourseMeta>,
+    content: Arc<CourseContentData>,
+}
+
+impl CourseAnnouncementHandle {
+    /// Announcement identifier computed from hash
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.id.hash(&mut hasher);
+        self.content.id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+
+    pub fn title(&self) -> &str {
+        &self.content.title
+    }
+
+    pub fn descriptions(&self) -> &[String] {
+        &self.content.descriptions
+    }
+
+    pub fn attachments(&self) -> &[(String, String)] {
+        &self.content.attachments
     }
 }
 
