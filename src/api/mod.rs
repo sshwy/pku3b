@@ -439,11 +439,18 @@ impl CourseContentStream {
         let mut all_contents = Vec::new();
         for dom in doms {
             let dom = dom?;
+            let title_sel = Selector::parse("#pageTitleText > span").unwrap();
+            let title = dom
+                .select(&title_sel)
+                .next()
+                .context("course content title not found")?
+                .text()
+                .collect::<String>();
             let selector = Selector::parse("#content_listContainer > li").unwrap();
             let contents = dom
                 .select(&selector)
                 .filter_map(|li| {
-                    CourseContentData::from_element(li)
+                    CourseContentData::from_element(li, Some(title.clone()))
                         .inspect_err(|e| log::warn!("CourseContentData::from_element error: {e}"))
                         .ok()
                 })
@@ -503,6 +510,20 @@ impl CourseContent {
             None
         }
     }
+
+    pub fn into_ppt_opt(self) -> Option<CoursePPTHandle> {
+        if let CourseContentKind::Document = self.data.kind
+            && self.data.root_title.as_str() == "教学内容"
+        {
+            Some(CoursePPTHandle {
+                client: self.client,
+                course: self.course,
+                content: self.data,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -516,6 +537,7 @@ enum CourseContentKind {
 pub struct CourseContentData {
     id: String,
     title: String,
+    root_title: String,
     kind: CourseContentKind,
     has_link: bool,
     descriptions: Vec<String>,
@@ -545,7 +567,10 @@ fn collect_text(element: scraper::ElementRef) -> String {
 }
 
 impl CourseContentData {
-    fn from_element(el: scraper::ElementRef<'_>) -> anyhow::Result<Self> {
+    fn from_element(
+        el: scraper::ElementRef<'_>,
+        root_title: Option<String>,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(el.value().name() == "li", "not a li element");
         let (img, title_div, detail_div) = el.child_elements().take(3).collect_tuple().unwrap();
 
@@ -564,6 +589,7 @@ impl CourseContentData {
             .to_owned();
 
         let title = title_div.text().collect::<String>().trim().to_owned();
+        let root_title = root_title.unwrap_or_else(|| "Unknown".to_owned());
         let has_link = title_div
             .select(&Selector::parse("a").unwrap())
             .next()
@@ -574,23 +600,39 @@ impl CourseContentData {
             .map(|p| collect_text(p).trim().to_owned())
             .collect::<Vec<_>>();
 
-        let attachments = detail_div
-            .select(&Selector::parse("ul.attachments > li > a").unwrap())
-            .map(|a| {
-                let text = a.text().collect::<String>();
-                let href = a.value().attr("href").unwrap();
-                let text = if let Some(text) = text.strip_prefix("\u{a0}") {
-                    text.to_owned()
-                } else {
-                    text
-                };
-                Ok((text, href.to_owned()))
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let attachments = {
+            let attachments = detail_div
+                .select(&Selector::parse("ul.attachments > li > a").unwrap())
+                .map(|a| {
+                    let text = a.text().collect::<String>();
+                    let href = a.value().attr("href").unwrap();
+                    let text = if let Some(text) = text.strip_prefix("\u{a0}") {
+                        text.to_owned()
+                    } else {
+                        text
+                    };
+                    Ok((text, href.to_owned()))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            let title_link = title_div
+                .select(&Selector::parse("a").unwrap())
+                .next()
+                .and_then(|a| {
+                    let text = a.text().collect::<String>();
+                    let href = a.value().attr("href")?;
+                    Some((text, href.to_owned()))
+                });
+            if attachments.is_empty() {
+                title_link.into_iter().collect()
+            } else {
+                attachments
+            }
+        };
 
         Ok(CourseContentData {
             id,
             title,
+            root_title,
             kind,
             has_link,
             descriptions,
@@ -858,6 +900,80 @@ impl CourseAssignment {
 
     pub fn deadline_raw(&self) -> Option<&str> {
         self.data.deadline.as_deref()
+    }
+
+    pub async fn download_attachment(
+        &self,
+        uri: &str,
+        dest: &std::path::Path,
+    ) -> anyhow::Result<()> {
+        log::debug!("downloading attachment from https://course.pku.edu.cn{uri}");
+        let res = self.client.get_by_uri(uri).await?;
+        anyhow::ensure!(
+            res.status().as_u16() == 302,
+            "status not 302: {}",
+            res.status()
+        );
+
+        let loc = res
+            .headers()
+            .get("location")
+            .context("location header not found")?
+            .to_str()
+            .context("location header not str")?
+            .to_owned();
+
+        log::debug!("redicted to https://course.pku.edu.cn{loc}");
+        let res = self.client.get_by_uri(&loc).await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.bytes().await?;
+        let r = compio::fs::write(dest, rbody).await;
+        compio::buf::buf_try!(@try r);
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CoursePPTHandle {
+    client: Client,
+    course: Arc<CourseMeta>,
+    content: Arc<CourseContentData>,
+}
+
+impl CoursePPTHandle {
+    pub fn get(&self) -> anyhow::Result<CoursePPT> {
+        Ok(CoursePPT {
+            client: self.client.clone(),
+            content: self.content.clone(),
+        })
+    }
+
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.id.hash(&mut hasher);
+        self.content.id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+}
+
+pub struct CoursePPT {
+    client: Client,
+    content: Arc<CourseContentData>,
+}
+
+impl CoursePPT {
+    pub fn title(&self) -> &str {
+        &self.content.title
+    }
+
+    pub fn descriptions(&self) -> &[String] {
+        &self.content.descriptions
+    }
+
+    pub fn attachments(&self) -> &[(String, String)] {
+        &self.content.attachments
     }
 
     pub async fn download_attachment(
