@@ -91,9 +91,13 @@ impl Client {
             } else {
                 "bfx"
             };
-            c.sb_login_dual_degree(username, password, sttp).await?;
+            c.sb_login_dual_degree(username, password, sttp)
+                .await
+                .context("syllabus login dual degree")?;
         } else {
-            c.sb_login(username, password).await?;
+            c.sb_login(username, password)
+                .await
+                .context("syllabus login")?;
         }
 
         Ok(Syllabus {
