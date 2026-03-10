@@ -86,11 +86,3 @@ bark = ["dep:urlencoding"]
 [profile.release]
 lto = true
 codegen-units = 1
-
-[target.'cfg(hyper_unstable_tracing)'.dependencies]
-tracing = { version = "0.1" }
-tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
-
-[lints.rust.unexpected_cfgs]
-level = "allow"
-check-cfg = ['cfg(hyper_unstable_tracing)']

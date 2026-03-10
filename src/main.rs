@@ -21,22 +21,13 @@ async fn main() {
         .install_default()
         .unwrap();
 
-    #[cfg(not(hyper_unstable_tracing))]
-    {
-        env_logger::Builder::new()
-            .filter_level(log::LevelFilter::Warn)
-            .parse_default_env()
-            .filter_module("selectors::matching", log::LevelFilter::Info)
-            .filter_module("html5ever::tokenizer", log::LevelFilter::Info)
-            .filter_module("html5ever::tree_builder", log::LevelFilter::Error)
-            .init();
-    }
-
-    #[cfg(hyper_unstable_tracing)]
-    {
-        tracing_subscriber::fmt::init();
-    }
-
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .parse_default_env()
+        .filter_module("selectors::matching", log::LevelFilter::Info)
+        .filter_module("html5ever::tokenizer", log::LevelFilter::Info)
+        .filter_module("html5ever::tree_builder", log::LevelFilter::Error)
+        .init();
     log::debug!("logger initialized...");
 
     let cli = cli::Cli::parse();
