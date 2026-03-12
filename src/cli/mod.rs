@@ -63,10 +63,7 @@ enum Commands {
     /// Bark通知设置
     #[cfg(feature = "bark")]
     #[command(visible_alias("b"), arg_required_else_help(true))]
-    Bark {
-        #[command(subcommand)]
-        command: BarkCommands,
-    },
+    Bark(cmd_bark::CommandBark),
 
     /// (重新) 初始化用户名/密码
     Init,
@@ -104,14 +101,6 @@ enum TtshituCommands {
     Init,
     /// 测试图形验证码识别
     Test { image_path: Option<String> },
-}
-
-#[derive(Subcommand)]
-enum BarkCommands {
-    /// 初始化 Bark 通知令牌
-    Init,
-    /// 测试 Bark 通知
-    Test,
 }
 
 impl clap::ValueEnum for DualDegree {
@@ -397,10 +386,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             },
 
             #[cfg(feature = "bark")]
-            Commands::Bark { command } => match command {
-                BarkCommands::Init => cmd_bark::command_bark_init().await?,
-                BarkCommands::Test => cmd_bark::command_bark_test().await?,
-            },
+            Commands::Bark(cmd) => cmd_bark::run(cmd).await?,
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,

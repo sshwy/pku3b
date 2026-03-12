@@ -1,6 +1,28 @@
 use super::*;
 use anyhow::Context;
 
+#[derive(clap::Args)]
+pub struct CommandBark {
+    #[command(subcommand)]
+    command: BarkCommands,
+}
+
+#[derive(Subcommand)]
+enum BarkCommands {
+    /// 初始化 Bark 通知令牌
+    Init,
+    /// 测试 Bark 通知
+    Test,
+}
+
+pub async fn run(cmd: CommandBark) -> anyhow::Result<()> {
+    match cmd.command {
+        BarkCommands::Init => command_bark_init().await?,
+        BarkCommands::Test => command_bark_test().await?,
+    }
+    Ok(())
+}
+
 pub async fn command_bark_init() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
     let mut cfg = config::read_cfg(&cfg_path)
