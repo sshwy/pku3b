@@ -4,6 +4,72 @@ use anyhow::Context;
 
 use super::*;
 
+#[derive(clap::Args)]
+pub struct CommandAssignment {
+    /// 强制刷新
+    #[arg(short, long, default_value = "false")]
+    force: bool,
+
+    #[command(subcommand)]
+    command: AssignmentCommands,
+}
+
+#[derive(Subcommand)]
+enum AssignmentCommands {
+    /// 查看作业列表，按照截止日期排序
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有作业，包括已完成的
+        #[arg(short, long, default_value = "false")]
+        all: bool,
+        /// 显示所有学期的作业（包括已完成的）
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+    /// 下载作业要求和附件到指定文件夹下
+    ///
+    /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
+    #[command(visible_alias("down"))]
+    Download {
+        /// (Optionl) 作业 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        #[arg(group = "download-type")]
+        id: Option<String>,
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short, long, default_value = ".")]
+        dir: std::path::PathBuf,
+        /// 在所有学期的作业范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+    /// 提交课程作业
+    ///
+    /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
+    ///
+    /// 如果没有指定文件路径，则会启用交互式模式，列出当前工作目录下所有文件供用户选择
+    #[command(visible_alias("sb"))]
+    Submit {
+        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        id: Option<String>,
+        /// 提交文件路径
+        path: Option<std::path::PathBuf>,
+    },
+}
+
+pub async fn run(cmd: CommandAssignment) -> anyhow::Result<()> {
+    match cmd.command {
+        AssignmentCommands::List { all, all_term } => {
+            cmd_assignment::list(cmd.force, all || all_term, !all_term).await?
+        }
+        AssignmentCommands::Download { id, dir, all_term } => {
+            cmd_assignment::download(id.as_deref(), &dir, cmd.force, all_term, !all_term).await?
+        }
+        AssignmentCommands::Submit { id, path } => {
+            cmd_assignment::submit(id.as_deref(), path.as_deref()).await?
+        }
+    }
+    Ok(())
+}
+
 async fn get_contents(
     c: &Course,
     pb: indicatif::ProgressBar,
