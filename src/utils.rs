@@ -69,7 +69,7 @@ where
 
 pub async fn with_cache_bytes<F>(
     name: &str,
-    ttl: Option<&std::time::Duration>,
+    ttl: Option<std::time::Duration>,
     fut: F,
 ) -> anyhow::Result<bytes::Bytes>
 where
@@ -87,7 +87,7 @@ where
 
     if let Ok(f) = fs::File::open(path).await
         && let Some(ttl) = ttl
-        && f.metadata().await?.modified()?.elapsed()? < *ttl
+        && f.metadata().await?.modified()?.elapsed()? < ttl
     {
         let r = f.read_to_end_at(Vec::new(), 0).await;
         let (_, buf) = buf_try!(@try r);

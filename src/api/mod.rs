@@ -72,8 +72,8 @@ impl Client {
         self.0.cache_ttl.as_ref()
     }
 
-    pub fn download_artifact_ttl(&self) -> Option<&std::time::Duration> {
-        self.0.download_artifact_ttl.as_ref()
+    pub fn download_artifact_ttl(&self) -> Option<std::time::Duration> {
+        self.0.download_artifact_ttl.clone()
     }
 }
 
