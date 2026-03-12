@@ -2,6 +2,46 @@ use anyhow::Context;
 
 use super::*;
 
+#[derive(clap::Args)]
+pub struct CommandSyllabus {
+    /// 双学位类型
+    #[arg(short = 'd', long)]
+    dual: Option<DualDegree>,
+
+    #[command(subcommand)]
+    command: SyllabusCommands,
+}
+
+#[derive(Subcommand)]
+enum SyllabusCommands {
+    /// 查看选课结果
+    Show,
+    /// 选择课程并配置快捷选课
+    Set,
+    /// 取消课程的快捷选课配置
+    Unset,
+    /// 启动自动补退选程序
+    #[cfg(feature = "autoelect")]
+    Launch {
+        /// 等待间隔（秒）默认为 5s
+        #[arg(short = 't', long, default_value = "15")]
+        interval: u64,
+    },
+}
+
+pub async fn run(cmd: CommandSyllabus) -> anyhow::Result<()> {
+    match cmd.command {
+        SyllabusCommands::Show => show(cmd.dual).await?,
+        SyllabusCommands::Set => set_autoelective(cmd.dual).await?,
+        SyllabusCommands::Unset => unset_autoelective().await?,
+        #[cfg(feature = "autoelect")]
+        SyllabusCommands::Launch { interval } => {
+            launch_autoelective(interval, cmd.dual).await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 

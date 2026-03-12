@@ -57,14 +57,7 @@ enum Commands {
 
     /// 选课操作
     #[command(visible_alias("s"), arg_required_else_help(true))]
-    Syllabus {
-        /// 双学位类型
-        #[arg(short = 'd', long)]
-        dual: Option<DualDegree>,
-
-        #[command(subcommand)]
-        command: SyllabusCommands,
-    },
+    Syllabus(cmd_syllabus::CommandSyllabus),
 
     /// 图形验证码识别
     #[cfg(feature = "ttshitu")]
@@ -153,23 +146,6 @@ enum BarkCommands {
     Init,
     /// 测试 Bark 通知
     Test,
-}
-
-#[derive(Subcommand)]
-enum SyllabusCommands {
-    /// 查看选课结果
-    Show,
-    /// 选择课程并配置快捷选课
-    Set,
-    /// 取消课程的快捷选课配置
-    Unset,
-    /// 启动自动补退选程序
-    #[cfg(feature = "autoelect")]
-    Launch {
-        /// 等待间隔（秒）默认为 5s
-        #[arg(short = 't', long, default_value = "15")]
-        interval: u64,
-    },
 }
 
 impl clap::ValueEnum for DualDegree {
@@ -454,15 +430,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     all_term,
                 } => cmd_video::download(outdir.as_deref(), force, id, !all_term).await?,
             },
-            Commands::Syllabus { dual, command } => match command {
-                SyllabusCommands::Show => cmd_syllabus::show(dual).await?,
-                SyllabusCommands::Set => cmd_syllabus::set_autoelective(dual).await?,
-                SyllabusCommands::Unset => cmd_syllabus::unset_autoelective().await?,
-                #[cfg(feature = "autoelect")]
-                SyllabusCommands::Launch { interval } => {
-                    cmd_syllabus::launch_autoelective(interval, dual).await?;
-                }
-            },
+            Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
             #[cfg(feature = "ttshitu")]
             Commands::Ttshitu { command } => match command {
