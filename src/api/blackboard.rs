@@ -49,7 +49,7 @@ impl Blackboard {
             let title = portlet.select(&title_in_portlet_sel).nth(0).unwrap();
             let title = title.text().collect::<String>();
             log::info!("scanning portlet: {title}");
-            let is_current = title.contains("当前");
+            let is_current = title.contains("当前") || title.contains("Current Semester Courses");
             for ul in portlet.select(&ul_sel) {
                 let items = ul
                     .select(&sel)
