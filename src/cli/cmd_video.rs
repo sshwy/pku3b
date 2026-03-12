@@ -1,6 +1,57 @@
 use anyhow::Context;
 
 use super::*;
+
+#[derive(clap::Args)]
+pub struct CommandVideo {
+    /// 强制刷新
+    #[arg(short, long, default_value = "false")]
+    force: bool,
+
+    #[command(subcommand)]
+    command: VideoCommands,
+}
+
+#[derive(Subcommand)]
+enum VideoCommands {
+    /// 获取课程回放列表
+    #[command(visible_alias("ls"))]
+    List {
+        /// 显示所有学期的课程回放
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+    },
+
+    /// 下载课程回放视频 (MP4 格式)，支持断点续传
+    #[command(visible_alias("down"))]
+    #[cfg(feature = "video-download")]
+    Download {
+        /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
+        id: String,
+
+        /// 在所有学期的课程回放范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short = 'o', long)]
+        outdir: Option<std::path::PathBuf>,
+    },
+}
+
+pub async fn run(cmd: CommandVideo) -> anyhow::Result<()> {
+    match cmd.command {
+        VideoCommands::List { all_term } => list(cmd.force, !all_term).await?,
+        #[cfg(feature = "video-download")]
+        VideoCommands::Download {
+            outdir,
+            id,
+            all_term,
+        } => download(outdir.as_deref(), cmd.force, id, !all_term).await?,
+    }
+    Ok(())
+}
+
 pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     let courses = load_courses(force, cur_term).await?;
 

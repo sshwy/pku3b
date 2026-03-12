@@ -46,14 +46,7 @@ enum Commands {
 
     /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"), arg_required_else_help(true))]
-    Video {
-        /// 强制刷新
-        #[arg(short, long, default_value = "false")]
-        force: bool,
-
-        #[command(subcommand)]
-        command: VideoCommands,
-    },
+    Video(cmd_video::CommandVideo),
 
     /// 选课操作
     #[command(visible_alias("s"), arg_required_else_help(true))]
@@ -95,33 +88,6 @@ enum Commands {
     #[cfg(feature = "dev")]
     #[command(hide(true))]
     Debug,
-}
-
-#[derive(Subcommand)]
-enum VideoCommands {
-    /// 获取课程回放列表
-    #[command(visible_alias("ls"))]
-    List {
-        /// 显示所有学期的课程回放
-        #[arg(long, default_value = "false")]
-        all_term: bool,
-    },
-
-    /// 下载课程回放视频 (MP4 格式)，支持断点续传
-    #[command(visible_alias("down"))]
-    #[cfg(feature = "video-download")]
-    Download {
-        /// 课程回放 ID (形如 `e780808c9eb81f61`, 可通过 `pku3b video list` 查看)
-        id: String,
-
-        /// 在所有学期的课程回放范围中查找
-        #[arg(long, default_value = "false")]
-        all_term: bool,
-
-        /// 文件下载目录 (支持相对路径)
-        #[arg(short = 'o', long)]
-        outdir: Option<std::path::PathBuf>,
-    },
 }
 
 #[derive(Subcommand)]
@@ -421,15 +387,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
-            Commands::Video { force, command } => match command {
-                VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
-                #[cfg(feature = "video-download")]
-                VideoCommands::Download {
-                    outdir,
-                    id,
-                    all_term,
-                } => cmd_video::download(outdir.as_deref(), force, id, !all_term).await?,
-            },
+            Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
             #[cfg(feature = "ttshitu")]
