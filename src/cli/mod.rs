@@ -5,6 +5,7 @@ mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
 
+use crate::api::blackboard::*;
 use crate::{api, build, config, utils, walkdir};
 use anyhow::Context as _;
 use clap::{
@@ -236,7 +237,7 @@ impl clap::ValueEnum for api::DualDegree {
 async fn load_client_courses(
     force: bool,
     only_current: bool,
-) -> anyhow::Result<(api::Client, Vec<api::CourseHandle>, pbar::AsyncSpinner)> {
+) -> anyhow::Result<(api::Client, Vec<CourseHandle>, pbar::AsyncSpinner)> {
     let client = if force {
         api::Client::new_nocache()
     } else {
@@ -266,7 +267,7 @@ async fn load_client_courses(
     Ok((client, courses, sp))
 }
 
-async fn load_courses(force: bool, only_current: bool) -> anyhow::Result<Vec<api::CourseHandle>> {
+async fn load_courses(force: bool, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
     let (_, r, _) = load_client_courses(force, only_current).await?;
     Ok(r)
 }

@@ -5,9 +5,9 @@ use anyhow::Context;
 use super::*;
 
 async fn get_contents(
-    c: &api::Course,
+    c: &Course,
     pb: indicatif::ProgressBar,
-) -> anyhow::Result<Vec<api::CourseContent>> {
+) -> anyhow::Result<Vec<CourseContent>> {
     let fut = async {
         let mut s = c.content_stream();
 
@@ -39,9 +39,9 @@ async fn get_contents(
 }
 
 async fn get_assignments(
-    c: &api::Course,
+    c: &Course,
     pb: indicatif::ProgressBar,
-) -> anyhow::Result<Vec<api::CourseAssignmentHandle>> {
+) -> anyhow::Result<Vec<CourseAssignmentHandle>> {
     let r = get_contents(c, pb)
         .await?
         .into_iter()
@@ -53,7 +53,7 @@ async fn get_assignments(
 async fn get_courses_and_assignments(
     force: bool,
     cur_term: bool,
-) -> anyhow::Result<Vec<(api::Course, Vec<(String, api::CourseAssignment)>)>> {
+) -> anyhow::Result<Vec<(Course, Vec<(String, CourseAssignment)>)>> {
     let courses = load_courses(force, cur_term).await?;
 
     // fetch each course concurrently
@@ -127,7 +127,7 @@ pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> 
     Ok(())
 }
 
-type AssignmentListItem = (Arc<api::Course>, String, api::CourseAssignment);
+type AssignmentListItem = (Arc<Course>, String, CourseAssignment);
 
 async fn fetch_assignments(
     force: bool,
@@ -203,7 +203,7 @@ pub async fn download(
 async fn download_data(
     sp: pbar::AsyncSpinner,
     dir: &std::path::Path,
-    a: &api::CourseAssignment,
+    a: &CourseAssignment,
 ) -> anyhow::Result<()> {
     if !dir.exists() {
         compio::fs::create_dir_all(dir).await?;
@@ -290,8 +290,8 @@ pub async fn submit(id: Option<&str>, path: Option<&std::path::Path>) -> anyhow:
 fn write_assignment_title_ln(
     buf: &mut Vec<u8>,
     id: &str,
-    c: &api::Course,
-    a: &api::CourseAssignment,
+    c: &Course,
+    a: &CourseAssignment,
 ) -> std::io::Result<()> {
     write!(buf, "{BL}{B}{}{B:#}{BL:#} {D}>{D:#} ", c.meta().name())?;
     write!(buf, "{BL}{B}{}{B:#}{BL:#}", a.title())?;
@@ -312,8 +312,8 @@ fn write_assignment_title_ln(
 fn write_course_assignment(
     buf: &mut Vec<u8>,
     id: &str,
-    c: &api::Course,
-    a: &api::CourseAssignment,
+    c: &Course,
+    a: &CourseAssignment,
 ) -> std::io::Result<()> {
     write_assignment_title_ln(buf, id, c, a)?;
 

@@ -141,7 +141,7 @@ pub async fn download(
 
 #[cfg(feature = "video-download")]
 async fn download_segments(
-    v: &api::CourseVideo,
+    v: &CourseVideo,
     dir: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<Vec<std::path::PathBuf>> {
     let dir = dir.as_ref();
