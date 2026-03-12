@@ -1,10 +1,8 @@
 use anyhow::Context;
 
-use crate::api::SyllabusSupplementCourseData;
-
 use super::*;
 
-pub async fn show(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
+pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 
     let sp = pbar::new_spinner();
@@ -40,7 +38,7 @@ pub async fn show(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn set_autoelective(dual: Option<api::DualDegree>) -> anyhow::Result<()> {
+pub async fn set_autoelective(dual: Option<DualDegree>) -> anyhow::Result<()> {
     let c = api::Client::new_nocache();
 
     let sp = pbar::new_spinner();
@@ -186,7 +184,7 @@ async fn select_supplement_course_config(
 #[cfg(feature = "autoelect")]
 pub async fn launch_autoelective(
     interval: u64,
-    dual: Option<api::DualDegree>,
+    dual: Option<DualDegree>,
 ) -> anyhow::Result<std::convert::Infallible> {
     let c = api::Client::new_nocache();
 
@@ -215,7 +213,7 @@ pub async fn launch_autoelective(
 }
 
 #[cfg(feature = "autoelect")]
-async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
+async fn autoelective_loop<R: Future<Output = anyhow::Result<Syllabus>>>(
     sy_ctor: impl Fn() -> R,
     interval: u64,
     ttshitu: &config::TTShiTuConfig,
@@ -223,7 +221,7 @@ async fn autoelective_loop<R: Future<Output = anyhow::Result<api::Syllabus>>>(
     bark_cfg: Option<&config::BarkConfig>,
 ) -> std::convert::Infallible {
     async fn run_loop(
-        sy: &api::Syllabus,
+        sy: &Syllabus,
         interval: u64,
         ttshitu: &config::TTShiTuConfig,
         #[allow(unused)] bark_cfg: Option<&config::BarkConfig>,

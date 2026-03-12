@@ -5,7 +5,7 @@ mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
 
-use crate::api::blackboard::*;
+use crate::api::{blackboard::*, syllabus::*};
 use crate::{api, build, config, utils, walkdir};
 use anyhow::Context as _;
 use clap::{
@@ -67,7 +67,7 @@ enum Commands {
     Syllabus {
         /// 双学位类型
         #[arg(short = 'd', long)]
-        dual: Option<api::DualDegree>,
+        dual: Option<DualDegree>,
 
         #[command(subcommand)]
         command: SyllabusCommands,
@@ -220,7 +220,7 @@ enum SyllabusCommands {
     },
 }
 
-impl clap::ValueEnum for api::DualDegree {
+impl clap::ValueEnum for DualDegree {
     fn value_variants<'a>() -> &'a [Self] {
         &[Self::Major, Self::Minor]
     }
