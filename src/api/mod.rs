@@ -102,6 +102,15 @@ impl Client {
         })
     }
 
+    pub async fn portal(&self, username: &str, password: &str) -> anyhow::Result<Portal> {
+        let c = &self.0.http_client;
+        c.portal_login(username, password).await?;
+
+        Ok(Portal {
+            client: self.clone(),
+        })
+    }
+
     pub fn cache_ttl(&self) -> Option<&std::time::Duration> {
         self.0.cache_ttl.as_ref()
     }
@@ -115,6 +124,82 @@ impl Default for Client {
     fn default() -> Self {
         Self::new(Some(ONE_HOUR), Some(ONE_DAY))
     }
+}
+
+#[derive(Debug)]
+pub struct Portal {
+    client: Client,
+}
+
+impl Portal {
+    /// 获取课表原始 JSON 数据（用于调试）
+    pub async fn get_course_table_raw(&self) -> anyhow::Result<String> {
+        self.client.0.http_client.portal_course_schedule_current().await
+    }
+
+    /// 获取课表信息
+    pub async fn get_course_table(&self) -> anyhow::Result<Vec<CourseSchedule>> {
+        let raw = self.get_course_table_raw().await?;
+        
+        // 尝试解析 JSON
+        // 由于不知道实际格式，先返回空列表并打印原始数据
+        log::info!("Course table JSON: {}", raw);
+        
+        // TODO: 根据实际 JSON 结构解析
+        Ok(vec![])
+    }
+    
+    /// 获取院系列表
+    pub async fn get_dept_list(&self) -> anyhow::Result<String> {
+        self.client.0.http_client.portal_get_dept_list().await
+    }
+    
+    /// 查询课表（完整参数）
+    pub async fn query_course_schedule(
+        &self,
+        year: &str,
+        term: &str,
+        dept_id: &str,
+        course_schedule_type: &str,
+        course_type: Option<&str>,
+    ) -> anyhow::Result<String> {
+        self.client.0.http_client.portal_course_schedule(
+            year, term, dept_id, course_schedule_type, course_type
+        ).await
+    }
+
+    /// 获取个人课表（测试）
+    pub async fn get_my_course_table(
+        &self,
+    ) -> anyhow::Result<String> {
+        self.client
+            .0
+            .http_client
+            .portal_my_course_table_get("", "")
+            .await
+    }
+
+    /// 获取学年学期列表
+    pub async fn get_xndxq_list(&self) -> anyhow::Result<String> {
+        self.client.0.http_client.portal_my_course_table_xndxq_list().await
+    }
+
+    /// 获取课程信息
+    pub async fn get_course_info(&self, xndxq: &str) -> anyhow::Result<String> {
+        self.client.0.http_client.portal_my_course_table_info(xndxq).await
+    }
+}
+
+/// 课程安排信息
+#[derive(Debug, Clone)]
+pub struct CourseSchedule {
+    pub course_name: String,
+    pub teacher: String,
+    pub classroom: String,
+    pub week_day: u8,  // 1-7 周一到周日
+    pub start_slot: u8, // 开始节次
+    pub end_slot: u8,   // 结束节次
+    pub weeks: Vec<u8>, // 上课周数
 }
 
 #[derive(Debug)]

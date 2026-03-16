@@ -3,6 +3,7 @@ mod cmd_assignment;
 mod cmd_bark;
 mod cmd_document;
 mod cmd_notice;
+mod cmd_schedule;
 mod cmd_syllabus;
 mod cmd_video;
 mod pbar;
@@ -72,6 +73,17 @@ enum Commands {
 
         #[command(subcommand)]
         command: NoticeCommands,
+    },
+
+    /// 获取个人课表
+    #[command(visible_alias("sch"))]
+    Schedule {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+        /// 显示原始 JSON 数据（用于调试）
+        #[arg(short, long, default_value = "false")]
+        raw: bool,
     },
 
     /// 获取课程回放/下载课程回放
@@ -581,6 +593,9 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 NoticeCommands::List { all_term, brief, interactive } => {
                     cmd_notice::list(force, !all_term, brief, interactive).await?
                 }
+            },
+            Commands::Schedule { force, raw } => {
+                cmd_schedule::list(force, raw).await?
             },
             Commands::Video { force, command } => match command {
                 VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
