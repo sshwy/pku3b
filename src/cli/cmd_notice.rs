@@ -11,48 +11,16 @@ use utils::style::*;
 
 type AnnouncementListItem = (Arc<api::Course>, String, api::CourseAnnouncementHandle);
 
-async fn get_contents(
-    c: &api::Course,
-    pb: indicatif::ProgressBar,
-) -> anyhow::Result<Vec<api::CourseContent>> {
-    let fut = async {
-        let mut s = c.content_stream();
-
-        pb.set_length(s.len() as u64);
-        pb.tick();
-
-        let mut contents = Vec::new();
-        while let Some(batch) = s.next_batch().await {
-            contents.extend(batch);
-
-            pb.set_length(s.len() as u64);
-            pb.set_position(s.num_finished() as u64);
-            pb.tick();
-        }
-
-        pb.finish_with_message("done.");
-        Ok(contents)
-    };
-
-    let data = utils::with_cache(
-        &format!("get_course_announcements_{}", c.meta().id()),
-        c.client().cache_ttl(),
-        fut,
-    )
-    .await?;
-
-    Ok(data.into_iter().map(|data| c.build_content(data)).collect())
-}
-
 async fn get_announcements(
     c: &api::Course,
     pb: indicatif::ProgressBar,
 ) -> anyhow::Result<Vec<api::CourseAnnouncementHandle>> {
-    let r = get_contents(c, pb)
-        .await?
-        .into_iter()
-        .filter_map(|c| c.into_announcement_opt())
-        .collect();
+    // 使用 course page 获取公告，而不是 content stream
+    let r = c
+        .list_announcements_from_coursepage()
+        .await
+        .with_context(|| format!("fetch announcements from course page for {}", c.meta().title()))?;
+    pb.finish_with_message("done.");
     Ok(r)
 }
 

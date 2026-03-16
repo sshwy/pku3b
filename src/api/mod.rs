@@ -445,6 +445,174 @@ impl Course {
 
         Ok(announcements)
     }
+
+    /// List all announcements from course page (announcement tab)
+    pub async fn list_announcements_from_coursepage(
+        &self,
+    ) -> anyhow::Result<Vec<CourseAnnouncementHandle>> {
+        log::info!(
+            "fetching announcement list from course page for {}",
+            self.meta.title()
+        );
+
+        let dom = self.client.bb_coursepage(&self.meta.id).await?;
+
+        // 解析公告列表 - 从 h3 元素及其相邻元素构建
+        let mut parsed_announcements: Vec<(String, String, String)> = Vec::new();
+        
+        // 查找公告容器
+        let container_selector = Selector::parse(".vtbegenerated, #content_listContainer, div.content, div.clearfix").unwrap();
+        let h3_selector = Selector::parse("h3").unwrap();
+        
+        // 在公告容器内查找 h3
+        for container in dom.select(&container_selector) {
+            // 优先查找 h3 作为标题
+            let h3_elements: Vec<_> = container.select(&h3_selector).collect();
+            
+            if !h3_elements.is_empty() {
+                for (idx, h3) in h3_elements.iter().enumerate() {
+                let title = h3.text().collect::<String>().trim().to_string();
+                
+                // 跳过无关标题
+                if title.is_empty() || title.contains("课程") || title.contains("学期") || title == "我的小组" || title == "公告" || title.contains("查看选项") || title.contains("菜单管理") {
+                    continue;
+                }
+                
+                // 获取后续元素作为内容
+                let mut sibling = h3.next_sibling();
+                let mut content = String::new();
+                let mut time = String::new();
+                
+                for _ in 0..10 {
+                    if let Some(sib) = sibling {
+                        if let Some(elem) = sib.value().as_element() {
+                            let el_ref = scraper::ElementRef::wrap(sib).unwrap();
+                            let tag = elem.name();
+                            let text = el_ref.text().collect::<String>();
+                            
+                            if tag == "p" && text.contains("发布") {
+                                time = text.trim().to_string();
+                            } else if tag == "div" || tag == "p" {
+                                if !text.trim().is_empty() {
+                                    content.push_str(&text);
+                                }
+                            }
+                        }
+                        sibling = sib.next_sibling();
+                    } else {
+                        break;
+                    }
+                }
+                
+                if !title.is_empty() {
+                    parsed_announcements.push((title.clone(), content.clone(), time.clone()));
+                }
+            }
+            } else {
+                // 没有 h3，尝试从内容中提取
+                let content = container.text().collect::<String>().trim().to_string();
+                let time = container
+                    .select(&Selector::parse("p").unwrap())
+                    .next()
+                    .map(|el| el.text().collect::<String>().trim().to_string())
+                    .unwrap_or_default();
+                
+                // 过滤噪音
+                let lower_content = content.to_lowercase();
+                if lower_content.contains("var json") || lower_content.contains("查看选项") || lower_content.contains("菜单管理") {
+                    continue;
+                }
+                
+                if !content.is_empty() && content.len() > 10 {
+                    // 取内容前20个字符作为标题（注意中文字符）
+                    let title: String = content.chars().take(20).collect();
+                    let title = if content.chars().count() > 20 {
+                        format!("{}...", title)
+                    } else {
+                        title
+                    };
+                    parsed_announcements.push((title, content, time));
+                }
+            }
+        }
+        
+        // 从解析出的公告创建 handle，并去重
+        let mut announcements: Vec<CourseAnnouncementHandle> = Vec::new();
+        let mut seen_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
+        
+        for (idx, (title, content, time)) in parsed_announcements.iter().enumerate() {
+            if title.is_empty() {
+                continue;
+            }
+            
+            // 过滤噪音：标题太短或包含课程名称
+            if title.len() < 5 {
+                continue;
+            }
+            // 过滤课程名称作为标题
+            let course_name = self.meta.name();
+            if title.starts_with(course_name) || title.contains("25-26") || title.contains("学期") || title == "公告" {
+                continue;
+            }
+            
+            // 过滤内容就是课程名称的情况
+            let content_clean = content.trim();
+            if content_clean.starts_with(course_name) && content_clean.len() < 50 {
+                continue;
+            }
+            
+            // 去重：使用完整内容去除空白后比较
+            // 检查当前内容是否是已存在内容的开头部分（截断版），或反过来
+            let content_normalized: String = content.chars().filter(|c| !c.is_whitespace()).collect();
+            
+            // 获取前60字符用于比较
+            let content_prefix: String = content_normalized.chars().take(60).collect::<String>();
+            log::info!("DEBUG: title='{}' prefix='{}'", title, &content_prefix);
+            
+            // 检查是否是重复（完全相同或者是子集关系）
+            let mut is_duplicate = false;
+            for existing_key in seen_titles.iter() {
+                if let Some(existing_content) = existing_key.strip_prefix(&format!("{}:", self.meta.id)) {
+                    let existing_prefix: String = existing_content.chars().take(60).collect();
+                    log::info!("DEBUG: existing_prefix='{}'", &existing_prefix);
+                    if content_prefix == existing_prefix {
+                        log::info!("FOUND DUPLICATE: prefix='{}'", &content_prefix);
+                        is_duplicate = true;
+                        break;
+                    }
+                }
+            }
+            
+            if is_duplicate {
+                continue;
+            }
+            seen_titles.insert(format!("{}:{}", self.meta.id, content_normalized));
+            
+            let id = format!("{}_{}", self.meta.id, idx);
+            let content_data = CourseContentData {
+                id: id.clone(),
+                title: title.clone(),
+                kind: CourseContentKind::Announcement,
+                has_link: false,
+                descriptions: if !content.is_empty() { vec![content.clone()] } else { vec![] },
+                attachments: vec![],
+            };
+            
+            announcements.push(CourseAnnouncementHandle {
+                client: self.client.clone(),
+                course: self.meta.clone(),
+                content: Arc::new(content_data),
+            });
+        }
+
+        log::info!(
+            "found {} announcements for course {}",
+            announcements.len(),
+            self.meta.title()
+        );
+
+        Ok(announcements)
+    }
 }
 
 pub struct CourseContentStream {
