@@ -2,6 +2,8 @@
 
 /// 教学网 API
 pub mod blackboard;
+/// 校内门户 API
+pub mod portal;
 /// 选课系统 API
 pub mod syllabus;
 
@@ -41,7 +43,7 @@ impl LowLevelClient {
     }
 
     /// 向 [`OAUTH_LOGIN`] 发送登录请求，并返回 token
-    async fn oauth_login(
+    pub(crate) async fn oauth_login(
         &self,
         appid: &str,
         username: &str,
