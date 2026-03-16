@@ -9,10 +9,7 @@ use compio::io::AsyncWriteExt;
 use std::io::Write;
 
 /// 获取个人课表
-pub async fn list(
-    force: bool,
-    raw: bool,
-) -> anyhow::Result<()> {
+pub async fn list(force: bool, raw: bool) -> anyhow::Result<()> {
     let client = if force {
         api::Client::new_nocache()
     } else {
@@ -51,7 +48,7 @@ pub async fn list(
                 writeln!(outbuf, "暂无课表数据")?;
             } else {
                 writeln!(outbuf, "📅 个人课表\n")?;
-                
+
                 // 按周几分组显示
                 let days = [
                     ("mon", "周一"),
@@ -62,14 +59,14 @@ pub async fn list(
                     ("sat", "周六"),
                     ("sun", "周日"),
                 ];
-                
+
                 for (day_key, day_name) in days.iter() {
                     // 收集该天的所有课程
                     let mut day_slots: Vec<(usize, String)> = Vec::new();
-                    
+
                     for (idx, slot) in courses.iter().enumerate() {
                         let slot_num = idx + 1; // 第几节
-                        
+
                         if let Some(course) = slot.get(day_key) {
                             if let Some(name) = course.get("courseName").and_then(|n| n.as_str()) {
                                 if !name.is_empty() {
@@ -79,33 +76,33 @@ pub async fn list(
                             }
                         }
                     }
-                    
+
                     if !day_slots.is_empty() {
                         writeln!(outbuf, "【{}】", day_name)?;
-                        
+
                         // 合并连续节次
                         let mut i = 0;
                         while i < day_slots.len() {
                             let (start_slot, info) = &day_slots[i];
                             let mut end_slot = *start_slot;
-                            
+
                             // 检查后续是否有相同课程
                             let mut j = i + 1;
                             while j < day_slots.len() && day_slots[j].1 == *info {
                                 end_slot = day_slots[j].0;
                                 j += 1;
                             }
-                            
+
                             // 输出
                             if start_slot == &end_slot {
                                 writeln!(outbuf, "  第{}节: {}", start_slot, info)?;
                             } else {
                                 writeln!(outbuf, "  第{}-{}节: {}", start_slot, end_slot, info)?;
                             }
-                            
+
                             i = j;
                         }
-                        
+
                         writeln!(outbuf)?;
                     }
                 }
@@ -122,10 +119,10 @@ pub async fn list(
 fn format_course_info(info: &str) -> String {
     // 提取课程名称
     let course_name = info.split("(主)").next().unwrap_or(info).trim();
-    
+
     // 提取上课信息
     let mut result = course_name.to_string();
-    
+
     if let Some(class_idx) = info.find("上课信息：") {
         let class_start = class_idx + 15; // "上课信息：" 是5个中文字符 = 15字节
         let rest = &info[class_start..];
@@ -135,12 +132,13 @@ fn format_course_info(info: &str) -> String {
             result.push_str(" | ");
             result.push_str(class_info);
         }
-        
+
         // 提取教师
         if let Some(teacher_idx) = rest.find("教师：") {
             let teacher_start = teacher_idx + 9; // "教师：" 是3个中文字符 = 9字节
             let teacher_rest = &rest[teacher_start..];
-            let teacher_end = teacher_rest.find(' ')
+            let teacher_end = teacher_rest
+                .find(' ')
                 .or_else(|| teacher_rest.find("\u{003c}"))
                 .unwrap_or(teacher_rest.len());
             let teacher = teacher_rest[..teacher_end].trim();
@@ -150,7 +148,7 @@ fn format_course_info(info: &str) -> String {
             }
         }
     }
-    
+
     // 提取考试信息
     if let Some(exam_idx) = info.find("考试信息：") {
         let exam_start = exam_idx + 15; // "考试信息：" 是5个中文字符 = 15字节
@@ -162,6 +160,6 @@ fn format_course_info(info: &str) -> String {
             result.push_str(exam_info);
         }
     }
-    
+
     result
 }
