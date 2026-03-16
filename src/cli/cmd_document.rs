@@ -88,7 +88,7 @@ async fn get_courses_and_documents(
     Ok(courses)
 }
 
-pub async fn list(force: bool, _all: bool, cur_term: bool) -> anyhow::Result<()> {
+pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> {
     let courses = get_courses_and_documents(force, cur_term).await?;
 
     let all_documents = courses
@@ -108,7 +108,11 @@ pub async fn list(force: bool, _all: bool, cur_term: bool) -> anyhow::Result<()>
 
     // prepare output statements
     let mut outbuf = Vec::new();
-    let title = "课程文档/课件";
+    let title = if all {
+        "所有学期课程文档/课件"
+    } else {
+        "课程文档/课件"
+    };
     let total = sorted_documents.len();
     writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
 
@@ -154,10 +158,7 @@ fn write_document_title(
     Ok(())
 }
 
-async fn fetch_documents(
-    force: bool,
-    cur_term: bool,
-) -> anyhow::Result<Vec<DocumentListItem>> {
+async fn fetch_documents(force: bool, cur_term: bool) -> anyhow::Result<Vec<DocumentListItem>> {
     let courses = get_courses_and_documents(force, cur_term).await?;
 
     let mut all_documents = courses
@@ -177,9 +178,7 @@ async fn fetch_documents(
     Ok(all_documents)
 }
 
-async fn select_document(
-    mut items: Vec<DocumentListItem>,
-) -> anyhow::Result<DocumentListItem> {
+async fn select_document(mut items: Vec<DocumentListItem>) -> anyhow::Result<DocumentListItem> {
     if items.is_empty() {
         anyhow::bail!("documents not found");
     }

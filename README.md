@@ -178,9 +178,12 @@ pku3b init
 - 📂 交互式下载作业附件: `pku3b a down`: ID 请在作业列表中查看
 - 📤 提交作业: `pku3b a sb <ID> <PATH>`: PATH 为文件路径，可以是各种文件，例如 pdf、zip、txt 等等
 - 📤 交互式提交作业: `pku3b a sb`: 会在当前工作目录中寻找要提交的作业
-- 📢 查看课程公告列表: `pku3b notice ls`
-- 📢 查看公告（简洁模式）: `pku3b notice ls -b`
-- 📢 查看公告（交互模式）: `pku3b notice ls -i`
+- 📂 查看课程文档/课件列表: `pku3b doc ls`
+- 📂 查看所有学期课程文档/课件列表: `pku3b doc ls -a` 或 `pku3b doc ls --all-term`
+- 📂 下载课程文档/课件附件: `pku3b doc down <ID>`: ID 请在文档列表中查看
+- 📂 交互式下载课程文档/课件附件: `pku3b doc down`
+- 📢 查看课程公告列表（默认简洁模式）: `pku3b notice ls`
+- 📢 按 ID 查看公告详情: `pku3b notice show <ID>`
 - 📅 查看个人课表: `pku3b schedule` 或 `pku3b sch`
 - 📅 查看个人课表（原始JSON）: `pku3b schedule --raw`
 - 🎥 查看课程回放列表: `pku3b v ls`

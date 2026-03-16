@@ -242,7 +242,10 @@ enum DocumentCommands {
     /// 查看课程文档/课件列表
     #[command(visible_alias("ls"))]
     List {
-        /// 显示所有学期的课程文档（包括已完成的）
+        /// 显示所有学期的课程文档
+        #[arg(short, long, default_value = "false")]
+        all: bool,
+        /// 显示所有学期的课程文档
         #[arg(long, default_value = "false")]
         all_term: bool,
     },
@@ -251,7 +254,7 @@ enum DocumentCommands {
     /// 如果没有指定文档 ID，则会启用交互式模式，列出所有文档供用户选择
     #[command(visible_alias("down"))]
     Download {
-        /// (Optional) 文档 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b doc ls` 查看)
+        /// （可选）文档 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b document list` 查看)
         #[arg(group = "download-type")]
         id: Option<String>,
         /// 文件下载目录 (支持相对路径)
@@ -271,12 +274,14 @@ enum NoticeCommands {
         /// 显示所有学期的课程公告（包括已完成的）
         #[arg(long, default_value = "false")]
         all_term: bool,
-        /// 简洁模式：只显示标题列表
-        #[arg(short, long, default_value = "false")]
-        brief: bool,
-        /// 交互模式：单条浏览，支持翻页
-        #[arg(short, long, default_value = "false")]
-        interactive: bool,
+    },
+    /// 按 ID 查看公告详情
+    Show {
+        /// 公告 ID（可通过 `pku3b notice ls` 查看）
+        id: String,
+        /// 在所有学期的课程公告范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
     },
 }
 
@@ -582,21 +587,20 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             },
             Commands::Document { force, command } => match command {
-                DocumentCommands::List { all_term } => {
-                    cmd_document::list(force, false, !all_term).await?
+                DocumentCommands::List { all, all_term } => {
+                    cmd_document::list(force, all || all_term, !(all || all_term)).await?
                 }
                 DocumentCommands::Download { id, dir, all_term } => {
                     cmd_document::download(id.as_deref(), &dir, force, !all_term).await?
                 }
             },
             Commands::Notice { force, command } => match command {
-                NoticeCommands::List { all_term, brief, interactive } => {
-                    cmd_notice::list(force, !all_term, brief, interactive).await?
+                NoticeCommands::List { all_term } => cmd_notice::list(force, !all_term).await?,
+                NoticeCommands::Show { id, all_term } => {
+                    cmd_notice::show(force, !all_term, &id).await?
                 }
             },
-            Commands::Schedule { force, raw } => {
-                cmd_schedule::list(force, raw).await?
-            },
+            Commands::Schedule { force, raw } => cmd_schedule::list(force, raw).await?,
             Commands::Video { force, command } => match command {
                 VideoCommands::List { all_term } => cmd_video::list(force, !all_term).await?,
                 VideoCommands::Download {

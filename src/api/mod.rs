@@ -132,46 +132,8 @@ pub struct Portal {
 }
 
 impl Portal {
-    /// 获取课表原始 JSON 数据（用于调试）
-    pub async fn get_course_table_raw(&self) -> anyhow::Result<String> {
-        self.client.0.http_client.portal_course_schedule_current().await
-    }
-
-    /// 获取课表信息
-    pub async fn get_course_table(&self) -> anyhow::Result<Vec<CourseSchedule>> {
-        let raw = self.get_course_table_raw().await?;
-        
-        // 尝试解析 JSON
-        // 由于不知道实际格式，先返回空列表并打印原始数据
-        log::info!("Course table JSON: {}", raw);
-        
-        // TODO: 根据实际 JSON 结构解析
-        Ok(vec![])
-    }
-    
-    /// 获取院系列表
-    pub async fn get_dept_list(&self) -> anyhow::Result<String> {
-        self.client.0.http_client.portal_get_dept_list().await
-    }
-    
-    /// 查询课表（完整参数）
-    pub async fn query_course_schedule(
-        &self,
-        year: &str,
-        term: &str,
-        dept_id: &str,
-        course_schedule_type: &str,
-        course_type: Option<&str>,
-    ) -> anyhow::Result<String> {
-        self.client.0.http_client.portal_course_schedule(
-            year, term, dept_id, course_schedule_type, course_type
-        ).await
-    }
-
-    /// 获取个人课表（测试）
-    pub async fn get_my_course_table(
-        &self,
-    ) -> anyhow::Result<String> {
+    /// 获取个人课表
+    pub async fn get_my_course_table(&self) -> anyhow::Result<String> {
         self.client
             .0
             .http_client
@@ -179,27 +141,6 @@ impl Portal {
             .await
     }
 
-    /// 获取学年学期列表
-    pub async fn get_xndxq_list(&self) -> anyhow::Result<String> {
-        self.client.0.http_client.portal_my_course_table_xndxq_list().await
-    }
-
-    /// 获取课程信息
-    pub async fn get_course_info(&self, xndxq: &str) -> anyhow::Result<String> {
-        self.client.0.http_client.portal_my_course_table_info(xndxq).await
-    }
-}
-
-/// 课程安排信息
-#[derive(Debug, Clone)]
-pub struct CourseSchedule {
-    pub course_name: String,
-    pub teacher: String,
-    pub classroom: String,
-    pub week_day: u8,  // 1-7 周一到周日
-    pub start_slot: u8, // 开始节次
-    pub end_slot: u8,   // 结束节次
-    pub weeks: Vec<u8>, // 上课周数
 }
 
 #[derive(Debug)]
@@ -487,50 +428,6 @@ impl Course {
         Ok(videos)
     }
 
-    /// List all documents/materials in this course
-    pub async fn list_documents(&self) -> anyhow::Result<Vec<CourseDocumentHandle>> {
-        log::info!("fetching document list for course {}", self.meta.title());
-
-        let mut stream = self.content_stream();
-        let mut documents = Vec::new();
-
-        while let Some(batch) = stream.next_batch().await {
-            for data in batch {
-                if let CourseContentKind::Document = data.kind {
-                    documents.push(CourseDocumentHandle {
-                        client: self.client.clone(),
-                        course: self.meta.clone(),
-                        content: data.into(),
-                    });
-                }
-            }
-        }
-
-        Ok(documents)
-    }
-
-    /// List all announcements/notifications in this course
-    pub async fn list_announcements(&self) -> anyhow::Result<Vec<CourseAnnouncementHandle>> {
-        log::info!("fetching announcement list for course {}", self.meta.title());
-
-        let mut stream = self.content_stream();
-        let mut announcements = Vec::new();
-
-        while let Some(batch) = stream.next_batch().await {
-            for data in batch {
-                if let CourseContentKind::Announcement = data.kind {
-                    announcements.push(CourseAnnouncementHandle {
-                        client: self.client.clone(),
-                        course: self.meta.clone(),
-                        content: data.into(),
-                    });
-                }
-            }
-        }
-
-        Ok(announcements)
-    }
-
     /// List all announcements from course page (announcement tab)
     pub async fn list_announcements_from_coursepage(
         &self,
@@ -544,58 +441,67 @@ impl Course {
 
         // 解析公告列表 - 从 h3 元素及其相邻元素构建
         let mut parsed_announcements: Vec<(String, String, String)> = Vec::new();
-        
+
         // 查找公告容器
-        let container_selector = Selector::parse(".vtbegenerated, #content_listContainer, div.content, div.clearfix").unwrap();
+        let container_selector =
+            Selector::parse(".vtbegenerated, #content_listContainer, div.content, div.clearfix")
+                .unwrap();
         let h3_selector = Selector::parse("h3").unwrap();
-        
+
         // 在公告容器内查找 h3
         for container in dom.select(&container_selector) {
             // 优先查找 h3 作为标题
             let h3_elements: Vec<_> = container.select(&h3_selector).collect();
-            
+
             if !h3_elements.is_empty() {
                 for h3 in h3_elements {
-                let title = h3.text().collect::<String>().trim().to_string();
-                
-                // 跳过无关标题
-                if title.is_empty() || title.contains("课程") || title.contains("学期") || title == "我的小组" || title == "公告" || title.contains("查看选项") || title.contains("菜单管理") {
-                    continue;
-                }
-                
-                // 获取后续元素作为内容
-                let mut sibling = h3.next_sibling();
-                let mut content = String::new();
-                let mut time = String::new();
-                
-                for _ in 0..10 {
-                    if let Some(sib) = sibling {
-                        if let Some(elem) = sib.value().as_element() {
-                            let el_ref = scraper::ElementRef::wrap(sib).unwrap();
-                            let tag = elem.name();
-                            if tag == "h3" {
-                                break;
-                            }
-                            let text = el_ref.text().collect::<String>();
-                            
-                            if tag == "p" && text.contains("发布") {
-                                time = text.trim().to_string();
-                            } else if tag == "div" || tag == "p" {
-                                if !text.trim().is_empty() {
-                                    content.push_str(&text);
+                    let title = h3.text().collect::<String>().trim().to_string();
+
+                    // 跳过无关标题
+                    if title.is_empty()
+                        || title.contains("课程")
+                        || title.contains("学期")
+                        || title == "我的小组"
+                        || title == "公告"
+                        || title.contains("查看选项")
+                        || title.contains("菜单管理")
+                    {
+                        continue;
+                    }
+
+                    // 获取后续元素作为内容
+                    let mut sibling = h3.next_sibling();
+                    let mut content = String::new();
+                    let mut time = String::new();
+
+                    for _ in 0..10 {
+                        if let Some(sib) = sibling {
+                            if let Some(elem) = sib.value().as_element() {
+                                let el_ref = scraper::ElementRef::wrap(sib).unwrap();
+                                let tag = elem.name();
+                                if tag == "h3" {
+                                    break;
+                                }
+                                let text = el_ref.text().collect::<String>();
+
+                                if tag == "p" && text.contains("发布") {
+                                    time = text.trim().to_string();
+                                } else if tag == "div" || tag == "p" {
+                                    if !text.trim().is_empty() {
+                                        content.push_str(&text);
+                                    }
                                 }
                             }
+                            sibling = sib.next_sibling();
+                        } else {
+                            break;
                         }
-                        sibling = sib.next_sibling();
-                    } else {
-                        break;
+                    }
+
+                    if !title.is_empty() {
+                        parsed_announcements.push((title.clone(), content.clone(), time.clone()));
                     }
                 }
-                
-                if !title.is_empty() {
-                    parsed_announcements.push((title.clone(), content.clone(), time.clone()));
-                }
-            }
             } else {
                 // 没有 h3，尝试从内容中提取
                 let content = container.text().collect::<String>().trim().to_string();
@@ -604,13 +510,16 @@ impl Course {
                     .next()
                     .map(|el| el.text().collect::<String>().trim().to_string())
                     .unwrap_or_default();
-                
+
                 // 过滤噪音
                 let lower_content = content.to_lowercase();
-                if lower_content.contains("var json") || lower_content.contains("查看选项") || lower_content.contains("菜单管理") {
+                if lower_content.contains("var json")
+                    || lower_content.contains("查看选项")
+                    || lower_content.contains("菜单管理")
+                {
                     continue;
                 }
-                
+
                 if !content.is_empty() && content.len() > 10 {
                     // 取内容前20个字符作为标题（注意中文字符）
                     let title: String = content.chars().take(20).collect();
@@ -623,50 +532,61 @@ impl Course {
                 }
             }
         }
-        
+
         // 从解析出的公告创建 handle，并去重
         let mut announcements: Vec<CourseAnnouncementHandle> = Vec::new();
         let mut seen_titles: std::collections::HashSet<String> = std::collections::HashSet::new();
-        
+
         for (idx, (title, content, time)) in parsed_announcements.iter().enumerate() {
             if title.is_empty() {
                 continue;
             }
-            
+
             // 过滤噪音：标题太短或包含课程名称
             if title.len() < 5 {
                 continue;
             }
             // 过滤课程名称作为标题
             let course_name = self.meta.name();
-            if title.starts_with(course_name) || title.contains("25-26") || title.contains("学期") || title == "公告" {
+            if title.starts_with(course_name)
+                || title.contains("25-26")
+                || title.contains("学期")
+                || title == "公告"
+            {
                 continue;
             }
-            
+
             // 过滤内容就是课程名称的情况
             let content_clean = content.trim();
             if content_clean.starts_with(course_name) && content_clean.len() < 50 {
                 continue;
             }
-            
+
             let dedup_key = announcement_dedup_key(&title, &content, &time);
             if !seen_titles.insert(format!("{}:{dedup_key}", self.meta.id)) {
                 continue;
             }
-            
+
             let id = format!("{}_{}", self.meta.id, idx);
             let content_data = CourseContentData {
                 id: id.clone(),
                 title: title.clone(),
                 kind: CourseContentKind::Announcement,
                 has_link: false,
-                descriptions: if !content.is_empty() { vec![content.clone()] } else { vec![] },
+                descriptions: if !content.is_empty() {
+                    vec![content.clone()]
+                } else {
+                    vec![]
+                },
                 attachments: vec![],
-                time: if !time.is_empty() { Some(time.clone()) } else { None },
+                time: if !time.is_empty() {
+                    Some(time.clone())
+                } else {
+                    None
+                },
             };
-            
+
             announcements.push(CourseAnnouncementHandle {
-                client: self.client.clone(),
                 course: self.meta.clone(),
                 content: Arc::new(content_data),
             });
@@ -791,17 +711,6 @@ impl CourseContent {
         }
     }
 
-    pub fn into_announcement_opt(self) -> Option<CourseAnnouncementHandle> {
-        if let CourseContentKind::Announcement = self.data.kind {
-            Some(CourseAnnouncementHandle {
-                client: self.client,
-                course: self.course,
-                content: self.data,
-            })
-        } else {
-            None
-        }
-    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -1280,7 +1189,6 @@ impl CourseDocumentHandle {
 /// Handle for course announcement/notifications
 #[derive(Debug, Clone)]
 pub struct CourseAnnouncementHandle {
-    client: Client,
     course: Arc<CourseMeta>,
     content: Arc<CourseContentData>,
 }

@@ -19,7 +19,12 @@ async fn get_announcements(
     let r = c
         .list_announcements_from_coursepage()
         .await
-        .with_context(|| format!("fetch announcements from course page for {}", c.meta().title()))?;
+        .with_context(|| {
+            format!(
+                "fetch announcements from course page for {}",
+                c.meta().title()
+            )
+        })?;
     pb.finish_with_message("done.");
     Ok(r)
 }
@@ -43,10 +48,12 @@ async fn get_courses_and_announcements(
         .with_context(|| format!("fetch announcement handles of {}", c.meta().title()))?;
 
         pb.inc_length(announcements.len() as u64);
-        let futs = announcements.into_iter().map(async |d| -> anyhow::Result<_> {
-            pb.inc(1);
-            Ok(d)
-        });
+        let futs = announcements
+            .into_iter()
+            .map(async |d| -> anyhow::Result<_> {
+                pb.inc(1);
+                Ok(d)
+            });
         let announcements = try_join_all(futs).await?;
 
         pb.inc(1);
@@ -61,9 +68,8 @@ async fn get_courses_and_announcements(
     Ok(courses)
 }
 
-pub async fn list(force: bool, cur_term: bool, brief: bool, interactive: bool) -> anyhow::Result<()> {
+pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     let courses = get_courses_and_announcements(force, cur_term).await?;
-
     let all_announcements: Vec<_> = courses
         .iter()
         .flat_map(|(c, announcements)| {
@@ -73,34 +79,13 @@ pub async fn list(force: bool, cur_term: bool, brief: bool, interactive: bool) -
         })
         .collect();
 
-    let mut sorted_announcements = all_announcements;
-
-    // sort by time (descending), announcements without time are placed at the end
-    log::debug!("sorting announcements by time...");
-    sorted_announcements.sort_by(|a, b| {
-        let time_a = a.2.time();
-        let time_b = b.2.time();
-        match (time_b, time_a) {
-            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
-            (Some(_), None) => std::cmp::Ordering::Less, // b has time, a doesn't -> b comes first
-            (None, Some(_)) => std::cmp::Ordering::Greater, // a has time, b doesn't -> a comes first
-            (None, None) => std::cmp::Ordering::Equal,
-        }
-    });
-
-    if interactive {
-        // 交互模式：单条浏览
-        list_interactive(sorted_announcements).await
-    } else if brief {
-        // 简洁模式：只显示标题
-        list_brief(sorted_announcements).await
-    } else {
-        // 默认模式：完整输出
-        list_full(sorted_announcements).await
-    }
+    let sorted_announcements = sort_announcements_owned(all_announcements);
+    list_brief(sorted_announcements).await
 }
 
-async fn list_brief(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
+async fn list_brief(
+    items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>,
+) -> anyhow::Result<()> {
     let mut outbuf = Vec::new();
     let title = "课程公告/通知";
     let total = items.len();
@@ -121,63 +106,47 @@ async fn list_brief(items: Vec<(api::Course, String, api::CourseAnnouncementHand
     Ok(())
 }
 
-async fn list_full(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
+pub async fn show(force: bool, cur_term: bool, id: &str) -> anyhow::Result<()> {
+    let items = fetch_announcements(force, cur_term).await?;
+    let Some((c, ann_id, d)) = items.into_iter().find(|(_, ann_id, _)| ann_id == id) else {
+        anyhow::bail!("announcement with id {} not found", id);
+    };
+
     let mut outbuf = Vec::new();
-    let title = "课程公告/通知";
-    let total = items.len();
-    writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
-
-    for (c, id, d) in items {
-        write_announcement_title(&mut outbuf, &id, &c, &d).context("io error")?;
-    }
-
+    writeln!(outbuf, "{D}>{D:#} {B}公告详情{B:#} {D}<{D:#}\n")?;
+    write_announcement_title(&mut outbuf, &ann_id, &c, &d).context("io error")?;
     buf_try!(@try fs::stdout().write_all(outbuf).await);
     Ok(())
 }
 
-async fn list_interactive(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
-    use inquire::{InquireError, Select};
-    
-    if items.is_empty() {
-        println!("暂无公告");
-        return Ok(());
-    }
-
-    let total = items.len();
-    let mut current_idx = 0;
-
-    loop {
-        let (c, id, d) = &items[current_idx];
-        
-        // 清屏（Unix-like 系统）
-        print!("\x1B[2J\x1B[H");
-        
-        // 显示当前公告
-        let mut outbuf = Vec::new();
-        writeln!(outbuf, "{D}>{D:#} {B}公告 {}/{}{B:#} {D}<{D:#}\n", current_idx + 1, total)?;
-        write_announcement_title(&mut outbuf, id, c, d).context("io error")?;
-        buf_try!(@try fs::stdout().write_all(outbuf).await);
-
-        // 构建选项
-        let mut options = vec!["[退出]"];
-        if current_idx > 0 {
-            options.push("[← 上一条]");
+fn sort_announcements_owned(
+    mut items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>,
+) -> Vec<(api::Course, String, api::CourseAnnouncementHandle)> {
+    items.sort_by(|a, b| {
+        let time_a = a.2.time();
+        let time_b = b.2.time();
+        match (time_b, time_a) {
+            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
         }
-        if current_idx < total - 1 {
-            options.push("[下一条 →]");
-        }
-        
-        let selection = Select::new("请选择操作", options).prompt();
-        
-        match selection {
-            Ok("[退出]") | Err(InquireError::OperationCanceled) | Err(InquireError::OperationInterrupted) => break,
-            Ok("[← 上一条]") if current_idx > 0 => current_idx -= 1,
-            Ok("[下一条 →]") if current_idx < total - 1 => current_idx += 1,
-            _ => {}
-        }
-    }
+    });
+    items
+}
 
-    Ok(())
+fn sort_announcements_items(mut items: Vec<AnnouncementListItem>) -> Vec<AnnouncementListItem> {
+    items.sort_by(|a, b| {
+        let time_a = a.2.time();
+        let time_b = b.2.time();
+        match (time_b, time_a) {
+            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
+    items
 }
 
 fn write_announcement_title(
@@ -235,41 +204,7 @@ async fn fetch_announcements(
         })
         .collect::<Vec<_>>();
 
-    // sort by time (descending), announcements without time are placed at the end
-    log::debug!("sorting announcements by time...");
-    all_announcements.sort_by(|a, b| {
-        let time_a = a.2.time();
-        let time_b = b.2.time();
-        match (time_b, time_a) {
-            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
-            (Some(_), None) => std::cmp::Ordering::Less, // b has time, a doesn't -> b comes first
-            (None, Some(_)) => std::cmp::Ordering::Greater, // a has time, b doesn't -> a comes first
-            (None, None) => std::cmp::Ordering::Equal,
-        }
-    });
+    all_announcements = sort_announcements_items(all_announcements);
 
     Ok(all_announcements)
-}
-
-pub async fn select_announcement(
-    mut items: Vec<AnnouncementListItem>,
-) -> anyhow::Result<AnnouncementListItem> {
-    if items.is_empty() {
-        anyhow::bail!("announcements not found");
-    }
-
-    let mut options = Vec::new();
-
-    for (idx, (c, id, d)) in items.iter().enumerate() {
-        let mut outbuf = Vec::new();
-        write!(outbuf, "[{}] ", idx + 1)?;
-        write_announcement_title(&mut outbuf, id, c, d).context("io error")?;
-        options.push(String::from_utf8(outbuf).unwrap());
-    }
-
-    let s = inquire::Select::new("请选择要查看的公告", options).raw_prompt()?;
-    let idx = s.index;
-    let r = items.swap_remove(idx);
-
-    Ok(r)
 }
