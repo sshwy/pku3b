@@ -75,9 +75,18 @@ pub async fn list(force: bool, cur_term: bool, brief: bool, interactive: bool) -
 
     let mut sorted_announcements = all_announcements;
 
-    // sort by title
-    log::debug!("sorting announcements...");
-    sorted_announcements.sort_by_cached_key(|(_, _, d)| d.title().to_string());
+    // sort by time (descending), announcements without time are placed at the end
+    log::debug!("sorting announcements by time...");
+    sorted_announcements.sort_by(|a, b| {
+        let time_a = a.2.time();
+        let time_b = b.2.time();
+        match (time_b, time_a) {
+            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
+            (Some(_), None) => std::cmp::Ordering::Less, // b has time, a doesn't -> b comes first
+            (None, Some(_)) => std::cmp::Ordering::Greater, // a has time, b doesn't -> a comes first
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
 
     if interactive {
         // 交互模式：单条浏览
@@ -226,9 +235,18 @@ async fn fetch_announcements(
         })
         .collect::<Vec<_>>();
 
-    // sort by title
-    log::debug!("sorting announcements...");
-    all_announcements.sort_by_cached_key(|(_, _, d)| d.title().to_string());
+    // sort by time (descending), announcements without time are placed at the end
+    log::debug!("sorting announcements by time...");
+    all_announcements.sort_by(|a, b| {
+        let time_a = a.2.time();
+        let time_b = b.2.time();
+        match (time_b, time_a) {
+            (Some(t_b), Some(t_a)) => t_b.cmp(t_a), // descending order
+            (Some(_), None) => std::cmp::Ordering::Less, // b has time, a doesn't -> b comes first
+            (None, Some(_)) => std::cmp::Ordering::Greater, // a has time, b doesn't -> a comes first
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
 
     Ok(all_announcements)
 }

@@ -681,6 +681,7 @@ impl Course {
                 has_link: false,
                 descriptions: if !content.is_empty() { vec![content.clone()] } else { vec![] },
                 attachments: vec![],
+                time: if !time.is_empty() { Some(time.clone()) } else { None },
             };
             
             announcements.push(CourseAnnouncementHandle {
@@ -838,6 +839,8 @@ pub struct CourseContentData {
     has_link: bool,
     descriptions: Vec<String>,
     attachments: Vec<(String, String)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time: Option<String>, // 发布时间
 }
 
 fn collect_text(element: scraper::ElementRef) -> String {
@@ -914,6 +917,7 @@ impl CourseContentData {
             has_link,
             descriptions,
             attachments,
+            time: None,
         })
     }
 }
@@ -1294,6 +1298,10 @@ impl CourseAnnouncementHandle {
 
     pub fn title(&self) -> &str {
         &self.content.title
+    }
+
+    pub fn time(&self) -> Option<&str> {
+        self.content.time.as_deref()
     }
 
     pub fn descriptions(&self) -> &[String] {
