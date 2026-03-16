@@ -61,17 +61,17 @@ async fn get_courses_and_announcements(
     Ok(courses)
 }
 
-pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
+pub async fn list(force: bool, cur_term: bool, brief: bool, interactive: bool) -> anyhow::Result<()> {
     let courses = get_courses_and_announcements(force, cur_term).await?;
 
-    let all_announcements = courses
+    let all_announcements: Vec<_> = courses
         .iter()
         .flat_map(|(c, announcements)| {
             announcements
                 .iter()
                 .map(move |d| (c.to_owned(), d.id().to_owned(), d.clone()))
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     let mut sorted_announcements = all_announcements;
 
@@ -79,18 +79,94 @@ pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
     log::debug!("sorting announcements...");
     sorted_announcements.sort_by_cached_key(|(_, _, d)| d.title().to_string());
 
-    // prepare output statements
+    if interactive {
+        // 交互模式：单条浏览
+        list_interactive(sorted_announcements).await
+    } else if brief {
+        // 简洁模式：只显示标题
+        list_brief(sorted_announcements).await
+    } else {
+        // 默认模式：完整输出
+        list_full(sorted_announcements).await
+    }
+}
+
+async fn list_brief(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
     let mut outbuf = Vec::new();
     let title = "课程公告/通知";
-    let total = sorted_announcements.len();
+    let total = items.len();
     writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
 
-    for (c, id, d) in sorted_announcements {
+    for (idx, (c, id, d)) in items.iter().enumerate() {
+        write!(outbuf, "{GR}[{:>2}]{GR:#} ", idx + 1)?;
+        write!(outbuf, "{BL}{B}{}{B:#}{BL:#} {D}>{D:#} ", c.meta().name())?;
+        write!(outbuf, "{}", d.title())?;
+        let att_count = d.attachments().len();
+        if att_count > 0 {
+            write!(outbuf, " ({GR}{att_count} 个附件{GR:#})")?;
+        }
+        writeln!(outbuf, " {D}{id}{D:#}")?;
+    }
+
+    buf_try!(@try fs::stdout().write_all(outbuf).await);
+    Ok(())
+}
+
+async fn list_full(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
+    let mut outbuf = Vec::new();
+    let title = "课程公告/通知";
+    let total = items.len();
+    writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
+
+    for (c, id, d) in items {
         write_announcement_title(&mut outbuf, &id, &c, &d).context("io error")?;
     }
 
-    // write to stdout
     buf_try!(@try fs::stdout().write_all(outbuf).await);
+    Ok(())
+}
+
+async fn list_interactive(items: Vec<(api::Course, String, api::CourseAnnouncementHandle)>) -> anyhow::Result<()> {
+    use inquire::{InquireError, Select};
+    
+    if items.is_empty() {
+        println!("暂无公告");
+        return Ok(());
+    }
+
+    let total = items.len();
+    let mut current_idx = 0;
+
+    loop {
+        let (c, id, d) = &items[current_idx];
+        
+        // 清屏（Unix-like 系统）
+        print!("\x1B[2J\x1B[H");
+        
+        // 显示当前公告
+        let mut outbuf = Vec::new();
+        writeln!(outbuf, "{D}>{D:#} {B}公告 {}/{}{B:#} {D}<{D:#}\n", current_idx + 1, total)?;
+        write_announcement_title(&mut outbuf, id, c, d).context("io error")?;
+        buf_try!(@try fs::stdout().write_all(outbuf).await);
+
+        // 构建选项
+        let mut options = vec!["[退出]"];
+        if current_idx > 0 {
+            options.push("[← 上一条]");
+        }
+        if current_idx < total - 1 {
+            options.push("[下一条 →]");
+        }
+        
+        let selection = Select::new("请选择操作", options).prompt();
+        
+        match selection {
+            Ok("[退出]") | Err(InquireError::OperationCanceled) | Err(InquireError::OperationInterrupted) => break,
+            Ok("[← 上一条]") if current_idx > 0 => current_idx -= 1,
+            Ok("[下一条 →]") if current_idx < total - 1 => current_idx += 1,
+            _ => {}
+        }
+    }
 
     Ok(())
 }

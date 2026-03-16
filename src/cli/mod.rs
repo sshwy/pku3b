@@ -259,6 +259,12 @@ enum NoticeCommands {
         /// 显示所有学期的课程公告（包括已完成的）
         #[arg(long, default_value = "false")]
         all_term: bool,
+        /// 简洁模式：只显示标题列表
+        #[arg(short, long, default_value = "false")]
+        brief: bool,
+        /// 交互模式：单条浏览，支持翻页
+        #[arg(short, long, default_value = "false")]
+        interactive: bool,
     },
 }
 
@@ -572,8 +578,8 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             },
             Commands::Notice { force, command } => match command {
-                NoticeCommands::List { all_term } => {
-                    cmd_notice::list(force, !all_term).await?
+                NoticeCommands::List { all_term, brief, interactive } => {
+                    cmd_notice::list(force, !all_term, brief, interactive).await?
                 }
             },
             Commands::Video { force, command } => match command {
