@@ -166,7 +166,7 @@ enum VideoCommands {
         #[arg(long, default_value = "false")]
         all_term: bool,
 
-        /// 文件下载目录 (支持相对路径)
+        /// 文件下载目录 (支持相对路径，默认当前目录；目录需已存在)
         #[arg(short = 'o', long)]
         outdir: Option<std::path::PathBuf>,
     },
@@ -216,7 +216,7 @@ enum AssignmentCommands {
         /// (Optionl) 作业 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
         #[arg(group = "download-type")]
         id: Option<String>,
-        /// 文件下载目录 (支持相对路径)
+        /// 文件下载目录 (支持相对路径，默认当前目录，不存在会自动创建)
         #[arg(short, long, default_value = ".")]
         dir: std::path::PathBuf,
         /// 在所有学期的作业范围中查找
@@ -257,7 +257,7 @@ enum DocumentCommands {
         /// （可选）文档 ID (ID 形如 `f4f30444c7485d49`, 可通过 `pku3b document list` 查看)
         #[arg(group = "download-type")]
         id: Option<String>,
-        /// 文件下载目录 (支持相对路径)
+        /// 文件下载目录 (支持相对路径，默认当前目录，不存在会自动创建)
         #[arg(short, long, default_value = ".")]
         dir: std::path::PathBuf,
         /// 在所有学期的文档范围中查找
