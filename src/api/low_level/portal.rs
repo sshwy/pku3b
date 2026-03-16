@@ -5,6 +5,22 @@ use super::LowLevelClient;
 pub const PORTAL_REDIR: &str = "https://portal.pku.edu.cn/publicQuery/ssoLogin.do";
 pub const PORTAL_COURSE_SCHEDULE_API: &str = "https://portal.pku.edu.cn/publicQuery/ctrl/common/courseQuery/retrCourseScheduleList.do";
 
+fn parse_year_term_from_xndxq(xndxq: &str) -> Option<(String, String)> {
+    let xndxq = xndxq.trim();
+    let digits: String = xndxq.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() < 5 {
+        return None;
+    }
+
+    let year_start: i32 = digits[0..4].parse().ok()?;
+    let term_digit = digits.chars().nth(4)?;
+    if !matches!(term_digit, '1' | '2' | '3') {
+        return None;
+    }
+
+    Some((format!("{year_start}-{}", year_start + 1), term_digit.to_string()))
+}
+
 impl LowLevelClient {
     /// 使用 OAuth 登录门户系统
     pub async fn portal_login(
@@ -126,11 +142,19 @@ impl LowLevelClient {
         
         log::debug!("using dept_id: {}", dept_id);
         
-        // 获取当前学年学期（这里简化处理，实际需要计算）
-        let year = "2025-2026";
-        let term = "2"; // 春季学期
+        // 动态获取当前学年学期（优先使用 nowXnxq）
+        let xndxq_list = self.portal_my_course_table_xndxq_list().await?;
+        let xndxq_json: serde_json::Value = serde_json::from_str(&xndxq_list)?;
+        let xndxq = xndxq_json
+            .get("nowXnxq")
+            .and_then(|n| n.get("xndxq"))
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| anyhow::anyhow!("无法获取当前学年学期"))?;
+
+        let (year, term) = parse_year_term_from_xndxq(xndxq)
+            .ok_or_else(|| anyhow::anyhow!("无法解析学年学期: {xndxq}"))?;
         
-        self.portal_course_schedule(year, term, dept_id, "student", None).await
+        self.portal_course_schedule(&year, &term, dept_id, "student", None).await
     }
 
     /// 获取个人课表 - 学年学期列表
@@ -200,5 +224,23 @@ impl LowLevelClient {
         
         // 获取课程信息
         self.portal_my_course_table_info(xndxq).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_year_term_from_xndxq;
+
+    #[test]
+    fn test_parse_year_term_from_xndxq() {
+        let (year, term) = parse_year_term_from_xndxq("20252").unwrap();
+        assert_eq!(year, "2025-2026");
+        assert_eq!(term, "2");
+
+        let (year, term) = parse_year_term_from_xndxq("2025-2").unwrap();
+        assert_eq!(year, "2025-2026");
+        assert_eq!(term, "2");
+
+        assert!(parse_year_term_from_xndxq("bad").is_none());
     }
 }

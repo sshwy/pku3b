@@ -65,7 +65,7 @@ enum Commands {
     },
 
     /// 获取课程公告/通知
-    #[command(arg_required_else_help(true))]
+    #[command(visible_alias("n"), arg_required_else_help(true))]
     Notice {
         /// 强制刷新
         #[arg(short, long, default_value = "false")]

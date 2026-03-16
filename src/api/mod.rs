@@ -555,7 +555,7 @@ impl Course {
             let h3_elements: Vec<_> = container.select(&h3_selector).collect();
             
             if !h3_elements.is_empty() {
-                for (idx, h3) in h3_elements.iter().enumerate() {
+                for h3 in h3_elements {
                 let title = h3.text().collect::<String>().trim().to_string();
                 
                 // 跳过无关标题
@@ -573,6 +573,9 @@ impl Course {
                         if let Some(elem) = sib.value().as_element() {
                             let el_ref = scraper::ElementRef::wrap(sib).unwrap();
                             let tag = elem.name();
+                            if tag == "h3" {
+                                break;
+                            }
                             let text = el_ref.text().collect::<String>();
                             
                             if tag == "p" && text.contains("发布") {
@@ -646,32 +649,10 @@ impl Course {
                 continue;
             }
             
-            // 去重：使用完整内容去除空白后比较
-            // 检查当前内容是否是已存在内容的开头部分（截断版），或反过来
-            let content_normalized: String = content.chars().filter(|c| !c.is_whitespace()).collect();
-            
-            // 获取前60字符用于比较
-            let content_prefix: String = content_normalized.chars().take(60).collect::<String>();
-            log::info!("DEBUG: title='{}' prefix='{}'", title, &content_prefix);
-            
-            // 检查是否是重复（完全相同或者是子集关系）
-            let mut is_duplicate = false;
-            for existing_key in seen_titles.iter() {
-                if let Some(existing_content) = existing_key.strip_prefix(&format!("{}:", self.meta.id)) {
-                    let existing_prefix: String = existing_content.chars().take(60).collect();
-                    log::info!("DEBUG: existing_prefix='{}'", &existing_prefix);
-                    if content_prefix == existing_prefix {
-                        log::info!("FOUND DUPLICATE: prefix='{}'", &content_prefix);
-                        is_duplicate = true;
-                        break;
-                    }
-                }
-            }
-            
-            if is_duplicate {
+            let dedup_key = announcement_dedup_key(&title, &content, &time);
+            if !seen_titles.insert(format!("{}:{dedup_key}", self.meta.id)) {
                 continue;
             }
-            seen_titles.insert(format!("{}:{}", self.meta.id, content_normalized));
             
             let id = format!("{}_{}", self.meta.id, idx);
             let content_data = CourseContentData {
@@ -863,6 +844,24 @@ fn collect_text(element: scraper::ElementRef) -> String {
         }
     }
     text_content
+}
+
+fn normalize_compact_text(s: &str) -> String {
+    s.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+fn announcement_dedup_key(title: &str, content: &str, time: &str) -> String {
+    let title_norm = normalize_compact_text(title);
+    let content_norm = normalize_compact_text(content);
+    let time_norm = normalize_compact_text(time);
+
+    if !content_norm.is_empty() {
+        format!("{title_norm}|{time_norm}|{content_norm}")
+    } else {
+        // Some announcements may not expose body text in the parsed container.
+        // Fall back to title + time so we don't collapse all empty-body announcements.
+        format!("{title_norm}|{time_norm}")
+    }
 }
 
 impl CourseContentData {
@@ -2122,5 +2121,19 @@ mod tests {
         assert!(status_is_full(" 30/ 30").unwrap());
         assert!(status_is_full("30 / 35 ").unwrap());
         assert!(status_is_full("invalid").is_err());
+    }
+
+    #[test]
+    fn test_announcement_dedup_key_empty_content_not_collapsed() {
+        let k1 = announcement_dedup_key("标题A", "", "2026-03-16");
+        let k2 = announcement_dedup_key("标题B", "", "2026-03-16");
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn test_announcement_dedup_key_whitespace_insensitive() {
+        let k1 = announcement_dedup_key("标题 A", "正文 内容", "发布时间 10:00");
+        let k2 = announcement_dedup_key("标题A", "正文内容", "发布时间10:00");
+        assert_eq!(k1, k2);
     }
 }
