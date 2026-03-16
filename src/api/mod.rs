@@ -84,4 +84,5 @@ impl Default for Client {
 }
 
 pub mod blackboard;
+pub mod portal;
 pub mod syllabus;

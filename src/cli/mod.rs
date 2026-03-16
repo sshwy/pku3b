@@ -1,6 +1,7 @@
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
+mod cmd_schedule;
 mod cmd_syllabus;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
@@ -45,6 +46,17 @@ enum Commands {
     /// 获取课程作业信息/下载附件/提交作业
     #[command(visible_alias("a"), arg_required_else_help(true))]
     Assignment(cmd_assignment::CommandAssignment),
+
+    /// 获取个人课表
+    #[command(visible_alias("sch"))]
+    Schedule {
+        /// 强制刷新
+        #[arg(short, long, default_value = "false")]
+        force: bool,
+        /// 显示原始 JSON 数据（用于调试）
+        #[arg(short, long, default_value = "false")]
+        raw: bool,
+    },
 
     /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"), arg_required_else_help(true))]
@@ -252,6 +264,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
+            Commands::Schedule { force, raw } => cmd_schedule::list(force, raw).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
