@@ -437,7 +437,11 @@ fn collect_text(element: scraper::ElementRef) -> String {
 impl CourseContentData {
     fn from_element(el: scraper::ElementRef<'_>) -> anyhow::Result<Self> {
         anyhow::ensure!(el.value().name() == "li", "not a li element");
-        let (img, title_div, detail_div) = el.child_elements().take(3).collect_tuple().unwrap();
+        let (img, title_div, detail_div) = el
+            .child_elements()
+            .take(3)
+            .collect_tuple()
+            .context("failed to collect 3 child elements")?;
 
         let kind = match img.attr("alt") {
             Some("作业") => CourseContentKind::Assignment,
