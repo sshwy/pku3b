@@ -38,7 +38,8 @@ impl DrmView {
             .context("#filename value not found")?
             .to_owned();
 
-        log::info!("pdf filename: {filename}");
+        log::info!("fid: {fid}");
+        log::info!("filename: {filename}");
 
         Ok(DrmLibPdf {
             client: self.client.clone(),
@@ -114,12 +115,9 @@ impl DrmLibPdf {
         let bytes = resp.bytes().await?;
         Ok(bytes)
     }
-    pub async fn get_page_image(&mut self, id: u32) -> anyhow::Result<bytes::Bytes> {
+    pub async fn get_page_image(&self, id: u32) -> anyhow::Result<bytes::Bytes> {
         with_cache_bytes(
-            &format!(
-                "DrmLibPdf::get_page_image_{}_{}_{id}",
-                self.fid, self.filename,
-            ),
+            &format!("DrmLibPdf::get_page_image_{}_{id}", self.fid),
             self.client.download_artifact_ttl(),
             self._get_page_image(id),
         )

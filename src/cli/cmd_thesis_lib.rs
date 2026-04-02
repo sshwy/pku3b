@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use super::*;
+use futures_util::stream;
 use itertools::Itertools;
 
 #[derive(clap::Args)]
@@ -19,15 +22,24 @@ enum ThesisLibCommands {
         /// 文件下载目录 (支持相对路径)
         #[arg(short = 'o', long)]
         outdir: Option<std::path::PathBuf>,
+        /// 并发下载页数
+        #[arg(short = 'j', long, default_value = "5")]
+        job: u32,
+        /// 是否保存每一页的图片
+        #[arg(long)]
+        save_image: bool,
     },
 }
 
 pub async fn run(cmd: CommandThesisLib) -> anyhow::Result<()> {
     match cmd.command {
         ThesisLibCommands::Search { keyword } => command_thesis_lib_search(keyword).await?,
-        ThesisLibCommands::Download { keyid, outdir } => {
-            command_thesis_lib_download(keyid, outdir).await?
-        }
+        ThesisLibCommands::Download {
+            keyid,
+            outdir,
+            job,
+            save_image,
+        } => command_thesis_lib_download(keyid, outdir, job, save_image).await?,
     }
     Ok(())
 }
@@ -75,7 +87,10 @@ async fn command_thesis_lib_search(keyword: String) -> anyhow::Result<()> {
 async fn command_thesis_lib_download(
     keyid: String,
     outdir: Option<std::path::PathBuf>,
+    n_job: u32,
+    save_image: bool,
 ) -> anyhow::Result<()> {
+    log::info!("save_image: {save_image}");
     #[cfg(not(feature = "thesislib-pdf"))]
     log::warn!("thesislib-pdf feature is not enabled, skipping pdf conversion");
 
@@ -96,35 +111,52 @@ async fn command_thesis_lib_download(
     let drm = c.drm_view(&keyid).await?;
 
     sp.set_message("fetching pdf document index...");
-    let mut doc = drm.get_pdf().await?;
+    let doc = drm.get_pdf().await?;
 
     sp.finish_and_clear();
     drop(sp);
 
     let ids = (0..=doc.maxpage()).collect_vec();
-    let mut paths = vec![];
 
     let m = indicatif::MultiProgress::new();
     let pb = m.add(pbar::new(ids.len() as u64)).with_prefix("PDF pages");
 
     let outdir = outdir.unwrap_or_else(|| std::path::PathBuf::from("."));
     fs::create_dir_all(&outdir).await?;
+    let outdir = Arc::new(outdir);
+    let doc = Arc::new(doc);
 
-    for id in ids {
-        let data = match doc.get_page_image(id).await {
-            Ok(i) => i,
-            Err(e) => {
+    let mut page_results = stream::iter(ids)
+        .map(|id| {
+            let doc = Arc::clone(&doc);
+            let outdir = Arc::clone(&outdir);
+            let pb = pb.clone();
+            async move {
+                let data = match doc.get_page_image(id).await {
+                    Ok(i) => i,
+                    Err(e) => {
+                        pb.inc(1);
+                        log::warn!("failed to fetch page image {id}: {e:#}");
+                        return (id, None);
+                    }
+                };
+
+                if save_image {
+                    let p = outdir.join(format!("{id}.jpg"));
+                    if let Err(e) = compio::fs::write(&p, data.clone()).await.0 {
+                        log::warn!("save image of page {id}: {e}")
+                    }
+                }
                 pb.inc(1);
-                log::warn!("failed to fetch page image {id}: {e:#}");
-                continue;
+                (id, Some(data))
             }
-        };
+        })
+        .buffer_unordered(n_job as usize)
+        .collect::<Vec<_>>()
+        .await;
 
-        let p = outdir.join(format!("{id}.jpg"));
-        compio::buf::buf_try!(@try compio::fs::write(&p, data).await);
-        paths.push(p);
-        pb.inc(1);
-    }
+    page_results.sort_by_key(|(id, _)| *id);
+    let data: Vec<_> = page_results.into_iter().map(|(_, data)| data).collect();
 
     pb.finish();
 
@@ -132,7 +164,7 @@ async fn command_thesis_lib_download(
     {
         log::info!("converting to pdf...");
         let pdf_path = outdir.join("output.pdf");
-        crate::pdf::images2pdf(&paths, pdf_path)?;
+        crate::pdf::images2pdf(&data, pdf_path)?;
     }
     Ok(())
 }
