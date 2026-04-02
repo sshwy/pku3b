@@ -4,6 +4,8 @@ mod api;
 mod cli;
 mod config;
 mod multipart;
+#[cfg(feature = "pdf")]
+mod pdf;
 mod qs;
 #[cfg(feature = "ttshitu")]
 mod ttshitu;
