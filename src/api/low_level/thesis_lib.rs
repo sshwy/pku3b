@@ -6,6 +6,8 @@ pub const THESISLIB_LOGIN: &str = "https://thesis.lib.pku.edu.cn/cas-pku/pku/log
 
 pub const THESISLIB_SIMP_SEARCH: &str = "https://thesis.lib.pku.edu.cn/md/papersearch/simpSearch";
 
+pub const THESISLIB_DRM_VIEW: &str = "https://thesis.lib.pku.edu.cn/md/docobject/drmView";
+
 const THESISLIB_ORIGIN: &str = "https://thesis.lib.pku.edu.cn";
 const THESISLIB_CAS_LOGIN: &str = "https://thesis.lib.pku.edu.cn/md/account/caslogin";
 
@@ -256,7 +258,7 @@ impl LowLevelClient {
             .header(http::header::ACCEPT, "application/json, text/plain, */*")?
             .header(http::header::CONTENT_TYPE, "application/json")?
             .header(http::header::ORIGIN, THESISLIB_ORIGIN)?
-            .header(http::HeaderName::from_static("token"), token)?
+            .header("token", token)?
             .body(json)
             .send()
             .await?;
@@ -264,6 +266,53 @@ impl LowLevelClient {
 
         let text = res.text().await?;
         Ok(text)
+    }
+
+    pub async fn thesis_lib_drm_view(&self, token: &str, keyid: &str) -> anyhow::Result<String> {
+        log::trace!("POST {THESISLIB_DRM_VIEW} with keyid {keyid}");
+
+        let res = self
+            .http_client
+            .get(THESISLIB_DRM_VIEW)?
+            .query(&[
+                ("keyid", keyid),
+                ("isappend", "0"),
+                ("onlineflag", "online"),
+            ])?
+            .header(http::header::ACCEPT, "application/json, text/plain, */*")?
+            .header(
+                http::header::CONTENT_TYPE,
+                "application/x-www-form-urlencoded",
+            )?
+            .header(http::header::ORIGIN, THESISLIB_ORIGIN)?
+            .header("token", token)?
+            .send()
+            .await?;
+        anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
+
+        let text = res.text().await?;
+        let body: RespJson<String> = serde_json::from_str(&text)?;
+        // personaliiifServlet url
+        let url = body.data;
+        let res = self.get_by_uri(&url).await?;
+        anyhow::ensure!(
+            res.status().is_redirection(),
+            "error status {}",
+            res.status()
+        );
+
+        let Some(url) = res.headers().get("Location") else {
+            anyhow::bail!("no Location header");
+        };
+        let url = url.to_str().context("Location not valid str")?;
+
+        let fid = url::Url::parse(url)?
+            .query_pairs()
+            .find(|(k, _)| k == "fid")
+            .context("no fid in url")?
+            .1
+            .to_string();
+        Ok(fid)
     }
 }
 
