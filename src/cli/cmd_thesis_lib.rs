@@ -14,7 +14,7 @@ pub struct CommandThesisLib {
 enum ThesisLibCommands {
     /// 搜索学位论文
     Search { keyword: String },
-    /// 下载课程回放视频 (MP4 格式)，支持断点续传
+    /// 下载学位论文并转换为 PDF 文件
     #[command(visible_alias("down"))]
     Download {
         /// 学位论文 ID (形如 `hU5a4no4tbM1zJIlMBTdy8YGcsX5YalOoY3wPzTosgs%3D`, 可通过 `pku3b th search [keyword]` 查看)
