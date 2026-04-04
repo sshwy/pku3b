@@ -2,6 +2,7 @@ mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
 mod cmd_course_table;
+mod cmd_notice;
 mod cmd_syllabus;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
@@ -34,7 +35,7 @@ use utils::style::*;
     )),
     author,
     about,
-    long_about = "a Better BlackBoard for PKUers. 北京大学教学网命令行工具 (️Win/Linux/Mac), 支持查看/提交作业、下载课程回放."
+    long_about = "a Better BlackBoard for PKUers. 北京大学教学网命令行工具 (️Win/Linux/Mac), 支持查看/提交作业、查看公告、下载课程回放."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -57,6 +58,10 @@ enum Commands {
         #[arg(short, long, default_value = "false")]
         raw: bool,
     },
+
+    /// 获取课程公告/通知
+    #[command(visible_alias("n"), arg_required_else_help(true))]
+    Notice(cmd_notice::CommandNotice),
 
     /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"), arg_required_else_help(true))]
@@ -265,6 +270,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
             Commands::CourseTable { force, raw } => cmd_course_table::list(force, raw).await?,
+            Commands::Notice(cmd) => cmd_notice::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
