@@ -295,6 +295,164 @@ impl Course {
 
         Ok(videos)
     }
+
+    /// 直接从课程公告页抓取课程公告。
+    pub async fn list_announcements_from_coursepage(
+        &self,
+    ) -> anyhow::Result<Vec<CourseAnnouncementHandle>> {
+        log::info!(
+            "fetching announcement list from course page for {}",
+            self.meta.title()
+        );
+
+        let dom = self.client.bb_coursepage(&self.meta.id).await?;
+        let container_selector =
+            Selector::parse(".vtbegenerated, #content_listContainer, div.content, div.clearfix")
+                .unwrap();
+        let h3_selector = Selector::parse("h3").unwrap();
+
+        let mut parsed_announcements = Vec::new();
+
+        for container in dom.select(&container_selector) {
+            let h3_elements = container.select(&h3_selector).collect::<Vec<_>>();
+
+            if !h3_elements.is_empty() {
+                for h3 in h3_elements {
+                    let title = h3.text().collect::<String>().trim().to_string();
+
+                    if title.is_empty()
+                        || title.contains("课程")
+                        || title.contains("学期")
+                        || title == "我的小组"
+                        || title == "公告"
+                        || title.contains("查看选项")
+                        || title.contains("菜单管理")
+                    {
+                        continue;
+                    }
+
+                    let mut sibling = h3.next_sibling();
+                    let mut content = String::new();
+                    let mut time = String::new();
+
+                    for _ in 0..10 {
+                        let Some(sib) = sibling else {
+                            break;
+                        };
+
+                        if let Some(elem) = sib.value().as_element() {
+                            let el_ref = scraper::ElementRef::wrap(sib).unwrap();
+                            let tag = elem.name();
+
+                            if tag == "h3" {
+                                break;
+                            }
+
+                            let text = el_ref.text().collect::<String>();
+                            if tag == "p" && text.contains("发布") {
+                                time = text.trim().to_string();
+                            } else if (tag == "div" || tag == "p") && !text.trim().is_empty() {
+                                if !content.is_empty() {
+                                    content.push('\n');
+                                }
+                                content.push_str(&text);
+                            }
+                        }
+
+                        sibling = sib.next_sibling();
+                    }
+
+                    parsed_announcements.push((title, content, time));
+                }
+            } else {
+                let content = container.text().collect::<String>().trim().to_string();
+                let time = container
+                    .select(&Selector::parse("p").unwrap())
+                    .next()
+                    .map(|el| el.text().collect::<String>().trim().to_string())
+                    .unwrap_or_default();
+
+                let lower_content = content.to_lowercase();
+                if lower_content.contains("var json")
+                    || lower_content.contains("查看选项")
+                    || lower_content.contains("菜单管理")
+                {
+                    continue;
+                }
+
+                if !content.is_empty() && content.len() > 10 {
+                    let title = content.chars().take(20).collect::<String>();
+                    let title = if content.chars().count() > 20 {
+                        format!("{title}...")
+                    } else {
+                        title
+                    };
+                    parsed_announcements.push((title, content, time));
+                }
+            }
+        }
+
+        let mut announcements = Vec::new();
+        let mut seen_titles = HashSet::new();
+
+        for (idx, (title, content, time)) in parsed_announcements.iter().enumerate() {
+            if title.is_empty() || title.len() < 5 {
+                continue;
+            }
+
+            let course_name = self.meta.name();
+            if title.starts_with(course_name) || title.contains("学期") || title == "公告" {
+                continue;
+            }
+
+            let content_clean = content.trim();
+            if content_clean.starts_with(course_name) && content_clean.len() < 50 {
+                continue;
+            }
+
+            let dedup_key = announcement_dedup_key(title, content, time);
+            if !seen_titles.insert(format!("{}:{dedup_key}", self.meta.id)) {
+                continue;
+            }
+
+            let id = format!("{}_{}", self.meta.id, idx);
+            let content_data = CourseContentData {
+                id: id.clone(),
+                title: title.clone(),
+                kind: CourseContentKind::Announcement,
+                has_link: false,
+                descriptions: if !content.is_empty() {
+                    content
+                        .lines()
+                        .map(str::trim)
+                        .filter(|line| !line.is_empty())
+                        .map(ToOwned::to_owned)
+                        .collect()
+                } else {
+                    vec![]
+                },
+                attachments: vec![],
+                time: if !time.is_empty() {
+                    Some(time.clone())
+                } else {
+                    None
+                },
+            };
+
+            announcements.push(CourseAnnouncementHandle {
+                course: self.meta.clone(),
+                content: Arc::new(content_data),
+            });
+        }
+
+        log::info!(
+            "found {} announcements for course {}",
+            announcements.len(),
+            self.meta.title()
+        );
+
+        Ok(announcements)
+    }
 }
 
 pub struct CourseContentStream {
@@ -399,6 +557,7 @@ impl CourseContent {
 enum CourseContentKind {
     Document,
     Assignment,
+    Announcement,
     Unknown,
 }
 
@@ -410,6 +569,8 @@ pub struct CourseContentData {
     has_link: bool,
     descriptions: Vec<String>,
     attachments: Vec<(String, String)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time: Option<String>,
 }
 
 fn collect_text(element: scraper::ElementRef) -> String {
@@ -432,6 +593,22 @@ fn collect_text(element: scraper::ElementRef) -> String {
         }
     }
     text_content
+}
+
+fn normalize_compact_text(s: &str) -> String {
+    s.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+fn announcement_dedup_key(title: &str, content: &str, time: &str) -> String {
+    let title = normalize_compact_text(title);
+    let content = normalize_compact_text(content);
+    let time = normalize_compact_text(time);
+
+    if content.is_empty() {
+        format!("{title}|{time}")
+    } else {
+        format!("{title}|{time}|{content}")
+    }
 }
 
 impl CourseContentData {
@@ -489,6 +666,7 @@ impl CourseContentData {
             has_link,
             descriptions,
             attachments,
+            time: None,
         })
     }
 }
@@ -783,6 +961,38 @@ impl CourseAssignment {
         let r = compio::fs::write(dest, rbody).await;
         compio::buf::buf_try!(@try r);
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CourseAnnouncementHandle {
+    course: Arc<CourseMeta>,
+    content: Arc<CourseContentData>,
+}
+
+impl CourseAnnouncementHandle {
+    pub fn id(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.id.hash(&mut hasher);
+        self.content.id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
+    }
+
+    pub fn title(&self) -> &str {
+        &self.content.title
+    }
+
+    pub fn time(&self) -> Option<&str> {
+        self.content.time.as_deref()
+    }
+
+    pub fn descriptions(&self) -> &[String] {
+        &self.content.descriptions
+    }
+
+    pub fn attachments(&self) -> &[(String, String)] {
+        &self.content.attachments
     }
 }
 
@@ -1198,5 +1408,21 @@ mod tests {
         assert_eq!(get_mime_type("png"), "image/png");
         assert_eq!(get_mime_type("mp3"), "audio/mpeg");
         assert_eq!(get_mime_type("unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_announcement_dedup_key_empty_content_not_collapsed() {
+        let k1 = announcement_dedup_key("标题 A", "", "2026-04-04");
+        let k2 = announcement_dedup_key("标题 B", "", "2026-04-04");
+
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn test_announcement_dedup_key_whitespace_insensitive() {
+        let k1 = announcement_dedup_key("标题 A", "正文 内容", "发布时间 10:00");
+        let k2 = announcement_dedup_key("标题A", "正文内容", "发布时间10:00");
+
+        assert_eq!(k1, k2);
     }
 }
