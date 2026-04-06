@@ -1,7 +1,7 @@
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
-mod cmd_schedule;
+mod cmd_course_table;
 mod cmd_syllabus;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
@@ -48,8 +48,8 @@ enum Commands {
     Assignment(cmd_assignment::CommandAssignment),
 
     /// 获取个人课表
-    #[command(visible_alias("sch"))]
-    Schedule {
+    #[command(name = "coursetable", visible_alias("ct"))]
+    CourseTable {
         /// 强制刷新
         #[arg(short, long, default_value = "false")]
         force: bool,
@@ -264,7 +264,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
-            Commands::Schedule { force, raw } => cmd_schedule::list(force, raw).await?,
+            Commands::CourseTable { force, raw } => cmd_course_table::list(force, raw).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 

@@ -35,7 +35,7 @@ Usage: pku3b [COMMAND]
 
 Commands:
   assignment  获取课程作业信息/下载附件/提交作业 [aliases: a]
-  schedule    获取个人课表 [aliases: sch]
+  coursetable 获取个人课表 [aliases: ct]
   video       获取课程回放/下载课程回放 [aliases: v]
   syllabus    选课操作 [aliases: s]
   ttshitu     图形验证码识别 [aliases: tt]
@@ -170,8 +170,8 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - 📂 交互式下载作业附件: `pku3b a down`: ID 请在作业列表中查看
 - 📤 提交作业: `pku3b a sb <ID> <PATH>`: PATH 为文件路径，可以是各种文件，例如 pdf、zip、txt 等等
 - 📤 交互式提交作业: `pku3b a sb`: 会在当前工作目录中寻找要提交的作业
-- 📅 查看个人课表: `pku3b schedule` 或 `pku3b sch`
-- 📅 查看个人课表（原始JSON）: `pku3b schedule --raw`
+- 📅 查看个人课表: `pku3b coursetable` 或 `pku3b ct`
+- 📅 查看个人课表（原始JSON）: `pku3b coursetable --raw`
 - 🎥 查看课程回放列表: `pku3b v ls`
 - 🎥 查看所有学期课程回放列表: `pku3b v ls --all-term`
 - ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。
