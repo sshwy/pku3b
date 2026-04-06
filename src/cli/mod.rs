@@ -1,8 +1,8 @@
+mod cmd_announcement;
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
 mod cmd_course_table;
-mod cmd_notice;
 mod cmd_syllabus;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
@@ -59,9 +59,13 @@ enum Commands {
         raw: bool,
     },
 
-    /// 获取课程公告/通知
-    #[command(visible_alias("n"), arg_required_else_help(true))]
-    Notice(cmd_notice::CommandNotice),
+    /// 获取课程公告
+    #[command(
+        name = "announcement",
+        visible_alias("ann"),
+        arg_required_else_help(true)
+    )]
+    Announcement(cmd_announcement::CommandAnnouncement),
 
     /// 获取课程回放/下载课程回放
     #[command(visible_alias("v"), arg_required_else_help(true))]
@@ -270,7 +274,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
             Commands::CourseTable { force, raw } => cmd_course_table::list(force, raw).await?,
-            Commands::Notice(cmd) => cmd_notice::run(cmd).await?,
+            Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
