@@ -19,6 +19,25 @@ pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Ap
 
 pub const OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
 
+/// OAuth login error codes:
+///
+/// - E05: OTP code incorrect
+/// - E21: Too many attempts. Please sign in after a half hour.
+///
+#[derive(serde::Deserialize, Debug)]
+pub struct OAuthLoginError {
+    pub code: String,
+    pub msg: String,
+}
+
+impl std::error::Error for OAuthLoginError {}
+
+impl std::fmt::Display for OAuthLoginError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OAuth login error [{}]: msg={}", self.code, self.msg)
+    }
+}
+
 /// 一个基础的爬虫 client，函数的返回内容均为原始的，未处理的信息.
 #[derive(Clone)]
 pub struct LowLevelClient {
@@ -74,12 +93,22 @@ impl LowLevelClient {
         let rbody = res.text().await?;
 
         #[derive(serde::Deserialize)]
-        struct ResData {
-            token: String,
+        struct OAuthLoginData {
+            token: Option<String>,
+            errors: Option<OAuthLoginError>,
         }
-        let data: ResData = serde_json::from_str(&rbody).context("fail to parse response")?;
+        let data: OAuthLoginData = serde_json::from_str(&rbody)
+            .context("fail to parse response")
+            .inspect_err(|e| {
+                log::debug!("{e}");
+                log::debug!("response body: {rbody}")
+            })?;
 
-        Ok(data.token)
+        if let Some(err) = data.errors {
+            return Err(err.into());
+        }
+
+        data.token.context("token not found")
     }
 
     /// 利用 [`convert_uri`] 将 uri 自动补全，然后发送请求.
