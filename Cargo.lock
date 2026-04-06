@@ -2044,7 +2044,7 @@ dependencies = [
 
 [[package]]
 name = "pku3b"
-version = "0.10.3"
+version = "0.11.0"
 dependencies = [
  "aes",
  "anyhow",
