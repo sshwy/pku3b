@@ -17,6 +17,14 @@ pub const VIDEO_SUB_INFO: &str =
 impl LowLevelClient {
     /// 使用 OAuth login 返回的 token 登录教学网。登录状态会记录在 client cookie 中，无需返回值.
     pub async fn bb_login(&self, username: &str, password: &str) -> anyhow::Result<()> {
+        let data = self.iaaa_is_mobile_authen("blackboard", username).await?;
+
+        if data.is_no() {
+            log::info!("unprotected login is allowed");
+        } else {
+            log::warn!("unsupported login context: {data:?}")
+        }
+
         let token = self
             .oauth_login("blackboard", username, password, OAUTH_REDIR)
             .await?;

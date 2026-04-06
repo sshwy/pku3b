@@ -13,6 +13,14 @@ pub const PORTAL_MY_COURSE_TABLE_INFO: &str =
 impl LowLevelClient {
     /// 使用 OAuth 登录门户系统
     pub async fn portal_login(&self, username: &str, password: &str) -> anyhow::Result<()> {
+        let data = self.iaaa_is_mobile_authen(PORTAL_APP_ID, username).await?;
+
+        if data.is_no() {
+            log::info!("unprotected login is allowed");
+        } else {
+            log::warn!("unsupported login context: {data:?}")
+        }
+
         let token = self
             .oauth_login(PORTAL_APP_ID, username, password, PORTAL_REDIR)
             .await?;
