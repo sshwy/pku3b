@@ -84,5 +84,9 @@ impl Default for Client {
 }
 
 pub mod blackboard;
+#[cfg(feature = "thesislib")]
+pub mod drm_lib;
 pub mod portal;
 pub mod syllabus;
+#[cfg(feature = "thesislib")]
+pub mod thesis_lib;

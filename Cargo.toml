@@ -75,7 +75,7 @@ shadow-rs = { version = "1.0", features = ["build"], default-features = false }
 
 [features]
 dev = []
-default = ["video-download", "autoelect", "bark", "thesislib"]
+default = ["video-download", "autoelect", "bark", "thesislib-pdf"]
 
 # support for downloading videos
 aes = ["dep:aes"]
@@ -92,6 +92,7 @@ pdf = ["dep:lopdf", "dep:image"]
 
 # support for thesis.lib.pku.edu.cn login (JSEncrypt-compatible RSA)
 thesislib = ["dep:rsa", "dep:pkcs8", "dep:base64"]
+thesislib-pdf = ["thesislib", "pdf"]
 
 [profile.release]
 lto = true

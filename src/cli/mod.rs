@@ -4,6 +4,8 @@ mod cmd_assignment;
 mod cmd_bark;
 mod cmd_course_table;
 mod cmd_syllabus;
+#[cfg(feature = "thesislib")]
+mod cmd_thesis_lib;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
 mod cmd_video;
@@ -84,6 +86,11 @@ enum Commands {
     #[cfg(feature = "bark")]
     #[command(visible_alias("b"), arg_required_else_help(true))]
     Bark(cmd_bark::CommandBark),
+
+    /// 学位论文检索
+    #[cfg(feature = "thesislib")]
+    #[command(visible_alias("th"), arg_required_else_help(true))]
+    ThesisLib(cmd_thesis_lib::CommandThesisLib),
 
     /// (重新) 初始化用户名/密码
     Init,
@@ -284,6 +291,9 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             #[cfg(feature = "bark")]
             Commands::Bark(cmd) => cmd_bark::run(cmd).await?,
 
+            #[cfg(feature = "thesislib")]
+            Commands::ThesisLib(cmd) => cmd_thesis_lib::run(cmd).await?,
+
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
         }
@@ -296,23 +306,5 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
 
 #[cfg(feature = "dev")]
 async fn command_debug() -> anyhow::Result<()> {
-    let c = api::Client::new_nocache();
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
-        .await
-        .context("read config file")?;
-    let sy = c.syllabus(&cfg.username, &cfg.password, None).await?;
-
-    log::warn!("fetching total pages...");
-    let total = sy.get_supplements_total_and_elected().await?.0;
-    let mut r = Vec::new();
-    for i in 0..total {
-        log::warn!("fetching page {i}/{total}");
-        let data = sy.get_supplements(i).await?;
-        r.extend(data.into_iter().map(|d| d.base.name));
-    }
-
-    eprintln!("{r:#?}");
-
     Ok(())
 }
