@@ -2,6 +2,9 @@
 
 /// 教学网 API
 pub mod blackboard;
+/// 北京大学版权保护系统
+#[cfg(feature = "thesislib")]
+pub mod drm_lib;
 /// 校内门户 API
 pub mod portal;
 /// 选课系统 API
@@ -118,8 +121,8 @@ impl LowLevelClient {
         let rbody = res.text().await?;
 
         #[derive(serde::Deserialize)]
-<<<<<<< HEAD
         struct OAuthLoginData {
+            success: bool,
             token: Option<String>,
             errors: Option<OAuthLoginError>,
         }
@@ -129,14 +132,7 @@ impl LowLevelClient {
                 log::debug!("{e}");
                 log::debug!("response body: {rbody}")
             })?;
-=======
-        struct ResData {
-            success: bool,
-            token: String,
-        }
-        let data: ResData = serde_json::from_str(&rbody).context("fail to parse response")?;
         anyhow::ensure!(data.success, "oauth login not success");
->>>>>>> 8c3015a (feat: add IAAA SSO login with JSEncrypt-compatible RSA password encryption)
 
         if let Some(err) = data.errors {
             return Err(err.into());
