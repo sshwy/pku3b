@@ -5,18 +5,18 @@ use anyhow::Context;
 use super::*;
 
 #[derive(clap::Args)]
-pub struct CommandNotice {
+pub struct CommandAnnouncement {
     /// 强制刷新
     #[arg(short, long, default_value = "false")]
     force: bool,
 
     #[command(subcommand)]
-    command: NoticeCommands,
+    command: AnnouncementCommands,
 }
 
 #[derive(Subcommand)]
-enum NoticeCommands {
-    /// 查看课程公告/通知列表
+enum AnnouncementCommands {
+    /// 查看课程公告列表
     #[command(visible_alias("ls"))]
     List {
         /// 显示所有学期的课程公告
@@ -25,7 +25,7 @@ enum NoticeCommands {
     },
     /// 按 ID 查看公告详情
     Show {
-        /// 公告 ID（可通过 `pku3b notice ls` 查看）
+        /// 公告 ID（可通过 `pku3b announcement ls` 查看）
         id: String,
         /// 在所有学期的课程公告范围中查找
         #[arg(long, default_value = "false")]
@@ -33,10 +33,10 @@ enum NoticeCommands {
     },
 }
 
-pub async fn run(cmd: CommandNotice) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandAnnouncement) -> anyhow::Result<()> {
     match cmd.command {
-        NoticeCommands::List { all_term } => list(cmd.force, !all_term).await?,
-        NoticeCommands::Show { id, all_term } => show(cmd.force, !all_term, &id).await?,
+        AnnouncementCommands::List { all_term } => list(cmd.force, !all_term).await?,
+        AnnouncementCommands::Show { id, all_term } => show(cmd.force, !all_term, &id).await?,
     }
     Ok(())
 }
@@ -117,7 +117,7 @@ pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
 
 async fn list_brief(items: Vec<(Course, String, CourseAnnouncementHandle)>) -> anyhow::Result<()> {
     let mut outbuf = Vec::new();
-    let title = "课程公告/通知";
+    let title = "课程公告";
     let total = items.len();
     writeln!(outbuf, "{D}>{D:#} {B}{title} ({total}){B:#} {D}<{D:#}\n")?;
 
