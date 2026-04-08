@@ -74,11 +74,6 @@ impl LowLevelClient {
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
 
-        let cookies = self
-            .http_client
-            .cookie_value("https://elective.pku.edu.cn")?;
-        log::debug!("cookies after sb login: {cookies:?}");
-
         Ok(())
     }
 
@@ -134,11 +129,6 @@ impl LowLevelClient {
         log::trace!("final redir");
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
-
-        let cookies = self
-            .http_client
-            .cookie_value("https://elective.pku.edu.cn")?;
-        log::debug!("cookies after sb login: {cookies:?}");
 
         Ok(())
     }

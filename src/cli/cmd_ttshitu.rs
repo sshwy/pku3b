@@ -41,7 +41,7 @@ async fn command_ttshitu_init() -> anyhow::Result<()> {
 }
 
 async fn command_test_ttshitu(image_path: Option<String>) -> anyhow::Result<()> {
-    let c = cyper::Client::new();
+    let c = crate::http::Client::from_cyper(cyper::Client::new());
 
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)

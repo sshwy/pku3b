@@ -28,7 +28,7 @@ pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Ap
 /// 一个基础的爬虫 client，函数的返回内容均为原始的，未处理的信息.
 #[derive(Clone)]
 pub struct LowLevelClient {
-    http_client: cyper::Client,
+    http_client: crate::http::Client,
 }
 
 impl LowLevelClient {
@@ -40,11 +40,8 @@ impl LowLevelClient {
             .default_headers(default_headers)
             .build();
 
-        Self::from_cyper_client(http_client)
-    }
-    pub fn from_cyper_client(client: cyper::Client) -> Self {
         Self {
-            http_client: client,
+            http_client: crate::http::Client::from_cyper(http_client),
         }
     }
 

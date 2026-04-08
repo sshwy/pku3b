@@ -24,7 +24,7 @@ struct ResDataResult {
 }
 
 pub async fn recognize(
-    client: &cyper::Client,
+    client: &crate::http::Client,
     username: String,
     password: String,
     b64_image: String,

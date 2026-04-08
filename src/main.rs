@@ -3,6 +3,7 @@ extern crate directories as dirs;
 mod api;
 mod cli;
 mod config;
+mod http;
 mod multipart;
 #[cfg(feature = "pdf")]
 mod pdf;
