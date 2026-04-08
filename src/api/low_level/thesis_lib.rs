@@ -145,9 +145,9 @@ impl LowLevelClient {
         log::trace!("redirect_url: {redir_url}");
 
         let pubkey = self.iaaa_public_key().await?;
-        let password = self.encrypt_password(&pubkey, password)?;
+        let password = Self::encrypt_password(&pubkey, password)?;
         let token = self
-            .oauth_login("lib_sso", username, &password, &redir_url)
+            .iaaa_oauth_login("lib_sso", username, &password, &redir_url)
             .await?;
 
         let mut rng = rand::rng();

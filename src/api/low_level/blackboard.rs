@@ -26,7 +26,7 @@ impl LowLevelClient {
         }
 
         let token = self
-            .oauth_login("blackboard", username, password, OAUTH_REDIR)
+            .iaaa_oauth_login("blackboard", username, password, OAUTH_REDIR)
             .await?;
 
         log::debug!("iaaa oauth token for {username}: {token}");

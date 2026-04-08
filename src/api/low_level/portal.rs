@@ -22,7 +22,7 @@ impl LowLevelClient {
         }
 
         let token = self
-            .oauth_login(PORTAL_APP_ID, username, password, PORTAL_REDIR)
+            .iaaa_oauth_login(PORTAL_APP_ID, username, password, PORTAL_REDIR)
             .await?;
 
         log::debug!("iaaa oauth token for portal {username}: {token}");
