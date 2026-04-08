@@ -43,7 +43,7 @@ pub async fn run(cmd: CommandSyllabus) -> anyhow::Result<()> {
 }
 
 pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
-    let c = api::Client::new_nocache();
+    let c = build_client(false).await?;
 
     let sp = pbar::new_spinner();
 
@@ -79,7 +79,7 @@ pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
 }
 
 pub async fn set_autoelective(dual: Option<DualDegree>) -> anyhow::Result<()> {
-    let c = api::Client::new_nocache();
+    let c = build_client(false).await?;
 
     let sp = pbar::new_spinner();
 
@@ -226,7 +226,7 @@ pub async fn launch_autoelective(
     interval: u64,
     dual: Option<DualDegree>,
 ) -> anyhow::Result<std::convert::Infallible> {
-    let c = api::Client::new_nocache();
+    let c = build_client(false).await?;
 
     let sp = pbar::new_spinner();
 

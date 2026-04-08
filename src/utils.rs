@@ -23,6 +23,10 @@ pub fn default_config_path() -> std::path::PathBuf {
     crate::utils::projectdir().config_dir().join("cfg.toml")
 }
 
+pub fn default_user_agent_data_path() -> std::path::PathBuf {
+    projectdir().cache_dir().join("ua.json")
+}
+
 /// If the cache file exists and is not expired, return the deserialized content.
 /// Otherwise, execute the future, serialize the result to the cache file, and return the result.
 pub async fn with_cache<T, F>(

@@ -135,16 +135,23 @@ impl clap::ValueEnum for DualDegree {
     }
 }
 
+async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
+    let mut builder =
+        api::Client::builder().cookie_restore_path(Some(utils::default_user_agent_data_path()));
+    if enable_cache {
+        builder = builder
+            .cache_ttl(Some(std::time::Duration::from_hours(1)))
+            .download_artifact_ttl(Some(std::time::Duration::from_hours(24)))
+    }
+    Ok(builder.build().await?)
+}
+
 /// Client, courses and spinner are returned. Spinner hasn't stopped.
 async fn load_client_courses(
     force: bool,
     only_current: bool,
 ) -> anyhow::Result<(api::Client, Vec<CourseHandle>, pbar::AsyncSpinner)> {
-    let client = if force {
-        api::Client::new_nocache()
-    } else {
-        api::Client::default()
-    };
+    let client = build_client(!force).await?;
 
     let sp = pbar::new_spinner();
 

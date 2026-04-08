@@ -1,4 +1,4 @@
-use crate::api;
+use super::*;
 use crate::cli::pbar;
 use crate::config;
 use crate::utils;
@@ -10,11 +10,7 @@ use std::io::Write;
 
 /// 获取个人课表
 pub async fn list(force: bool, raw: bool) -> anyhow::Result<()> {
-    let client = if force {
-        api::Client::new_nocache()
-    } else {
-        api::Client::default()
-    };
+    let client = build_client(!force).await?;
 
     let sp = pbar::new_spinner();
     sp.set_message("reading config...");

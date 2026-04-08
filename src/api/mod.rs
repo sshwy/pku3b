@@ -1,6 +1,8 @@
+pub mod builder;
 pub mod low_level;
 
 use anyhow::Context;
+pub use builder::ClientBuilder;
 use chrono::TimeZone;
 use cyper::IntoUrl;
 use itertools::Itertools;
@@ -16,9 +18,6 @@ use crate::{
     multipart, qs,
     utils::{with_cache, with_cache_bytes},
 };
-
-const ONE_HOUR: std::time::Duration = std::time::Duration::from_secs(3600);
-const ONE_DAY: std::time::Duration = std::time::Duration::from_secs(3600 * 24);
 
 struct ClientInner {
     http_client: low_level::LowLevelClient,
@@ -47,25 +46,8 @@ impl std::ops::Deref for Client {
 }
 
 impl Client {
-    pub fn new(
-        cache_ttl: Option<std::time::Duration>,
-        download_artifact_ttl: Option<std::time::Duration>,
-    ) -> Self {
-        log::info!("Cache TTL: {cache_ttl:?}");
-        log::info!("Download Artifact TTL: {download_artifact_ttl:?}");
-
-        Self(
-            ClientInner {
-                http_client: low_level::LowLevelClient::new(),
-                cache_ttl,
-                download_artifact_ttl,
-            }
-            .into(),
-        )
-    }
-
-    pub fn new_nocache() -> Self {
-        Self::new(None, None)
+    pub fn builder() -> ClientBuilder {
+        ClientBuilder::default()
     }
 
     pub fn cache_ttl(&self) -> Option<&std::time::Duration> {
@@ -74,12 +56,6 @@ impl Client {
 
     pub fn download_artifact_ttl(&self) -> Option<std::time::Duration> {
         self.0.download_artifact_ttl.clone()
-    }
-}
-
-impl Default for Client {
-    fn default() -> Self {
-        Self::new(Some(ONE_HOUR), Some(ONE_DAY))
     }
 }
 

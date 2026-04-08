@@ -45,7 +45,7 @@ pub async fn run(cmd: CommandThesisLib) -> anyhow::Result<()> {
 }
 
 async fn command_thesis_lib_search(keyword: String) -> anyhow::Result<()> {
-    let c = api::Client::default();
+    let c = build_client(true).await?;
 
     let sp = pbar::new_spinner();
 
@@ -94,7 +94,7 @@ async fn command_thesis_lib_download(
     #[cfg(not(feature = "thesislib-pdf"))]
     log::warn!("thesislib-pdf feature is not enabled, skipping pdf conversion");
 
-    let c = api::Client::default();
+    let c = build_client(true).await?;
 
     let sp = pbar::new_spinner();
 
