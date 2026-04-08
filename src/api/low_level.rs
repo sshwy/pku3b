@@ -262,6 +262,36 @@ pub fn convert_uri(uri: &str) -> anyhow::Result<String> {
     Ok(url)
 }
 
+/// Extracts the redirect URL from a response with a redirection status.
+///
+/// # Arguments
+///
+/// * `res` - A reference to the [`cyper::Response`] object from which to extract the "Location"
+///   header if it is a redirection.
+///
+/// # Returns
+///
+/// Returns a string slice representing the URL found in the `Location` header if present.
+///
+/// # Errors
+///
+/// This function returns an error if:
+/// - The response status is not a redirection.
+/// - The "Location" header is missing.
+/// - The value of the "Location" header cannot be converted to a valid string.
+fn extract_redirect_url(res: &cyper::Response) -> anyhow::Result<&str> {
+    anyhow::ensure!(
+        res.status().is_redirection(),
+        "expect redirection, but got status {}",
+        res.status()
+    );
+    let Some(url) = res.headers().get("Location") else {
+        anyhow::bail!("location header not found");
+    };
+    let url = url.to_str().context("location header not valid str")?;
+    Ok(url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

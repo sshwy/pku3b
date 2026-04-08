@@ -122,29 +122,12 @@ impl LowLevelClient {
         log::trace!("HTTP GET: {}", THESISLIB_LOGIN);
         let res = self.http_client.get(THESISLIB_LOGIN)?.send().await?;
 
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         // authorize
         log::trace!("Expection: redir to https url");
         let res = self.get_by_uri(url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         // oauthLib.jsp
         let res = self.get_by_uri(url).await?;
@@ -195,27 +178,10 @@ impl LowLevelClient {
             .ok_or(anyhow::anyhow!("no url in content"))?
             .1;
         let res = self.get_by_uri(url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         let res = self.get_by_uri(url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         let res = self.get_by_uri(url).await?;
         anyhow::ensure!(res.status().is_success(), "error status {}", res.status());
@@ -295,16 +261,7 @@ impl LowLevelClient {
         // personaliiifServlet url
         let url = body.data;
         let res = self.get_by_uri(&url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         let fid = url::Url::parse(url)?
             .query_pairs()

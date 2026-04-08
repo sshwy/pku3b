@@ -62,27 +62,13 @@ impl LowLevelClient {
                 anyhow::bail!("Unexpected HTTP 200. Redirect expected.");
             }
         }
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+
+        let url = extract_redirect_url(&res)?;
 
         log::trace!("Expection: redir to https url");
         let res = self.get_by_uri(url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+
+        let url = extract_redirect_url(&res)?;
 
         log::trace!("final redir");
         let res = self.get_by_uri(url).await?;
@@ -139,27 +125,11 @@ impl LowLevelClient {
             .await?;
 
         log::trace!("redir to http");
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         log::trace!("redir to https");
         let res = self.get_by_uri(url).await?;
-        anyhow::ensure!(
-            res.status().is_redirection(),
-            "error status {}",
-            res.status()
-        );
-        let Some(url) = res.headers().get("Location") else {
-            anyhow::bail!("no Location header");
-        };
-        let url = url.to_str().context("Location not valid str")?;
+        let url = extract_redirect_url(&res)?;
 
         log::trace!("final redir");
         let res = self.get_by_uri(url).await?;
