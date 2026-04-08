@@ -1,9 +1,24 @@
+use crate::api::low_level::blackboard::BlackboardUnautherizedError;
+
 use super::*;
 
 impl Client {
     pub async fn blackboard(&self, username: &str, password: &str) -> anyhow::Result<Blackboard> {
         let c = &self.0.http_client;
-        c.bb_login(username, password).await?;
+        if let Err(e) = c.bb_homepage().await {
+            // expect unauthorized error
+            if let Err(e) = e.downcast::<BlackboardUnautherizedError>() {
+                log::error!("error during preflight: {e}");
+            }
+            c.bb_login(username, password).await?;
+
+            if let Some(path) = &self.0.cookie_restore_path {
+                c.save_set_cookies(path).await?;
+                log::info!("blackboard login session saved to {}", path.display());
+            }
+        } else {
+            log::info!("reuse saved login session");
+        }
 
         Ok(Blackboard {
             client: self.clone(),

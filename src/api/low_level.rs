@@ -49,6 +49,10 @@ impl LowLevelClient {
         self.http_client.load_set_cookies(path).await
     }
 
+    pub async fn save_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
+        self.http_client.save_set_cookies(path).await
+    }
+
     #[cfg(feature = "thesislib")]
     fn encrypt_password(pubkey: &str, password: &str) -> anyhow::Result<String> {
         use base64::{Engine as _, engine::general_purpose};

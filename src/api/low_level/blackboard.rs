@@ -5,6 +5,7 @@ pub const OAUTH_REDIR: &str =
 pub const SSO_LOGIN: &str =
     "https://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
 pub const BB_HOME: &str = "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
+pub const BB_LOGIN: &str = "https://course.pku.edu.cn/webapps/login/";
 pub const COURSE_INFO: &str = "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
 pub const UPLOAD_ASSIGNMENT: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
 pub const LIST_CONTENT: &str =
@@ -13,6 +14,17 @@ pub const VIDEO_LIST: &str =
     "https://course.pku.edu.cn/webapps/bb-streammedia-hqy-BBLEARN/videoList.action";
 pub const VIDEO_SUB_INFO: &str =
     "https://yjapise.pku.edu.cn/courseapi/v2/schedule/get-sub-info-by-auth-data";
+
+#[derive(Debug)]
+pub struct BlackboardUnautherizedError;
+
+impl std::error::Error for BlackboardUnautherizedError {}
+
+impl std::fmt::Display for BlackboardUnautherizedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "blackboard login not authorized")
+    }
+}
 
 impl LowLevelClient {
     /// 使用 OAuth login 返回的 token 登录教学网。登录状态会记录在 client cookie 中，无需返回值.
@@ -56,6 +68,9 @@ impl LowLevelClient {
             .send()
             .await?;
 
+        if extract_redirect_url(&res).ok() == Some(BB_LOGIN) {
+            anyhow::bail!(BlackboardUnautherizedError);
+        }
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.text().await?;

@@ -4,21 +4,10 @@
 //! persist cookies observed via `Set-Cookie` response headers.
 use std::sync::{Arc, RwLock};
 
+use cookie_store::CookieStore;
 use cyper::{Body, IntoUrl, Response};
 use http::{HeaderName, HeaderValue};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct SetCookie {
-    /// The effective domain that produced the `Set-Cookie` header.
-    domain: String,
-    /// The request path associated with the response that set this cookie.
-    path: String,
-    /// The raw `Set-Cookie` header value.
-    value: String,
-}
-
-type SetCookies = Vec<SetCookie>;
+use serde::Serialize;
 
 #[derive(Debug, Clone)]
 /// A `cyper` client with a shared, persistable cookie store.
@@ -28,7 +17,7 @@ type SetCookies = Vec<SetCookie>;
 /// disk as JSON.
 pub struct Client {
     http_client: cyper::Client,
-    set_cookies: Arc<RwLock<SetCookies>>,
+    cookie_store: Arc<RwLock<CookieStore>>,
 }
 
 impl Client {
@@ -36,7 +25,7 @@ impl Client {
     pub fn from_cyper(client: cyper::Client) -> Self {
         Self {
             http_client: client,
-            set_cookies: Arc::new(RwLock::default()),
+            cookie_store: Arc::new(RwLock::default()),
         }
     }
 
@@ -44,7 +33,7 @@ impl Client {
     pub fn get<U: IntoUrl>(&self, url: U) -> cyper::Result<RequestBuilder> {
         Ok(RequestBuilder {
             builder: self.http_client.get(url)?,
-            set_cookies: self.set_cookies.clone(),
+            cookie_store: self.cookie_store.clone(),
         })
     }
 
@@ -52,24 +41,37 @@ impl Client {
     pub fn post<U: IntoUrl>(&self, url: U) -> cyper::Result<RequestBuilder> {
         Ok(RequestBuilder {
             builder: self.http_client.post(url)?,
-            set_cookies: self.set_cookies.clone(),
+            cookie_store: self.cookie_store.clone(),
         })
     }
 
     /// Save the current cookie store to a JSON file.
     pub async fn save_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        let set_cookies = self.set_cookies.read().unwrap();
-        let data = serde_json::to_string(&*set_cookies)?;
-        compio::buf::buf_try!(@try compio::fs::write(path, data).await);
+        let cookie_store = self.cookie_store.read().unwrap();
+        let mut buf = Vec::new();
+        cookie_store::serde::json::save_incl_expired_and_nonpersistent(&cookie_store, &mut buf)
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "save cookie store to {} failed: {e}",
+                    path.as_ref().display()
+                )
+            })?;
+        compio::fs::write(path.as_ref(), buf).await.0?;
         Ok(())
     }
 
     /// Load the cookie store from a JSON file, replacing any existing cookies.
     pub async fn load_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        let data = compio::fs::read(path).await?;
-        let set_cookies: SetCookies = serde_json::from_slice(&data)?;
+        let data = compio::fs::read(path.as_ref()).await?;
+        let cookie_store: CookieStore =
+            cookie_store::serde::json::load_all(&mut std::io::Cursor::new(data)).map_err(|e| {
+                anyhow::anyhow!(
+                    "load cookie store from {} failed: {e}",
+                    path.as_ref().display()
+                )
+            })?;
 
-        *self.set_cookies.write().unwrap() = set_cookies;
+        *self.cookie_store.write().unwrap() = cookie_store;
         Ok(())
     }
 }
@@ -81,7 +83,7 @@ impl Client {
 /// the shared cookie store.
 pub struct RequestBuilder {
     builder: cyper::RequestBuilder,
-    set_cookies: Arc<RwLock<Vec<SetCookie>>>,
+    cookie_store: Arc<RwLock<CookieStore>>,
 }
 
 impl RequestBuilder {
@@ -89,7 +91,7 @@ impl RequestBuilder {
     pub fn query<T: Serialize + ?Sized>(self, query: &T) -> cyper::Result<RequestBuilder> {
         Ok(RequestBuilder {
             builder: self.builder.query(query)?,
-            set_cookies: self.set_cookies,
+            cookie_store: self.cookie_store,
         })
     }
 
@@ -105,7 +107,7 @@ impl RequestBuilder {
     {
         Ok(RequestBuilder {
             builder: self.builder.header(key, value)?,
-            set_cookies: self.set_cookies,
+            cookie_store: self.cookie_store,
         })
     }
 
@@ -113,7 +115,7 @@ impl RequestBuilder {
     pub fn body<T: Into<Body>>(self, body: T) -> RequestBuilder {
         RequestBuilder {
             builder: self.builder.body(body),
-            set_cookies: self.set_cookies,
+            cookie_store: self.cookie_store,
         }
     }
 
@@ -121,27 +123,42 @@ impl RequestBuilder {
     pub fn form<T: Serialize + ?Sized>(self, form: &T) -> cyper::Result<RequestBuilder> {
         Ok(RequestBuilder {
             builder: self.builder.form(form)?,
-            set_cookies: self.set_cookies,
+            cookie_store: self.cookie_store,
         })
     }
 
     /// Send the request and record any `Set-Cookie` response headers.
     pub async fn send(self) -> cyper::Result<Response> {
-        let (c, req) = self.builder.build_split();
-        let domain = req.url().domain().map(|s| s.to_string());
-        let path = req.url().path().to_string();
+        let (c, mut req) = self.builder.build_split();
+        let url = req.url().clone();
+
+        {
+            let cookie_value = self
+                .cookie_store
+                .read()
+                .unwrap()
+                .get_request_values(&url)
+                .map(|(name, value)| format!("{name}={value}"))
+                .collect::<Vec<_>>()
+                .join("; ");
+
+            if !cookie_value.is_empty()
+                && let Ok(v) = HeaderValue::from_str(&cookie_value)
+            {
+                log::trace!("override cookie for {url}: {cookie_value}");
+                req.headers_mut().insert(http::header::COOKIE, v);
+            }
+        }
+
         let res = c.execute(req).await?;
-        if let Some(domain) = domain {
-            for (k, v) in res.headers() {
-                if k == HeaderName::from_static("set-cookie")
-                    && let Ok(v) = v.to_str()
-                {
-                    log::debug!("set cookie for {domain}{path}: {}", v);
-                    self.set_cookies.write().unwrap().push(SetCookie {
-                        domain: domain.clone(),
-                        path: path.clone(),
-                        value: v.to_string(),
-                    });
+        for (k, v) in res.headers() {
+            if k == http::header::SET_COOKIE
+                && let Ok(v) = v.to_str()
+            {
+                let v = v.to_owned();
+                if let Ok(c) = cookie_store::Cookie::parse(v, &url) {
+                    log::trace!("set cookie for {url}: {:?}", c);
+                    let _ = self.cookie_store.write().unwrap().insert(c, &url);
                 }
             }
         }

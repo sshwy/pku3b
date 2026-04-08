@@ -2114,6 +2114,7 @@ dependencies = [
  "chrono",
  "clap",
  "compio",
+ "cookie_store",
  "cyper",
  "directories",
  "env_logger",

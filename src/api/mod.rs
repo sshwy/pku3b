@@ -23,6 +23,7 @@ struct ClientInner {
     http_client: low_level::LowLevelClient,
     cache_ttl: Option<std::time::Duration>,
     download_artifact_ttl: Option<std::time::Duration>,
+    cookie_restore_path: Option<std::path::PathBuf>,
 }
 
 impl std::fmt::Debug for ClientInner {

@@ -3,6 +3,8 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context;
+
 use super::{Client, ClientInner, low_level};
 
 /// Builder for [`Client`].
@@ -49,11 +51,17 @@ impl ClientBuilder {
             .http_client
             .unwrap_or_else(low_level::LowLevelClient::new);
 
-        if let Some(path) = self.cookie_restore_path
+        if let Some(path) = &self.cookie_restore_path
             && path.exists()
         {
             log::debug!("loading cookies from {}", path.display());
-            http_client.load_set_cookies(path).await?;
+            if let Err(e) = http_client
+                .load_set_cookies(path)
+                .await
+                .context("load cookies")
+            {
+                log::error!("{e}");
+            }
         }
 
         Ok(Client(
@@ -61,6 +69,7 @@ impl ClientBuilder {
                 http_client,
                 cache_ttl: self.cache_ttl,
                 download_artifact_ttl: self.download_artifact_ttl,
+                cookie_restore_path: self.cookie_restore_path,
             }
             .into(),
         ))
