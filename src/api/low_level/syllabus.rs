@@ -14,7 +14,7 @@ impl LowLevelClient {
     /// 使用 OAuth login 返回的 token 登录选课网。登录状态会记录在 client cookie 中，无需返回值.
     pub async fn sb_login(&self, username: &str, password: &str) -> anyhow::Result<()> {
         let token = self
-            .iaaa_oauth_login("syllabus", username, password, OAUTH_REDIR)
+            .iaaa_oauth_login("syllabus", username, password, "", OAUTH_REDIR)
             .await?;
 
         log::debug!("iaaa oauth token for {username}: {token}");
@@ -85,7 +85,7 @@ impl LowLevelClient {
         dual_sttp: &str,
     ) -> anyhow::Result<()> {
         let token = self
-            .iaaa_oauth_login("syllabus", username, password, OAUTH_REDIR)
+            .iaaa_oauth_login("syllabus", username, password, "", OAUTH_REDIR)
             .await?;
 
         log::debug!("iaaa oauth token for {username}: {token}");

@@ -45,11 +45,14 @@ impl AuthenData {
 
 impl LowLevelClient {
     /// 向 [`IAAA_OAUTH_LOGIN`] 发送登录请求，并返回 token
+    ///
+    /// - `otp_code`: 手机令牌码，空串表示不提供
     pub async fn iaaa_oauth_login(
         &self,
         appid: &str,
         username: &str,
         password: &str,
+        otp_code: &str,
         redir: &str,
     ) -> anyhow::Result<String> {
         let res = self
@@ -61,7 +64,7 @@ impl LowLevelClient {
                 ("password", password),
                 ("randCode", ""),
                 ("smsCode", ""),
-                ("otpCode", ""),
+                ("otpCode", otp_code),
                 ("redirUrl", redir),
             ])?
             .send()
@@ -75,7 +78,7 @@ impl LowLevelClient {
 
         let rbody = res.text().await?;
 
-        #[derive(serde::Deserialize)]
+        #[derive(serde::Deserialize, Debug)]
         struct OAuthLoginData {
             success: bool,
             token: Option<String>,
@@ -87,7 +90,7 @@ impl LowLevelClient {
                 log::debug!("{e}");
                 log::debug!("response body: {rbody}")
             })?;
-        anyhow::ensure!(data.success, "oauth login not success");
+        anyhow::ensure!(data.success, "oauth login not success: {:?}", data);
 
         if let Some(err) = data.errors {
             return Err(err.into());

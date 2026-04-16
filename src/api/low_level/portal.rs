@@ -11,8 +11,18 @@ pub const PORTAL_MY_COURSE_TABLE_INFO: &str =
     "https://portal.pku.edu.cn/publicQuery/ctrl/topic/myCourseTable/getCourseInfo.do";
 
 impl LowLevelClient {
+    pub async fn portal_login_require_otp(&self, username: &str) -> anyhow::Result<bool> {
+        let data = self.iaaa_is_mobile_authen(PORTAL_APP_ID, username).await?;
+        Ok(data.authen_mode == "OTP")
+    }
+
     /// 使用 OAuth 登录门户系统
-    pub async fn portal_login(&self, username: &str, password: &str) -> anyhow::Result<()> {
+    pub async fn portal_login(
+        &self,
+        username: &str,
+        password: &str,
+        otp_code: &str,
+    ) -> anyhow::Result<()> {
         let data = self.iaaa_is_mobile_authen(PORTAL_APP_ID, username).await?;
 
         if data.is_no() {
@@ -22,7 +32,7 @@ impl LowLevelClient {
         }
 
         let token = self
-            .iaaa_oauth_login(PORTAL_APP_ID, username, password, PORTAL_REDIR)
+            .iaaa_oauth_login(PORTAL_APP_ID, username, password, otp_code, PORTAL_REDIR)
             .await?;
 
         log::debug!("iaaa oauth token for portal {username}: {token}");

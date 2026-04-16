@@ -1,9 +1,15 @@
 use super::*;
 
 impl Client {
-    pub async fn portal(&self, username: &str, password: &str) -> anyhow::Result<Portal> {
+    pub async fn portal(
+        &self,
+        username: &str,
+        password: &str,
+        otp_code: &str,
+    ) -> anyhow::Result<Portal> {
         let c = &self.0.http_client;
-        c.portal_login(username, password).await?;
+
+        c.portal_login(username, password, otp_code).await?;
 
         Ok(Portal {
             client: self.clone(),
