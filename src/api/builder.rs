@@ -8,23 +8,12 @@ use anyhow::Context;
 use super::{Client, ClientInner, low_level};
 
 /// Builder for [`Client`].
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ClientBuilder {
     cache_ttl: Option<Duration>,
     download_artifact_ttl: Option<Duration>,
     http_client: Option<low_level::LowLevelClient>,
     cookie_restore_path: Option<PathBuf>,
-}
-
-impl Default for ClientBuilder {
-    fn default() -> Self {
-        Self {
-            cache_ttl: None,
-            download_artifact_ttl: None,
-            http_client: None,
-            cookie_restore_path: None,
-        }
-    }
 }
 
 impl ClientBuilder {

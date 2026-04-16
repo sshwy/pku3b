@@ -92,13 +92,12 @@ pub async fn run(cmd: CommandCourseTable) -> anyhow::Result<()> {
                     for (idx, slot) in courses.iter().enumerate() {
                         let slot_num = idx + 1;
 
-                        if let Some(course) = slot.get(day_key) {
-                            if let Some(name) = course.get("courseName").and_then(|n| n.as_str()) {
-                                if !name.is_empty() {
-                                    let clean_info = format_course_info(name);
-                                    day_slots.push((slot_num, clean_info));
-                                }
-                            }
+                        if let Some(course) = slot.get(day_key)
+                            && let Some(name) = course.get("courseName").and_then(|n| n.as_str())
+                            && !name.is_empty()
+                        {
+                            let clean_info = format_course_info(name);
+                            day_slots.push((slot_num, clean_info));
                         }
                     }
 

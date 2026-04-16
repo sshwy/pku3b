@@ -56,7 +56,7 @@ impl Client {
     }
 
     pub fn download_artifact_ttl(&self) -> Option<std::time::Duration> {
-        self.0.download_artifact_ttl.clone()
+        self.0.download_artifact_ttl
     }
 }
 

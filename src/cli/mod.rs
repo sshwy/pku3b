@@ -136,7 +136,7 @@ async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
             .cache_ttl(Some(std::time::Duration::from_hours(1)))
             .download_artifact_ttl(Some(std::time::Duration::from_hours(24)))
     }
-    Ok(builder.build().await?)
+    builder.build().await
 }
 
 /// Client, courses and spinner are returned. Spinner hasn't stopped.

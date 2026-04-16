@@ -137,8 +137,7 @@ impl LowLevelClient {
             let url = url::Url::parse(url)?;
             let (_, v) = url
                 .query_pairs()
-                .filter(|(k, _)| k == "redirectUrl")
-                .next()
+                .find(|(k, _)| k == "redirectUrl")
                 .ok_or(anyhow::anyhow!("no redirectUrl in url {url}"))?;
             v.to_string()
         };

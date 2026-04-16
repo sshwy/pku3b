@@ -47,15 +47,17 @@ impl Client {
 
     /// Save the current cookie store to a JSON file.
     pub async fn save_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        let cookie_store = self.cookie_store.read().unwrap();
         let mut buf = Vec::new();
-        cookie_store::serde::json::save_incl_expired_and_nonpersistent(&cookie_store, &mut buf)
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "save cookie store to {} failed: {e}",
-                    path.as_ref().display()
-                )
-            })?;
+        {
+            let cookie_store = self.cookie_store.read().unwrap();
+            cookie_store::serde::json::save_incl_expired_and_nonpersistent(&cookie_store, &mut buf)
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "save cookie store to {} failed: {e}",
+                        path.as_ref().display()
+                    )
+                })?;
+        }
         compio::fs::write(path.as_ref(), buf).await.0?;
         Ok(())
     }
