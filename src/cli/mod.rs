@@ -52,14 +52,7 @@ enum Commands {
 
     /// 获取个人课表
     #[command(name = "coursetable", visible_alias("ct"))]
-    CourseTable {
-        /// 强制刷新
-        #[arg(short, long, default_value = "false")]
-        force: bool,
-        /// 显示原始 JSON 数据（用于调试）
-        #[arg(short, long, default_value = "false")]
-        raw: bool,
-    },
+    CourseTable(cmd_course_table::CommandCourseTable),
 
     /// 获取课程公告
     #[command(
@@ -287,7 +280,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
-            Commands::CourseTable { force, raw } => cmd_course_table::list(force, raw).await?,
+            Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
             Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,

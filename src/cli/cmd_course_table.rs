@@ -8,8 +8,29 @@ use compio::fs;
 use compio::io::AsyncWriteExt;
 use std::io::Write;
 
+#[derive(clap::Args)]
+pub struct CommandCourseTable {
+    /// 强制刷新
+    #[arg(short, long, default_value = "false")]
+    force: bool,
+
+    /// 显示原始 JSON 数据（用于调试）
+    #[arg(short, long, default_value = "false")]
+    raw: bool,
+
+    /// 手机令牌码。当需要使用 OTP 登录，但未提供此参数时，将会从命令行交互式读取 OTP 码。
+    #[arg(long, default_value = "")]
+    otp_code: String,
+}
+
 /// 获取个人课表
-pub async fn list(force: bool, raw: bool) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandCourseTable) -> anyhow::Result<()> {
+    let CommandCourseTable {
+        force,
+        raw,
+        otp_code,
+    } = cmd;
+
     let client = build_client(!force).await?;
 
     let sp = pbar::new_spinner();
@@ -21,8 +42,19 @@ pub async fn list(force: bool, raw: bool) -> anyhow::Result<()> {
 
     sp.set_message("logging in to portal...");
 
+    let otp_code = if client
+        .portal_login_require_otp(&cfg.username)
+        .await
+        .context("check if OTP is required")?
+        && otp_code.is_empty()
+    {
+        inquire::Text::new("请输入手机令牌（OTP）码: ").prompt()?
+    } else {
+        otp_code
+    };
+
     let portal = client
-        .portal(&cfg.username, &cfg.password)
+        .portal(&cfg.username, &cfg.password, &otp_code)
         .await
         .context("login to portal")?;
 
