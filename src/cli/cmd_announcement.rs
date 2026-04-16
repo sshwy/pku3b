@@ -12,6 +12,10 @@ pub struct CommandAnnouncement {
 
     #[command(subcommand)]
     command: AnnouncementCommands,
+
+    /// 手机令牌码。当需要使用 OTP 登录，但未提供此参数时，将会从命令行交互式读取 OTP 码。
+    #[arg(long, default_value = "")]
+    otp_code: String,
 }
 
 #[derive(Subcommand)]
@@ -35,8 +39,10 @@ enum AnnouncementCommands {
 
 pub async fn run(cmd: CommandAnnouncement) -> anyhow::Result<()> {
     match cmd.command {
-        AnnouncementCommands::List { all_term } => list(cmd.force, !all_term).await?,
-        AnnouncementCommands::Show { id, all_term } => show(cmd.force, !all_term, &id).await?,
+        AnnouncementCommands::List { all_term } => list(cmd.force, !all_term, cmd.otp_code).await?,
+        AnnouncementCommands::Show { id, all_term } => {
+            show(cmd.force, !all_term, &id, cmd.otp_code).await?
+        }
     }
     Ok(())
 }
@@ -63,8 +69,9 @@ async fn get_announcements(
 async fn get_courses_and_announcements(
     force: bool,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<Vec<(Course, Vec<CourseAnnouncementHandle>)>> {
-    let courses = load_courses(force, cur_term).await?;
+    let courses = load_courses(force, cur_term, otp_code).await?;
 
     let m = indicatif::MultiProgress::new();
     let pb = m.add(pbar::new(courses.len() as u64)).with_prefix("All");
@@ -100,8 +107,8 @@ async fn get_courses_and_announcements(
     Ok(courses)
 }
 
-pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
-    let courses = get_courses_and_announcements(force, cur_term).await?;
+pub async fn list(force: bool, cur_term: bool, otp_code: String) -> anyhow::Result<()> {
+    let courses = get_courses_and_announcements(force, cur_term, otp_code).await?;
     let all_announcements = courses
         .iter()
         .flat_map(|(course, announcements)| {
@@ -140,8 +147,8 @@ async fn list_brief(items: Vec<(Course, String, CourseAnnouncementHandle)>) -> a
     Ok(())
 }
 
-pub async fn show(force: bool, cur_term: bool, id: &str) -> anyhow::Result<()> {
-    let items = fetch_announcements(force, cur_term).await?;
+pub async fn show(force: bool, cur_term: bool, id: &str, otp_code: String) -> anyhow::Result<()> {
+    let items = fetch_announcements(force, cur_term, otp_code).await?;
     let Some((course, ann_id, announcement)) =
         items.into_iter().find(|(_, ann_id, _)| ann_id == id)
     else {
@@ -216,8 +223,9 @@ fn write_announcement_detail(
 async fn fetch_announcements(
     force: bool,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<Vec<AnnouncementListItem>> {
-    let courses = get_courses_and_announcements(force, cur_term).await?;
+    let courses = get_courses_and_announcements(force, cur_term, otp_code).await?;
 
     let mut all_announcements = courses
         .into_iter()

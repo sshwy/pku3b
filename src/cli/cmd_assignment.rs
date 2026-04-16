@@ -12,6 +12,10 @@ pub struct CommandAssignment {
 
     #[command(subcommand)]
     command: AssignmentCommands,
+
+    /// 手机令牌码。当需要使用 OTP 登录，但未提供此参数时，将会从命令行交互式读取 OTP 码。
+    #[arg(long, default_value = "")]
+    otp_code: String,
 }
 
 #[derive(Subcommand)]
@@ -58,13 +62,21 @@ enum AssignmentCommands {
 pub async fn run(cmd: CommandAssignment) -> anyhow::Result<()> {
     match cmd.command {
         AssignmentCommands::List { all, all_term } => {
-            cmd_assignment::list(cmd.force, all || all_term, !all_term).await?
+            cmd_assignment::list(cmd.force, all || all_term, !all_term, cmd.otp_code).await?
         }
         AssignmentCommands::Download { id, dir, all_term } => {
-            cmd_assignment::download(id.as_deref(), &dir, cmd.force, all_term, !all_term).await?
+            cmd_assignment::download(
+                id.as_deref(),
+                &dir,
+                cmd.force,
+                all_term,
+                !all_term,
+                cmd.otp_code,
+            )
+            .await?
         }
         AssignmentCommands::Submit { id, path } => {
-            cmd_assignment::submit(id.as_deref(), path.as_deref()).await?
+            cmd_assignment::submit(id.as_deref(), path.as_deref(), cmd.otp_code).await?
         }
     }
     Ok(())
@@ -119,8 +131,9 @@ async fn get_assignments(
 async fn get_courses_and_assignments(
     force: bool,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<Vec<(Course, Vec<(String, CourseAssignment)>)>> {
-    let courses = load_courses(force, cur_term).await?;
+    let courses = load_courses(force, cur_term, otp_code).await?;
 
     // fetch each course concurrently
     let m = indicatif::MultiProgress::new();
@@ -155,8 +168,8 @@ async fn get_courses_and_assignments(
     Ok(courses)
 }
 
-pub async fn list(force: bool, all: bool, cur_term: bool) -> anyhow::Result<()> {
-    let courses = get_courses_and_assignments(force, cur_term).await?;
+pub async fn list(force: bool, all: bool, cur_term: bool, otp_code: String) -> anyhow::Result<()> {
+    let courses = get_courses_and_assignments(force, cur_term, otp_code).await?;
 
     let mut all_assignments = courses
         .iter()
@@ -199,8 +212,9 @@ async fn fetch_assignments(
     force: bool,
     all: bool,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<Vec<AssignmentListItem>> {
-    let courses = get_courses_and_assignments(force, cur_term).await?;
+    let courses = get_courses_and_assignments(force, cur_term, otp_code).await?;
 
     let mut all_assignments = courses
         .into_iter()
@@ -250,8 +264,9 @@ pub async fn download(
     force: bool,
     all: bool,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<()> {
-    let items = fetch_assignments(force, all, cur_term).await?;
+    let items = fetch_assignments(force, all, cur_term, otp_code).await?;
     let a = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {
             Some(r) => r,
@@ -292,8 +307,12 @@ async fn download_data(
     Ok(())
 }
 
-pub async fn submit(id: Option<&str>, path: Option<&std::path::Path>) -> anyhow::Result<()> {
-    let items = fetch_assignments(false, false, true).await?;
+pub async fn submit(
+    id: Option<&str>,
+    path: Option<&std::path::Path>,
+    otp_code: String,
+) -> anyhow::Result<()> {
+    let items = fetch_assignments(false, false, true, otp_code).await?;
 
     let (c, _, a) = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {

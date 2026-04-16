@@ -10,6 +10,10 @@ pub struct CommandVideo {
 
     #[command(subcommand)]
     command: VideoCommands,
+
+    /// 手机令牌码。当需要使用 OTP 登录，但未提供此参数时，将会从命令行交互式读取 OTP 码。
+    #[arg(long, default_value = "")]
+    otp_code: String,
 }
 
 #[derive(Subcommand)]
@@ -41,19 +45,19 @@ enum VideoCommands {
 
 pub async fn run(cmd: CommandVideo) -> anyhow::Result<()> {
     match cmd.command {
-        VideoCommands::List { all_term } => list(cmd.force, !all_term).await?,
+        VideoCommands::List { all_term } => list(cmd.force, !all_term, cmd.otp_code).await?,
         #[cfg(feature = "video-download")]
         VideoCommands::Download {
             outdir,
             id,
             all_term,
-        } => download(outdir.as_deref(), cmd.force, id, !all_term).await?,
+        } => download(outdir.as_deref(), cmd.force, id, !all_term, cmd.otp_code).await?,
     }
     Ok(())
 }
 
-pub async fn list(force: bool, cur_term: bool) -> anyhow::Result<()> {
-    let courses = load_courses(force, cur_term).await?;
+pub async fn list(force: bool, cur_term: bool, otp_code: String) -> anyhow::Result<()> {
+    let courses = load_courses(force, cur_term, otp_code).await?;
 
     let pb = pbar::new(courses.len() as u64);
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
@@ -100,13 +104,14 @@ pub async fn download(
     force: bool,
     id: String,
     cur_term: bool,
+    otp_code: String,
 ) -> anyhow::Result<()> {
     let outdir = outdir.unwrap_or(std::path::Path::new("."));
     if !outdir.exists() {
         anyhow::bail!("output directory {:?} not exists", outdir.display());
     }
 
-    let (_, courses, sp) = load_client_courses(force, cur_term).await?;
+    let (_, courses, sp) = load_client_courses(force, cur_term, otp_code).await?;
 
     sp.set_message("finding video...");
     let mut target_video = None;

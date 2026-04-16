@@ -143,6 +143,7 @@ async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
 async fn load_client_courses(
     force: bool,
     only_current: bool,
+    otp_code: String,
 ) -> anyhow::Result<(api::Client, Vec<CourseHandle>, pbar::AsyncSpinner)> {
     let client = build_client(!force).await?;
 
@@ -154,9 +155,20 @@ async fn load_client_courses(
         .await
         .context("read config file")?;
 
+    let otp_code = if client
+        .bb_login_require_otp(&cfg.username)
+        .await
+        .context("check if OTP is required")?
+        && otp_code.is_empty()
+    {
+        inquire::Text::new("请输入手机令牌（OTP）码: ").prompt()?
+    } else {
+        otp_code
+    };
+
     sp.set_message("logging in to blackboard...");
     let blackboard = client
-        .blackboard(&cfg.username, &cfg.password)
+        .blackboard(&cfg.username, &cfg.password, &otp_code)
         .await
         .context("login to blackboard")?;
 
@@ -169,8 +181,12 @@ async fn load_client_courses(
     Ok((client, courses, sp))
 }
 
-async fn load_courses(force: bool, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
-    let (_, r, _) = load_client_courses(force, only_current).await?;
+async fn load_courses(
+    force: bool,
+    only_current: bool,
+    otp_code: String,
+) -> anyhow::Result<Vec<CourseHandle>> {
+    let (_, r, _) = load_client_courses(force, only_current, otp_code).await?;
     Ok(r)
 }
 
