@@ -58,13 +58,24 @@ impl LowLevelClient {
         let _rand: f64 = rng.sample(rand::distr::Open01);
         let _rand = format!("{_rand:.20}");
 
-        let res = self
+        let mut res = self
             .http_client
             .get(SSO_LOGIN)?
             .query(&[("_rand", _rand.as_str()), ("token", &token)])?
             .send()
             .await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        // It seems that multiple redirections are possible during sso login.
+        while let Ok(url) = extract_redirect_url(&res) {
+            log::debug!("sso login redirected to {url}");
+            res = self.get_by_uri(url).await?;
+        }
+
+        anyhow::ensure!(
+            res.status().is_success(),
+            "sso login not success: {}",
+            res.status()
+        );
 
         Ok(())
     }
