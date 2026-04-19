@@ -58,6 +58,9 @@ impl Client {
                     )
                 })?;
         }
+        if let Some(parent) = path.as_ref().parent() {
+            compio::fs::create_dir_all(parent).await?;
+        }
         compio::fs::write(path.as_ref(), buf).await.0?;
         Ok(())
     }
@@ -165,5 +168,35 @@ impl RequestBuilder {
             }
         }
         Ok(res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_cookie_path() -> (std::path::PathBuf, std::path::PathBuf) {
+        let base = std::env::temp_dir().join(format!(
+            "pku3b-http-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let path = base.join("nested").join("ua.json");
+        (base, path)
+    }
+
+    #[compio::test]
+    async fn save_set_cookies_creates_parent_dirs() {
+        let client = Client::from_cyper(cyper::Client::builder().cookie_store(true).build());
+        let (base, path) = test_cookie_path();
+
+        client.save_set_cookies(&path).await.unwrap();
+
+        assert!(path.exists(), "cookie file should be created");
+
+        std::fs::remove_dir_all(base).unwrap();
     }
 }
