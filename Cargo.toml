@@ -28,7 +28,7 @@ compio = { version = "0.18", features = [
 ], default-features = false }
 cyper = { version = "0.8", default-features = false, features = [
     "cookies",
-    "rustls",
+    "native-tls",
 ] }
 directories = "6.0.0"
 env_logger = { version = "0.11", features = [
@@ -59,7 +59,6 @@ pkcs8 = { version = "0.10", optional = true, default-features = false, features 
     "pem",
 ] }
 rsa = { version = "0.9", optional = true, features = ["pem"] }
-rustls = "0.23"
 scraper = { version = "0.23", default-features = false }
 serde = { version = "1.0", features = [
     "serde_derive",

@@ -20,10 +20,6 @@ use clap::Parser as _;
 
 #[compio::main]
 async fn main() {
-    rustls::crypto::aws_lc_rs::default_provider()
-        .install_default()
-        .unwrap();
-
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
         .parse_default_env()
