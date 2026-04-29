@@ -267,3 +267,22 @@ impl LowLevelClient {
         Ok(rbody)
     }
 }
+
+
+// REST API 支持
+impl LowLevelClient {
+    /// 发送 GET 请求到 REST API 并解析 JSON 响应
+    pub async fn api_get<T: serde::de::DeserializeOwned>(&self, url: &str) -> anyhow::Result<T> {
+        let res = self
+            .http_client
+            .get(url)?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "API request failed: {}", res.status());
+
+        let rbody = res.text().await?;
+        let data: T = serde_json::from_str(&rbody)?;
+        Ok(data)
+    }
+}

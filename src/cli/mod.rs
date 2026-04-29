@@ -9,6 +9,7 @@ mod cmd_thesis_lib;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
 mod cmd_video;
+mod cmd_grades;
 mod pbar;
 
 use crate::api::{blackboard::*, syllabus::*};
@@ -79,6 +80,10 @@ enum Commands {
     #[cfg(feature = "bark")]
     #[command(visible_alias("b"), arg_required_else_help(true))]
     Bark(cmd_bark::CommandBark),
+
+    /// 查询课程成绩
+    #[command(visible_alias("g"))]
+    Grades(cmd_grades::CommandGrades),
 
     /// 学位论文检索
     #[cfg(feature = "thesislib")]
@@ -299,6 +304,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
             Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
             Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
+            Commands::Grades(cmd) => cmd_grades::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
             #[cfg(feature = "ttshitu")]
