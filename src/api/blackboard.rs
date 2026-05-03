@@ -160,6 +160,9 @@ pub struct CourseHandle {
 }
 
 impl CourseHandle {
+    pub fn id(&self) -> &str {
+        &self.meta.id
+    }
     pub async fn _get(&self) -> anyhow::Result<HashMap<String, String>> {
         let dom = self.client.bb_coursepage(&self.meta.id).await?;
 
