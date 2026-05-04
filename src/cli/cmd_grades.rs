@@ -14,45 +14,73 @@ pub struct CommandGrades {
 }
 
 #[derive(Debug, Deserialize)]
-struct UserInfo { id: String }
-
-#[derive(Debug, Deserialize)]
-struct CourseEnrollment { #[serde(rename = "courseId")] course_id: String }
-
-#[derive(Debug, Deserialize)]
-struct CourseDetail { name: String, availability: Option<Availability> }
-
-#[derive(Debug, Deserialize)]
-struct Availability { available: String }
-
-#[derive(Debug, Deserialize)]
-struct GradebookColumns { results: Vec<GradebookColumn> }
-
-#[derive(Debug, Deserialize)]
-struct GradebookColumn {
-    id: String, name: String,
-    score: Option<ColumnScore>, grading: Option<Grading>,
+struct UserInfo {
+    id: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct ColumnScore { possible: f64 }
+struct CourseEnrollment {
+    #[serde(rename = "courseId")]
+    course_id: String,
+}
 
 #[derive(Debug, Deserialize)]
-struct Grading { #[serde(rename = "type")] grading_type: String }
+struct CourseDetail {
+    name: String,
+    availability: Option<Availability>,
+}
 
 #[derive(Debug, Deserialize)]
-struct GradeUsers { results: Vec<GradeUser> }
+struct Availability {
+    available: String,
+}
 
 #[derive(Debug, Deserialize)]
-struct GradeUser { #[serde(rename = "displayGrade")] display_grade: Option<DisplayGrade> }
+struct GradebookColumns {
+    results: Vec<GradebookColumn>,
+}
 
 #[derive(Debug, Deserialize)]
-struct DisplayGrade { score: Option<f64> }
+struct GradebookColumn {
+    id: String,
+    name: String,
+    score: Option<ColumnScore>,
+    grading: Option<Grading>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ColumnScore {
+    possible: f64,
+}
+
+#[derive(Debug, Deserialize)]
+struct Grading {
+    #[serde(rename = "type")]
+    grading_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GradeUsers {
+    results: Vec<GradeUser>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GradeUser {
+    #[serde(rename = "displayGrade")]
+    display_grade: Option<DisplayGrade>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DisplayGrade {
+    score: Option<f64>,
+}
 
 #[derive(Debug)]
 struct GradeRecord {
-    course_name: String, column_name: String,
-    score: Option<f64>, possible: f64,
+    course_name: String,
+    column_name: String,
+    score: Option<f64>,
+    possible: f64,
 }
 
 fn extract_term(name: &str) -> &str {
@@ -97,7 +125,12 @@ pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
             Err(_) => continue,
         };
 
-        if detail.availability.as_ref().map(|a| a.available != "Yes").unwrap_or(true) {
+        if detail
+            .availability
+            .as_ref()
+            .map(|a| a.available != "Yes")
+            .unwrap_or(true)
+        {
             continue;
         }
 
@@ -133,12 +166,15 @@ pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
             };
 
             let possible = col.score.as_ref().map(|s| s.possible).unwrap_or(0.0);
-            let score = grade_data.and_then(|g| g.display_grade).and_then(|d| d.score);
+            let score = grade_data
+                .and_then(|g| g.display_grade)
+                .and_then(|d| d.score);
 
             all_grades.push(GradeRecord {
                 course_name: detail.name.clone(),
                 column_name: col.name.clone(),
-                score, possible,
+                score,
+                possible,
             });
         }
     }
@@ -154,7 +190,12 @@ async fn print_grades(grades: &[GradeRecord], all_term: bool) -> anyhow::Result<
         return Ok(());
     }
 
-    let latest_term = grades.iter().map(|g| extract_term(&g.course_name)).max().unwrap_or("").to_string();
+    let latest_term = grades
+        .iter()
+        .map(|g| extract_term(&g.course_name))
+        .max()
+        .unwrap_or("")
+        .to_string();
 
     let mut courses: Vec<&str> = Vec::new();
     let mut course_map: std::collections::HashMap<&str, Vec<&GradeRecord>> =
@@ -166,7 +207,10 @@ async fn print_grades(grades: &[GradeRecord], all_term: bool) -> anyhow::Result<
         if !course_map.contains_key(g.course_name.as_str()) {
             courses.push(&g.course_name);
         }
-        course_map.entry(g.course_name.as_str()).or_default().push(g);
+        course_map
+            .entry(g.course_name.as_str())
+            .or_default()
+            .push(g);
     }
 
     let mut outbuf = Vec::new();
@@ -183,7 +227,9 @@ async fn print_grades(grades: &[GradeRecord], all_term: bool) -> anyhow::Result<
         displayed += 1;
         writeln!(outbuf, "{BL}{B}{course_name}{B:#}{BL:#}")?;
         for item in items {
-            if item.score.is_none() { continue; }
+            if item.score.is_none() {
+                continue;
+            }
             write!(outbuf, "{D}*{D:#} {} ", item.column_name)?;
             match item.score {
                 Some(s) => write!(outbuf, "{GR}{:.1}{GR:#}", s)?,

@@ -3,13 +3,13 @@ mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
 mod cmd_course_table;
+mod cmd_grades;
 mod cmd_syllabus;
 #[cfg(feature = "thesislib")]
 mod cmd_thesis_lib;
 #[cfg(feature = "ttshitu")]
 mod cmd_ttshitu;
 mod cmd_video;
-mod cmd_grades;
 mod pbar;
 
 use crate::api::{blackboard::*, syllabus::*};
