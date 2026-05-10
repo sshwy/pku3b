@@ -142,14 +142,19 @@ impl CourseMeta {
 
     /// Course Name (semester)
     pub fn title(&self) -> &str {
-        self.long_title.split_once(":").unwrap().1.trim()
+        self.long_title
+            .split_once(':')
+            .map(|(_, s)| s.trim())
+            .unwrap_or(self.long_title.trim())
     }
 
     /// Cousre Name
     pub fn name(&self) -> &str {
         let s = self.title();
-        let i = s.char_indices().rfind(|(_, c)| *c == '(').unwrap().0;
-        s.split_at(i).0.trim()
+        s.char_indices()
+            .rfind(|(_, c)| *c == '(')
+            .map(|(i, _)| s.split_at(i).0.trim())
+            .unwrap_or(s)
     }
 }
 
