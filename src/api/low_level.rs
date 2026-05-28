@@ -148,7 +148,7 @@ pub fn convert_uri(uri: &str) -> anyhow::Result<String> {
 /// - The response status is not a redirection.
 /// - The "Location" header is missing.
 /// - The value of the "Location" header cannot be converted to a valid string.
-fn extract_redirect_url(res: &cyper::Response) -> anyhow::Result<&str> {
+pub fn extract_redirect_url(res: &cyper::Response) -> anyhow::Result<&str> {
     anyhow::ensure!(
         res.status().is_redirection(),
         "expect redirection, but got status {}",

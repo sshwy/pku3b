@@ -253,21 +253,7 @@ impl Course {
     pub fn entries(&self) -> &HashMap<String, String> {
         &self.entries
     }
-    #[allow(dead_code)]
-    pub async fn query_launch_link(&self, uri: &str) -> anyhow::Result<String> {
-        let res = self.client.get_by_uri(uri).await?;
-        let st = res.status();
-        anyhow::ensure!(st.as_u16() == 302, "invalid status: {}", st);
-        let loc = res
-            .headers()
-            .get("location")
-            .context("location header not found")?
-            .to_str()
-            .context("location header not str")?
-            .to_owned();
 
-        Ok(loc)
-    }
     pub async fn get_video_list(&self) -> anyhow::Result<Vec<CourseVideoHandle>> {
         log::info!("fetching video list for course {}", self.meta.title());
 
@@ -1010,19 +996,7 @@ impl CourseAssignment {
     ) -> anyhow::Result<()> {
         log::debug!("downloading attachment from https://course.pku.edu.cn{uri}");
         let res = self.client.get_by_uri(uri).await?;
-        anyhow::ensure!(
-            res.status().as_u16() == 302,
-            "status not 302: {}",
-            res.status()
-        );
-
-        let loc = res
-            .headers()
-            .get("location")
-            .context("location header not found")?
-            .to_str()
-            .context("location header not str")?
-            .to_owned();
+        let loc = low_level::extract_redirect_url(&res)?;
 
         log::debug!("redicted to https://course.pku.edu.cn{loc}");
         let res = self.client.get_by_uri(&loc).await?;
