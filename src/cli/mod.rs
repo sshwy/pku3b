@@ -25,6 +25,7 @@ use compio::{
     io::{AsyncWrite, AsyncWriteExt},
 };
 use futures_util::{StreamExt, future::try_join_all};
+use indicatif::MultiProgress;
 use std::io::Write as _;
 use utils::style::*;
 
@@ -285,7 +286,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn start(cli: Cli) -> anyhow::Result<()> {
+pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
@@ -300,7 +301,7 @@ pub async fn start(cli: Cli) -> anyhow::Result<()> {
                     command_cache_clean(true).await?
                 }
             }
-            Commands::Assignment(cmd) => cmd_assignment::run(cmd).await?,
+            Commands::Assignment(cmd) => cmd_assignment::run(cmd, m).await?,
             Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
             Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
