@@ -29,6 +29,25 @@ impl Client {
             client: self.clone(),
         })
     }
+
+    pub async fn course_attachment_download<P: AsRef<std::path::Path>>(
+        &self,
+        uri: &str,
+        dest: P,
+    ) -> anyhow::Result<()> {
+        log::debug!("downloading attachment from {uri}");
+        let res = self.get_by_uri(uri).await?;
+        let loc = low_level::extract_redirect_url(&res)?;
+
+        log::debug!("redirected to {loc}");
+        let res = self.get_by_uri(&loc).await?;
+        anyhow::ensure!(res.status().is_success(), "status not success");
+
+        let rbody = res.bytes().await?;
+        let r = compio::fs::write(dest, rbody).await;
+        compio::buf::buf_try!(@try r);
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -994,18 +1013,7 @@ impl CourseAssignment {
         uri: &str,
         dest: &std::path::Path,
     ) -> anyhow::Result<()> {
-        log::debug!("downloading attachment from https://course.pku.edu.cn{uri}");
-        let res = self.client.get_by_uri(uri).await?;
-        let loc = low_level::extract_redirect_url(&res)?;
-
-        log::debug!("redicted to https://course.pku.edu.cn{loc}");
-        let res = self.client.get_by_uri(&loc).await?;
-        anyhow::ensure!(res.status().is_success(), "status not success");
-
-        let rbody = res.bytes().await?;
-        let r = compio::fs::write(dest, rbody).await;
-        compio::buf::buf_try!(@try r);
-        Ok(())
+        self.client.course_attachment_download(uri, dest).await
     }
 }
 
