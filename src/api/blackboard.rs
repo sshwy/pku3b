@@ -168,6 +168,11 @@ impl CourseHandle {
     pub fn id(&self) -> &str {
         &self.meta.id
     }
+
+    pub fn long_title(&self) -> &str {
+        &self.meta.long_title
+    }
+
     pub async fn _get(&self) -> anyhow::Result<HashMap<String, String>> {
         let dom = self.client.bb_coursepage(&self.meta.id).await?;
 
@@ -533,6 +538,12 @@ impl CourseContentStream {
                 .filter(|data| self.visited_ids.insert(data.id.to_owned()))
                 // add the rest new ids to probe_ids
                 .inspect(|data| {
+                    log::debug!(
+                        "find new content {:?}, title = {}, kind = {:?}",
+                        data.id,
+                        data.title,
+                        data.kind
+                    );
                     if data.has_link {
                         self.probe_ids.push(data.id.to_owned())
                     }
@@ -574,6 +585,22 @@ pub struct CourseContent {
 }
 
 impl CourseContent {
+    pub fn title(&self) -> &str {
+        &self.data.title
+    }
+
+    pub fn ccid(&self) -> String {
+        course_content_id(&self.course, &self.data)
+    }
+
+    pub fn kind(&self) -> &CourseContentKind {
+        &self.data.kind
+    }
+
+    pub fn attachments(&self) -> &[(String, String)] {
+        &self.data.attachments
+    }
+
     pub fn into_assignment_opt(self) -> Option<CourseAssignmentHandle> {
         if let CourseContentKind::Assignment = self.data.kind {
             Some(CourseAssignmentHandle {
@@ -588,10 +615,13 @@ impl CourseContent {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-enum CourseContentKind {
+pub enum CourseContentKind {
     Document,
     Assignment,
     Announcement,
+    Audio,
+    Folder,
+    Quiz,
     Unknown,
 }
 
@@ -656,7 +686,10 @@ impl CourseContentData {
 
         let kind = match img.attr("alt") {
             Some("作业") => CourseContentKind::Assignment,
+            Some("音频") => CourseContentKind::Audio,
+            Some("内容文件夹") => CourseContentKind::Folder,
             Some("项目") | Some("文件") => CourseContentKind::Document,
+            Some("测试") => CourseContentKind::Quiz,
             alt => {
                 log::warn!("unknown content kind: {alt:?}");
                 CourseContentKind::Unknown
@@ -705,6 +738,14 @@ impl CourseContentData {
     }
 }
 
+fn course_content_id(course: &CourseMeta, content: &CourseContentData) -> String {
+    let mut hasher = std::hash::DefaultHasher::new();
+    course.id.hash(&mut hasher);
+    content.id.hash(&mut hasher);
+    let x = hasher.finish();
+    format!("{x:x}")
+}
+
 #[derive(Debug, Clone)]
 pub struct CourseAssignmentHandle {
     client: Client,
@@ -714,11 +755,7 @@ pub struct CourseAssignmentHandle {
 
 impl CourseAssignmentHandle {
     pub fn id(&self) -> String {
-        let mut hasher = std::hash::DefaultHasher::new();
-        self.course.id.hash(&mut hasher);
-        self.content.id.hash(&mut hasher);
-        let x = hasher.finish();
-        format!("{x:x}")
+        course_content_id(&self.course, &self.content)
     }
 
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
