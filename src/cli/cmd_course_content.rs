@@ -21,14 +21,18 @@ enum CourseContentCommands {
     /// 查看课程列表
     #[command(visible_alias("ls"))]
     List(ListOptions),
+
+    /// 下载课程内容附件
+    #[command(visible_alias("down"))]
+    Download(DownloadOptions),
 }
 
 #[derive(clap::Args)]
 pub struct ListOptions {
-    /// 显示所有学期的作业（包括已完成的）
+    /// 将课程查询范围扩大到所有学期
     #[arg(long, default_value = "false")]
     all_term: bool,
-    /// 指定课程标题
+    /// 指定课程标题的子串
     #[arg(long)]
     course_title: Option<String>,
 }
@@ -36,6 +40,7 @@ pub struct ListOptions {
 pub async fn run(cmd: CommandCourseContent, m: &MultiProgress) -> anyhow::Result<()> {
     match cmd.command {
         CourseContentCommands::List(opts) => list(m, cmd.force, cmd.otp_code, opts).await?,
+        CourseContentCommands::Download(opts) => download(m, cmd.force, cmd.otp_code, opts).await?,
     }
     Ok(())
 }
@@ -147,6 +152,88 @@ pub async fn list(
 
     // write to stdout
     buf_try!(@try fs::stdout().write_all(outbuf).await);
+
+    Ok(())
+}
+
+#[derive(clap::Args)]
+pub struct DownloadOptions {
+    /// 课程内容 ID
+    ccid: String,
+    /// 文件下载目录 (支持相对路径)
+    #[arg(short = 'o', long)]
+    outdir: Option<std::path::PathBuf>,
+    /// 将课程内容描述写入文本文件，不指定则不写入
+    #[arg(long)]
+    output_desc: Option<String>,
+    /// 将课程查询范围扩大到所有学期
+    #[arg(long, default_value = "false")]
+    all_term: bool,
+    /// 指定课程标题的子串
+    #[arg(long)]
+    course_title: Option<String>,
+}
+
+pub async fn download(
+    m: &MultiProgress,
+    force: bool,
+    otp_code: String,
+    opts: DownloadOptions,
+) -> anyhow::Result<()> {
+    let courses = get_courses_contents(
+        m,
+        force,
+        otp_code,
+        opts.all_term,
+        opts.course_title.as_deref(),
+    )
+    .await?;
+
+    let Some((c, ct)) = courses.into_iter().find_map(|(c, contents)| {
+        contents
+            .into_iter()
+            .find(|ct| ct.ccid() == opts.ccid)
+            .map(|ct| (c, ct))
+    }) else {
+        anyhow::bail!("course content with id {} not found", opts.ccid);
+    };
+
+    log::debug!("{:?}", ct);
+
+    let atts = ct.attachments();
+    let tot = atts.len();
+    if tot == 0 {
+        return Ok(());
+    }
+
+    let outdir = opts.outdir.unwrap_or_else(|| std::path::PathBuf::from("."));
+    fs::create_dir_all(&outdir).await?;
+
+    println!("Downloading {} attachments to {}", tot, outdir.display());
+
+    if let Some(output_desc) = &opts.output_desc {
+        buf_try!(@try fs::write(outdir.join(output_desc), ct.descriptions().join("\n")).await);
+    }
+
+    let pb = m
+        .add(pbar::new(tot as u64))
+        .with_prefix("download")
+        .with_message(format!("[0/{tot}]"));
+    pb.tick();
+
+    for (i, (name, uri)) in atts.iter().enumerate() {
+        let dest = outdir.join(name);
+        pb.set_message(format!("[{}/{tot}] downloading '{name}'...", i + 1));
+        log::info!("downloading attachment {name} to {}", dest.display());
+        c.client()
+            .course_attachment_download(uri, &dest)
+            .await
+            .with_context(|| format!("download attachment '{name}'"))?;
+        pb.inc(1);
+    }
+
+    pb.finish_with_message("done.");
+    m.remove(&pb);
 
     Ok(())
 }
