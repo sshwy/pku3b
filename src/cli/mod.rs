@@ -2,6 +2,7 @@ mod cmd_announcement;
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
+mod cmd_course_content;
 mod cmd_course_table;
 mod cmd_grades;
 mod cmd_syllabus;
@@ -51,6 +52,10 @@ enum Commands {
     /// 获取课程作业信息/下载附件/提交作业
     #[command(visible_alias("a"), arg_required_else_help(true))]
     Assignment(cmd_assignment::CommandAssignment),
+
+    /// 获取课程内容
+    #[command(visible_alias("cc"))]
+    CourseContent(cmd_course_content::CommandCourseContent),
 
     /// 获取个人课表
     #[command(name = "coursetable", visible_alias("ct"))]
@@ -302,6 +307,7 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
                 }
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd, m).await?,
+            Commands::CourseContent(cmd) => cmd_course_content::run(cmd, m).await?,
             Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
             Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
             Commands::Video(cmd) => cmd_video::run(cmd).await?,
