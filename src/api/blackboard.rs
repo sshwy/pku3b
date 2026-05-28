@@ -606,6 +606,10 @@ impl CourseContent {
         &self.data.attachments
     }
 
+    pub fn descriptions(&self) -> &[String] {
+        &self.data.descriptions
+    }
+
     pub fn into_assignment_opt(self) -> Option<CourseAssignmentHandle> {
         if let CourseContentKind::Assignment = self.data.kind {
             Some(CourseAssignmentHandle {
