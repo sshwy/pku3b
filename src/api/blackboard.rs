@@ -717,7 +717,7 @@ impl CourseContentData {
             .map(|p| collect_text(p).trim().to_owned())
             .collect::<Vec<_>>();
 
-        let attachments = detail_div
+        let mut attachments = detail_div
             .select(&Selector::parse("ul.attachments > li > a").unwrap())
             .map(|a| {
                 let text = a.text().collect::<String>();
@@ -730,6 +730,22 @@ impl CourseContentData {
                 Ok((text, href.to_owned()))
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
+
+        let audio = detail_div
+            .select(&Selector::parse("audio + ul > li > a").unwrap())
+            .map(|a| {
+                let text = a.text().collect::<String>();
+                let href = a.value().attr("href").unwrap();
+                let text = if let Some(text) = text.strip_prefix("\u{a0}") {
+                    text.to_owned()
+                } else {
+                    text
+                };
+                Ok((text, href.to_owned()))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        attachments.extend(audio);
 
         Ok(CourseContentData {
             id,
