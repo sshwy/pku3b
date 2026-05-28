@@ -511,6 +511,7 @@ impl CourseContentStream {
         }
     }
     async fn try_next_batch(&mut self, ids: &[String]) -> anyhow::Result<Vec<CourseContentData>> {
+        log::debug!("try_next_batch: {ids:?}");
         let futs = ids
             .iter()
             .map(|id| self.client.bb_course_content_page(&self.course.id, id));
