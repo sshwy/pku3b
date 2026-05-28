@@ -62,10 +62,10 @@ enum AssignmentCommands {
 pub async fn run(cmd: CommandAssignment, m: &MultiProgress) -> anyhow::Result<()> {
     match cmd.command {
         AssignmentCommands::List { all, all_term } => {
-            cmd_assignment::list(m, cmd.force, all || all_term, !all_term, cmd.otp_code).await?
+            list(m, cmd.force, all || all_term, !all_term, cmd.otp_code).await?
         }
         AssignmentCommands::Download { id, dir, all_term } => {
-            cmd_assignment::download(
+            download(
                 m,
                 id.as_deref(),
                 &dir,
@@ -77,7 +77,7 @@ pub async fn run(cmd: CommandAssignment, m: &MultiProgress) -> anyhow::Result<()
             .await?
         }
         AssignmentCommands::Submit { id, path } => {
-            cmd_assignment::submit(m, id.as_deref(), path.as_deref(), cmd.otp_code).await?
+            submit(m, id.as_deref(), path.as_deref(), cmd.otp_code).await?
         }
     }
     Ok(())
