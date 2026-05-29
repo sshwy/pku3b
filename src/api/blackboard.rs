@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 use crate::api::low_level::blackboard::BlackboardUnautherizedError;
 
 use super::*;
@@ -150,6 +152,207 @@ impl Blackboard {
 
         Ok(courses)
     }
+
+    pub async fn user_info_id(&self) -> anyhow::Result<String> {
+        #[derive(Debug, Deserialize)]
+        struct UserInfo {
+            id: String,
+        }
+
+        let user_info: UserInfo = self
+            .client
+            .0
+            .http_client
+            .api_get("https://course.pku.edu.cn/learn/api/public/v1/users/me")
+            .await
+            .context("fetch user info")?;
+        Ok(user_info.id)
+    }
+
+    pub async fn user_courses(&self, user_id: &str) -> anyhow::Result<Vec<CourseEnrollment>> {
+        #[derive(Debug, Deserialize)]
+        struct Result {
+            results: Vec<CourseEnrollment>,
+        }
+        let val: serde_json::Value = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v1/users/{}/courses",
+                user_id
+            ))
+            .await
+            .context("fetch user courses")?;
+        let val: Result = serde_json::from_value(val)?;
+        Ok(val.results)
+    }
+
+    pub async fn course_detail(&self, course_id: &str) -> anyhow::Result<CourseDetailHandle> {
+        let val: CourseDetail = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v1/courses/{}",
+                course_id
+            ))
+            .await
+            .context("fetch user courses")?;
+        Ok(CourseDetailHandle {
+            client: self.client.clone(),
+            id: course_id.to_owned(),
+            data: val,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CourseEnrollment {
+    #[serde(rename = "courseId")]
+    pub course_id: String,
+    #[serde(rename = "courseRoleId")]
+    pub course_role_id: String,
+}
+
+pub struct CourseDetailHandle {
+    client: Client,
+    id: String,
+    data: CourseDetail,
+}
+
+impl CourseDetailHandle {
+    pub fn data(&self) -> &CourseDetail {
+        &self.data
+    }
+
+    async fn gradebook_columns(&self) -> anyhow::Result<Vec<GradebookColumn>> {
+        #[derive(Debug, Deserialize)]
+        struct GradebookColumns {
+            results: Vec<GradebookColumn>,
+        }
+
+        let val: GradebookColumns = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/gradebook/columns",
+                self.id
+            ))
+            .await
+            .context("fetch gradebook columns")?;
+        Ok(val.results)
+    }
+
+    async fn gradedata(&self, column_id: &str) -> anyhow::Result<Vec<GradeUser>> {
+        #[derive(Debug, Deserialize)]
+        struct GradeUsers {
+            results: Vec<GradeUser>,
+        }
+
+        let val: GradeUsers = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/gradebook/columns/{}/users",
+                self.id, column_id
+            ))
+            .await
+            .context("fetch gradebook columns")?;
+        Ok(val.results)
+    }
+
+    pub async fn all_grades(&self) -> anyhow::Result<Vec<GradeRecord>> {
+        let columns = self.gradebook_columns().await?;
+
+        let mut all_grades = Vec::new();
+        for col in &columns {
+            if let Some(grading) = &col.grading
+                && grading.grading_type == "Calculated"
+                && col.name.contains("总计")
+                && !col.name.contains("平时")
+            {
+                continue;
+            }
+
+            let grade_data = match self.gradedata(&col.id).await {
+                Ok(data) => data.into_iter().next(),
+                Err(_) => None,
+            };
+
+            let possible = col.score.as_ref().map(|s| s.possible).unwrap_or(0.0);
+            let score = grade_data
+                .and_then(|g| g.display_grade)
+                .and_then(|d| d.score);
+
+            all_grades.push(GradeRecord {
+                course_name: self.data.name.clone(),
+                column_name: col.name.clone(),
+                score,
+                possible,
+            });
+        }
+        Ok(all_grades)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CourseDetail {
+    name: String,
+    availability: Option<Availability>,
+}
+
+impl CourseDetail {
+    pub fn is_available(&self) -> bool {
+        self.availability
+            .as_ref()
+            .is_some_and(|a| a.available == "Yes")
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct Availability {
+    pub available: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GradebookColumn {
+    id: String,
+    name: String,
+    score: Option<ColumnScore>,
+    grading: Option<Grading>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ColumnScore {
+    possible: f64,
+}
+
+#[derive(Debug, Deserialize)]
+struct Grading {
+    #[serde(rename = "type")]
+    grading_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GradeUser {
+    #[serde(rename = "displayGrade")]
+    display_grade: Option<DisplayGrade>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DisplayGrade {
+    score: Option<f64>,
+}
+
+#[derive(Debug)]
+pub struct GradeRecord {
+    pub course_name: String,
+    pub column_name: String,
+    pub score: Option<f64>,
+    pub possible: f64,
 }
 
 #[derive(Debug)]

@@ -14,6 +14,7 @@ mod cmd_video;
 mod pbar;
 
 use crate::api::{blackboard::*, syllabus::*};
+use crate::cli::pbar::AsyncSpinner;
 use crate::{api, build, config, utils, walkdir};
 use anyhow::Context as _;
 use clap::{
@@ -150,15 +151,12 @@ async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
     builder.build().await
 }
 
-/// Client, courses and spinner are returned. Spinner hasn't stopped.
-async fn load_client_courses(
-    force: bool,
-    only_current: bool,
+async fn load_blackboard(
+    sp: &AsyncSpinner,
+    enable_cache: bool,
     otp_code: String,
-) -> anyhow::Result<(api::Client, Vec<CourseHandle>, pbar::AsyncSpinner)> {
-    let client = build_client(!force).await?;
-
-    let sp = pbar::new_spinner();
+) -> anyhow::Result<Blackboard> {
+    let client = build_client(enable_cache).await?;
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -183,13 +181,25 @@ async fn load_client_courses(
         .await
         .context("login to blackboard")?;
 
+    Ok(blackboard)
+}
+
+/// Client, courses and spinner are returned. Spinner hasn't stopped.
+async fn load_client_courses(
+    force: bool,
+    only_current: bool,
+    otp_code: String,
+) -> anyhow::Result<(Blackboard, Vec<CourseHandle>, pbar::AsyncSpinner)> {
+    let sp = pbar::new_spinner();
+    let b = load_blackboard(&sp, !force, otp_code).await?;
+
     sp.set_message("fetching courses...");
-    let courses = blackboard
+    let courses = b
         .get_courses(only_current)
         .await
         .context("fetch course handles")?;
 
-    Ok((client, courses, sp))
+    Ok((b, courses, sp))
 }
 
 async fn load_courses(
