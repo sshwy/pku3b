@@ -18,11 +18,15 @@ pub struct CommandCourseContent {
 
 #[derive(Subcommand)]
 enum CourseContentCommands {
-    /// 查看课程列表
+    /// 查看每个课程的课程内容列表
     #[command(visible_alias("ls"))]
     List(ListOptions),
 
-    /// 下载课程内容附件
+    /// 下载指定课程内容
+    ///
+    /// 使用 `list` 输出每行末尾的 `course_id:content_id` 定位条目（仅在该课程内查找）。
+    /// 「文件」类型经教学网解析直链并以真实文件名保存；其余类型下载该条目下的全部附件。
+    /// 可用 `--output-desc` 将描述另存为文本；未指定 `-o` 时保存到当前目录。
     #[command(visible_alias("down"))]
     Download(DownloadOptions),
 }
@@ -160,7 +164,7 @@ pub async fn list(
 
 #[derive(clap::Args)]
 pub struct DownloadOptions {
-    /// 课程内容 ID
+    /// 课程内容 ID（`course_id:content_id`，见 `pku3b cc list` 每行末尾）
     ccid: CourseContentID,
     /// 文件下载目录 (支持相对路径)
     #[arg(short = 'o', long)]
