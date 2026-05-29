@@ -1,4 +1,4 @@
-use indicatif::{ProgressBar, ProgressStyle, WeakProgressBar};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle, WeakProgressBar};
 struct TickerHandle {
     #[allow(dead_code)]
     handle: compio::runtime::JoinHandle<()>,
@@ -38,12 +38,20 @@ impl std::ops::Deref for AsyncSpinner {
     }
 }
 
-/// Create a new spinner with a default style
-pub fn new_spinner() -> AsyncSpinner {
-    let pb = ProgressBar::new_spinner();
+fn new_async_spinner(pb: ProgressBar) -> AsyncSpinner {
     let w = pb.downgrade();
     let ticker = spawn_pb_ticker(w, std::time::Duration::from_millis(100));
     AsyncSpinner { pb, ticker }
+}
+
+/// Create a new spinner with a default style (standalone, not attached to a [`MultiProgress`]).
+pub fn new_spinner() -> AsyncSpinner {
+    new_async_spinner(ProgressBar::new_spinner())
+}
+
+/// Create a spinner registered on the given [`MultiProgress`] group.
+pub fn new_spinner_on(multi: &MultiProgress) -> AsyncSpinner {
+    new_async_spinner(multi.add(ProgressBar::new_spinner()))
 }
 
 /// Create a new progress bar with a given length and a default style

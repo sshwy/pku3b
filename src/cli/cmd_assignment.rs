@@ -135,7 +135,7 @@ async fn get_courses_and_assignments(
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<(Course, Vec<(String, CourseAssignment)>)>> {
-    let courses = load_courses(force, cur_term, otp_code).await?;
+    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
 
     // fetch each course concurrently
     let pb = ctx
@@ -286,14 +286,15 @@ pub async fn download(
         None => select_assignment(items).await?,
     };
 
-    let sp = pbar::new_spinner();
-    download_data(sp, dir, &a.2).await?;
+    let sp = ctx.spinner();
+    download_data(&sp, dir, &a.2).await?;
+    ctx.remove_spinner(sp);
 
     Ok(())
 }
 
 async fn download_data(
-    sp: pbar::AsyncSpinner,
+    sp: &pbar::AsyncSpinner,
     dir: &std::path::Path,
     a: &CourseAssignment,
 ) -> anyhow::Result<()> {
@@ -313,7 +314,6 @@ async fn download_data(
             .with_context(|| format!("download attachment '{name}'"))?;
     }
 
-    drop(sp);
     println!("Done.");
     Ok(())
 }
@@ -365,13 +365,13 @@ pub async fn submit(
         anyhow::bail!("file not found: {:?}", path);
     }
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
     sp.set_message("submit file...");
     a.submit_file(path.as_path())
         .await
         .with_context(|| format!("submit {:?} to {:?}", path.display(), a.title()))?;
 
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     println!(
         "成功将 {GR}{H2}{}{H2:#}{GR:#} 提交至 {MG}{H1}{} {}{H1:#}{MG:#} 课程作业",

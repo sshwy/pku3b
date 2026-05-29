@@ -1,5 +1,4 @@
 use super::*;
-use crate::cli::pbar;
 use crate::config;
 use crate::utils;
 use anyhow::Context;
@@ -24,7 +23,7 @@ pub struct CommandCourseTable {
 }
 
 /// 获取个人课表
-pub async fn run(cmd: CommandCourseTable) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandCourseTable, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     let CommandCourseTable {
         force,
         raw,
@@ -33,7 +32,7 @@ pub async fn run(cmd: CommandCourseTable) -> anyhow::Result<()> {
 
     let client = build_client(!force).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(&cfg_path)

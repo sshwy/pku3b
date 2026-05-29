@@ -33,7 +33,7 @@ enum ThesisLibCommands {
 
 pub async fn run(cmd: CommandThesisLib, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        ThesisLibCommands::Search { keyword } => search(keyword).await?,
+        ThesisLibCommands::Search { keyword } => search(ctx, keyword).await?,
         ThesisLibCommands::Download {
             keyid,
             outdir,
@@ -44,10 +44,10 @@ pub async fn run(cmd: CommandThesisLib, ctx: &CommandCtx<'_>) -> anyhow::Result<
     Ok(())
 }
 
-async fn search(keyword: String) -> anyhow::Result<()> {
+async fn search(ctx: &CommandCtx<'_>, keyword: String) -> anyhow::Result<()> {
     let c = build_client(true).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -97,7 +97,7 @@ async fn download(
 
     let c = build_client(true).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -115,7 +115,7 @@ async fn download(
     let doc = drm.get_pdf().await?;
 
     sp.finish_and_clear();
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     let ids = (0..=doc.maxpage()).collect_vec();
 
