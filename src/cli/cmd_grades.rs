@@ -1,6 +1,3 @@
-use anyhow::Context;
-use serde::Deserialize;
-
 use super::*;
 
 #[derive(clap::Args)]
@@ -13,100 +10,20 @@ pub struct CommandGrades {
     otp_code: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct UserInfo {
-    id: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CourseEnrollment {
-    #[serde(rename = "courseId")]
-    course_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CourseDetail {
-    name: String,
-    availability: Option<Availability>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Availability {
-    available: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GradebookColumns {
-    results: Vec<GradebookColumn>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GradebookColumn {
-    id: String,
-    name: String,
-    score: Option<ColumnScore>,
-    grading: Option<Grading>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ColumnScore {
-    possible: f64,
-}
-
-#[derive(Debug, Deserialize)]
-struct Grading {
-    #[serde(rename = "type")]
-    grading_type: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GradeUsers {
-    results: Vec<GradeUser>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GradeUser {
-    #[serde(rename = "displayGrade")]
-    display_grade: Option<DisplayGrade>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DisplayGrade {
-    score: Option<f64>,
-}
-
-#[derive(Debug)]
-struct GradeRecord {
-    course_name: String,
-    column_name: String,
-    score: Option<f64>,
-    possible: f64,
-}
-
 fn extract_term(name: &str) -> &str {
     name.rfind('(').map(|i| &name[i..]).unwrap_or("")
 }
 
 pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
-    let (client, _, sp) = load_client_courses(cmd.force, !cmd.all_term, cmd.otp_code).await?;
+    let sp = pbar::new_spinner();
+    let b = load_blackboard(&sp, !cmd.force, cmd.otp_code).await?;
 
     sp.set_message("fetching user info...");
-    let user_info: UserInfo = client
-        .api_get("https://course.pku.edu.cn/learn/api/public/v1/users/me")
-        .await
-        .context("fetch user info")?;
+    let user_id = b.user_info_id().await?;
 
     sp.set_message("fetching courses...");
-    let courses_resp: serde_json::Value = client
-        .api_get(&format!(
-            "https://course.pku.edu.cn/learn/api/public/v1/users/{}/courses",
-            user_info.id
-        ))
-        .await
-        .context("fetch user courses")?;
-
-    let enrollments: Vec<CourseEnrollment> =
-        serde_json::from_value(courses_resp["results"].clone()).context("parse courses")?;
+    let mut enrollments = b.user_courses(&user_id).await?;
+    enrollments.retain(|e| e.course_role_id == "Student");
 
     let mut all_grades = Vec::new();
     let total = enrollments.len();
@@ -114,68 +31,19 @@ pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
     for (i, enrollment) in enrollments.iter().enumerate() {
         sp.set_message(format!("fetching grades {}/{}...", i + 1, total));
 
-        let detail: CourseDetail = match client
-            .api_get(&format!(
-                "https://course.pku.edu.cn/learn/api/public/v1/courses/{}",
-                enrollment.course_id
-            ))
-            .await
-        {
+        let detail = match b.course_detail(&enrollment.course_id).await {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(e) => {
+                log::error!("error fetching course detail: {e}");
+                continue;
+            }
         };
 
-        if detail
-            .availability
-            .as_ref()
-            .map(|a| a.available != "Yes")
-            .unwrap_or(true)
-        {
+        if !detail.data().is_available() {
             continue;
         }
 
-        let columns: GradebookColumns = match client
-            .api_get(&format!(
-                "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/gradebook/columns",
-                enrollment.course_id
-            ))
-            .await
-        {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        for col in &columns.results {
-            if let Some(grading) = &col.grading
-                && grading.grading_type == "Calculated"
-                && (col.name.contains("总计") && !col.name.contains("平时"))
-            {
-                continue;
-            }
-
-            let grade_data: Option<GradeUser> = match client
-                .api_get::<GradeUsers>(&format!(
-                    "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/gradebook/columns/{}/users",
-                    enrollment.course_id, col.id
-                ))
-                .await
-            {
-                Ok(data) => data.results.into_iter().next(),
-                Err(_) => None,
-            };
-
-            let possible = col.score.as_ref().map(|s| s.possible).unwrap_or(0.0);
-            let score = grade_data
-                .and_then(|g| g.display_grade)
-                .and_then(|d| d.score);
-
-            all_grades.push(GradeRecord {
-                course_name: detail.name.clone(),
-                column_name: col.name.clone(),
-                score,
-                possible,
-            });
-        }
+        all_grades.extend(detail.all_grades().await?);
     }
 
     sp.finish_with_message("done.");
