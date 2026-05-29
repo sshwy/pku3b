@@ -15,15 +15,15 @@ enum TtshituCommands {
     Test { image_path: Option<String> },
 }
 
-pub async fn run(cmd: CommandTtshitu) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandTtshitu, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        TtshituCommands::Init => init().await?,
-        TtshituCommands::Test { image_path } => test(image_path).await?,
+        TtshituCommands::Init => init(ctx).await?,
+        TtshituCommands::Test { image_path } => test(ctx, image_path).await?,
     }
     Ok(())
 }
 
-async fn init() -> anyhow::Result<()> {
+async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
     let mut cfg = config::read_cfg(&cfg_path)
         .await
@@ -40,7 +40,7 @@ async fn init() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn test(image_path: Option<String>) -> anyhow::Result<()> {
+async fn test(_ctx: &CommandCtx<'_>, image_path: Option<String>) -> anyhow::Result<()> {
     let c = crate::http::Client::from_cyper(cyper::Client::new());
 
     let cfg_path = utils::default_config_path();

@@ -93,7 +93,7 @@ async fn get_courses_contents(
     course_title: Option<&str>,
     course_id: Option<&str>,
 ) -> anyhow::Result<Vec<(Course, Vec<CourseContent>)>> {
-    let mut courses = load_courses(force, !all_term, otp_code).await?;
+    let mut courses = load_courses(ctx, force, !all_term, otp_code).await?;
 
     if let Some(course_title) = course_title {
         log::debug!("filtering courses by title: {course_title}");

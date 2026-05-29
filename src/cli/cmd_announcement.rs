@@ -74,7 +74,7 @@ async fn get_courses_and_announcements(
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<(Course, Vec<CourseAnnouncementHandle>)>> {
-    let courses = load_courses(force, cur_term, otp_code).await?;
+    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
 
     let pb = ctx
         .multi

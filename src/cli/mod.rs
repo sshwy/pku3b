@@ -18,6 +18,15 @@ pub struct CommandCtx<'a> {
     pub multi: &'a MultiProgress,
 }
 
+impl CommandCtx<'_> {
+    pub fn spinner(&self) -> AsyncSpinner {
+        pbar::new_spinner_on(self.multi)
+    }
+    pub fn remove_spinner(&self, sp: AsyncSpinner) {
+        self.multi.remove(&sp);
+    }
+}
+
 use crate::api::{blackboard::*, syllabus::*};
 use crate::cli::pbar::AsyncSpinner;
 use crate::{api, build, config, utils, walkdir};
@@ -157,10 +166,11 @@ async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
 }
 
 async fn load_blackboard(
-    sp: &AsyncSpinner,
+    ctx: &CommandCtx<'_>,
     enable_cache: bool,
     otp_code: String,
-) -> anyhow::Result<Blackboard> {
+) -> anyhow::Result<(Blackboard, AsyncSpinner)> {
+    let sp = ctx.spinner();
     let client = build_client(enable_cache).await?;
 
     sp.set_message("reading config...");
@@ -186,17 +196,17 @@ async fn load_blackboard(
         .await
         .context("login to blackboard")?;
 
-    Ok(blackboard)
+    Ok((blackboard, sp))
 }
 
-/// Client, courses and spinner are returned. Spinner hasn't stopped.
+/// Blackboard, courses and spinner are returned. Spinner hasn't stopped.
 async fn load_client_courses(
+    ctx: &CommandCtx<'_>,
     force: bool,
     only_current: bool,
     otp_code: String,
-) -> anyhow::Result<(Blackboard, Vec<CourseHandle>, pbar::AsyncSpinner)> {
-    let sp = pbar::new_spinner();
-    let b = load_blackboard(&sp, !force, otp_code).await?;
+) -> anyhow::Result<(Blackboard, Vec<CourseHandle>, AsyncSpinner)> {
+    let (b, sp) = load_blackboard(ctx, !force, otp_code).await?;
 
     sp.set_message("fetching courses...");
     let courses = b
@@ -208,11 +218,12 @@ async fn load_client_courses(
 }
 
 async fn load_courses(
+    ctx: &CommandCtx<'_>,
     force: bool,
     only_current: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<CourseHandle>> {
-    let (_, r, _) = load_client_courses(force, only_current, otp_code).await?;
+    let (_, r, _) = load_client_courses(ctx, force, only_current, otp_code).await?;
     Ok(r)
 }
 
@@ -324,17 +335,17 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
             }
             Commands::Assignment(cmd) => cmd_assignment::run(cmd, &ctx).await?,
             Commands::CourseContent(cmd) => cmd_course_content::run(cmd, &ctx).await?,
-            Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
+            Commands::CourseTable(cmd) => cmd_course_table::run(cmd, &ctx).await?,
             Commands::Announcement(cmd) => cmd_announcement::run(cmd, &ctx).await?,
             Commands::Video(cmd) => cmd_video::run(cmd, &ctx).await?,
-            Commands::Grades(cmd) => cmd_grades::run(cmd).await?,
-            Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
+            Commands::Grades(cmd) => cmd_grades::run(cmd, &ctx).await?,
+            Commands::Syllabus(cmd) => cmd_syllabus::run(cmd, &ctx).await?,
 
             #[cfg(feature = "ttshitu")]
-            Commands::Ttshitu(cmd) => cmd_ttshitu::run(cmd).await?,
+            Commands::Ttshitu(cmd) => cmd_ttshitu::run(cmd, &ctx).await?,
 
             #[cfg(feature = "bark")]
-            Commands::Bark(cmd) => cmd_bark::run(cmd).await?,
+            Commands::Bark(cmd) => cmd_bark::run(cmd, &ctx).await?,
 
             #[cfg(feature = "thesislib")]
             Commands::ThesisLib(cmd) => cmd_thesis_lib::run(cmd, &ctx).await?,

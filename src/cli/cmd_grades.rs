@@ -14,9 +14,8 @@ fn extract_term(name: &str) -> &str {
     name.rfind('(').map(|i| &name[i..]).unwrap_or("")
 }
 
-pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
-    let sp = pbar::new_spinner();
-    let b = load_blackboard(&sp, !cmd.force, cmd.otp_code).await?;
+pub async fn run(cmd: CommandGrades, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
+    let (b, sp) = load_blackboard(ctx, !cmd.force, cmd.otp_code).await?;
 
     sp.set_message("fetching user info...");
     let user_id = b.user_info_id().await?;

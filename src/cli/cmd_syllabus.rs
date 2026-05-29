@@ -29,23 +29,23 @@ enum SyllabusCommands {
     },
 }
 
-pub async fn run(cmd: CommandSyllabus) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandSyllabus, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        SyllabusCommands::Show => show(cmd.dual).await?,
-        SyllabusCommands::Set => set_autoelective(cmd.dual).await?,
-        SyllabusCommands::Unset => unset_autoelective().await?,
+        SyllabusCommands::Show => show(ctx, cmd.dual).await?,
+        SyllabusCommands::Set => set_autoelective(ctx, cmd.dual).await?,
+        SyllabusCommands::Unset => unset_autoelective(ctx).await?,
         #[cfg(feature = "autoelect")]
         SyllabusCommands::Launch { interval } => {
-            launch_autoelective(interval, cmd.dual).await?;
+            launch_autoelective(ctx, interval, cmd.dual).await?;
         }
     }
     Ok(())
 }
 
-pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
+pub async fn show(ctx: &CommandCtx<'_>, dual: Option<DualDegree>) -> anyhow::Result<()> {
     let c = build_client(false).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -59,7 +59,7 @@ pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
     sp.set_message("fetching results...");
     let rs = sy.get_results().await?;
 
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     for c in rs {
         let mut line = String::new();
@@ -78,10 +78,13 @@ pub async fn show(dual: Option<DualDegree>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn set_autoelective(dual: Option<DualDegree>) -> anyhow::Result<()> {
+pub async fn set_autoelective(
+    ctx: &CommandCtx<'_>,
+    dual: Option<DualDegree>,
+) -> anyhow::Result<()> {
     let c = build_client(false).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -102,7 +105,7 @@ pub async fn set_autoelective(dual: Option<DualDegree>) -> anyhow::Result<()> {
         items.extend(data);
     }
 
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     let c = select_supplement_course(items).await?;
 
@@ -172,8 +175,8 @@ fn supplement_course_desc(c: &SyllabusSupplementCourseData) -> String {
     line
 }
 
-pub async fn unset_autoelective() -> anyhow::Result<()> {
-    let sp = pbar::new_spinner();
+pub async fn unset_autoelective(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -181,7 +184,7 @@ pub async fn unset_autoelective() -> anyhow::Result<()> {
         .await
         .context("read config file")?;
 
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     let Some(items) = cfg.auto_supplement.as_mut() else {
         anyhow::bail!("您还没有设置自动补退选课程");
@@ -223,12 +226,13 @@ async fn select_supplement_course_config(
 
 #[cfg(feature = "autoelect")]
 pub async fn launch_autoelective(
+    ctx: &CommandCtx<'_>,
     interval: u64,
     dual: Option<DualDegree>,
 ) -> anyhow::Result<std::convert::Infallible> {
     let c = build_client(false).await?;
 
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg_path = utils::default_config_path();
@@ -245,7 +249,7 @@ pub async fn launch_autoelective(
     let Some(ttshitu) = &cfg.ttshitu else {
         anyhow::bail!("您还没有设置 TT 识图");
     };
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     let sy_ctor = || c.syllabus(&cfg.username, &cfg.password, dual.clone());
 

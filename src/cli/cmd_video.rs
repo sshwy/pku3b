@@ -51,7 +51,17 @@ pub async fn run(cmd: CommandVideo, ctx: &CommandCtx<'_>) -> anyhow::Result<()> 
             outdir,
             id,
             all_term,
-        } => download(outdir.as_deref(), cmd.force, id, !all_term, cmd.otp_code).await?,
+        } => {
+            download(
+                ctx,
+                outdir.as_deref(),
+                cmd.force,
+                id,
+                !all_term,
+                cmd.otp_code,
+            )
+            .await?
+        }
     }
     Ok(())
 }
@@ -62,7 +72,7 @@ pub async fn list(
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let courses = load_courses(force, cur_term, otp_code).await?;
+    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
 
     let pb = ctx
         .multi
@@ -109,6 +119,7 @@ pub async fn list(
 
 #[cfg(feature = "video-download")]
 pub async fn download(
+    ctx: &CommandCtx<'_>,
     outdir: Option<&std::path::Path>,
     force: bool,
     id: String,
@@ -120,7 +131,7 @@ pub async fn download(
         anyhow::bail!("output directory {:?} not exists", outdir.display());
     }
 
-    let (_, courses, sp) = load_client_courses(force, cur_term, otp_code).await?;
+    let (_, courses, sp) = load_client_courses(ctx, force, cur_term, otp_code).await?;
 
     sp.set_message("finding video...");
     let mut target_video = None;
@@ -146,7 +157,7 @@ pub async fn download(
     sp.set_message("fetch video metadata...");
     let v = v.get().await?;
 
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
 
@@ -159,7 +170,7 @@ pub async fn download(
         .await
         .context("create dir failed")?;
 
-    let paths = download_segments(&v, &dir)
+    let paths = download_segments(ctx, &v, &dir)
         .await
         .context("download ts segments")?;
 
@@ -168,7 +179,7 @@ pub async fn download(
 
     // merge all segments into one file
     let merged = dir.join("merged").with_extension("ts");
-    merge_segments(&merged, &paths).await?;
+    merge_segments(ctx, &merged, &paths).await?;
 
     let dest = format!("{}_{}.mp4", v.course_name(), v.meta().title());
     let dest = outdir.join(&dest);
@@ -180,7 +191,7 @@ pub async fn download(
     );
 
     // convert the merged ts file to mp4. overwrite existing file
-    let sp = pbar::new_spinner();
+    let sp = ctx.spinner();
     sp.set_message("Converting to mp4 file...");
     let c = compio::process::Command::new("ffmpeg")
         .args(["-y", "-hide_banner", "-loglevel", "quiet"])
@@ -190,7 +201,7 @@ pub async fn download(
         .output()
         .await
         .context("execute ffmpeg")?;
-    drop(sp);
+    ctx.remove_spinner(sp);
 
     if c.status.success() {
         println!(
@@ -206,6 +217,7 @@ pub async fn download(
 
 #[cfg(feature = "video-download")]
 async fn download_segments(
+    ctx: &CommandCtx<'_>,
     v: &CourseVideo,
     dir: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<Vec<std::path::PathBuf>> {
@@ -215,7 +227,7 @@ async fn download_segments(
     }
 
     let tot = v.len_segments();
-    let pb = pbar::new(tot as u64).with_prefix("download");
+    let pb = ctx.multi.add(pbar::new(tot as u64)).with_prefix("download");
     pb.tick();
 
     let mut key = None;
@@ -242,11 +254,14 @@ async fn download_segments(
         paths.push(path);
     }
     pb.finish_and_clear();
+    ctx.multi.remove(&pb);
 
     Ok(paths)
 }
 
+#[cfg(feature = "video-download")]
 async fn merge_segments(
+    ctx: &CommandCtx<'_>,
     dest: impl AsRef<std::path::Path>,
     paths: &[std::path::PathBuf],
 ) -> anyhow::Result<()> {
@@ -255,7 +270,10 @@ async fn merge_segments(
         .context("create merged file failed")?;
     let mut f = std::io::Cursor::new(f);
 
-    let pb = pbar::new(paths.len() as u64).with_prefix("merge segments");
+    let pb = ctx
+        .multi
+        .add(pbar::new(paths.len() as u64))
+        .with_prefix("merge segments");
     pb.tick();
     for p in paths {
         let data = fs::read(p).await.context("read segments failed")?;
@@ -263,6 +281,7 @@ async fn merge_segments(
         pb.inc(1);
     }
     pb.finish_and_clear();
+    ctx.multi.remove(&pb);
 
     Ok(())
 }
