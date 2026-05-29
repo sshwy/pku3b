@@ -33,18 +33,18 @@ enum ThesisLibCommands {
 
 pub async fn run(cmd: CommandThesisLib) -> anyhow::Result<()> {
     match cmd.command {
-        ThesisLibCommands::Search { keyword } => command_thesis_lib_search(keyword).await?,
+        ThesisLibCommands::Search { keyword } => search(keyword).await?,
         ThesisLibCommands::Download {
             keyid,
             outdir,
             job,
             save_image,
-        } => command_thesis_lib_download(keyid, outdir, job, save_image).await?,
+        } => download(keyid, outdir, job, save_image).await?,
     }
     Ok(())
 }
 
-async fn command_thesis_lib_search(keyword: String) -> anyhow::Result<()> {
+async fn search(keyword: String) -> anyhow::Result<()> {
     let c = build_client(true).await?;
 
     let sp = pbar::new_spinner();
@@ -84,7 +84,7 @@ async fn command_thesis_lib_search(keyword: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn command_thesis_lib_download(
+async fn download(
     keyid: String,
     outdir: Option<std::path::PathBuf>,
     n_job: u32,

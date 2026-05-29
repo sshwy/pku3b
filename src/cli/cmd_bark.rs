@@ -17,13 +17,13 @@ enum BarkCommands {
 
 pub async fn run(cmd: CommandBark) -> anyhow::Result<()> {
     match cmd.command {
-        BarkCommands::Init => command_bark_init().await?,
-        BarkCommands::Test => command_bark_test().await?,
+        BarkCommands::Init => init().await?,
+        BarkCommands::Test => test().await?,
     }
     Ok(())
 }
 
-pub async fn command_bark_init() -> anyhow::Result<()> {
+async fn init() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
     let mut cfg = config::read_cfg(&cfg_path)
         .await
@@ -39,7 +39,7 @@ pub async fn command_bark_init() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn command_bark_test() -> anyhow::Result<()> {
+async fn test() -> anyhow::Result<()> {
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(&cfg_path)
         .await
