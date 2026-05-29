@@ -252,8 +252,8 @@ impl Course {
             self.client.clone(),
             self.meta.clone(),
             self.entries()
-                .iter()
-                .filter_map(|(_, uri)| {
+                .values()
+                .filter_map(|uri| {
                     let url = low_level::convert_uri(uri).ok()?.into_url().ok()?;
                     if !low_level::blackboard::LIST_CONTENT.ends_with(url.path()) {
                         return None;
@@ -692,10 +692,8 @@ fn collect_text(element: scraper::ElementRef) -> String {
     let mut text_content = String::new();
     for node_ref in element.children() {
         match node_ref.value() {
-            scraper::node::Node::Text(text) => {
-                if !text.trim().is_empty() {
-                    text_content.push_str(text);
-                }
+            scraper::node::Node::Text(text) if !text.trim().is_empty() => {
+                text_content.push_str(text);
             }
             scraper::node::Node::Element(el) => {
                 if el.name() != "script"
