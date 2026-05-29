@@ -37,11 +37,13 @@ enum AnnouncementCommands {
     },
 }
 
-pub async fn run(cmd: CommandAnnouncement) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandAnnouncement, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        AnnouncementCommands::List { all_term } => list(cmd.force, !all_term, cmd.otp_code).await?,
+        AnnouncementCommands::List { all_term } => {
+            list(ctx, cmd.force, !all_term, cmd.otp_code).await?
+        }
         AnnouncementCommands::Show { id, all_term } => {
-            show(cmd.force, !all_term, &id, cmd.otp_code).await?
+            show(ctx, cmd.force, !all_term, &id, cmd.otp_code).await?
         }
     }
     Ok(())
@@ -67,48 +69,51 @@ async fn get_announcements(
 }
 
 async fn get_courses_and_announcements(
+    ctx: &CommandCtx<'_>,
     force: bool,
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<(Course, Vec<CourseAnnouncementHandle>)>> {
     let courses = load_courses(force, cur_term, otp_code).await?;
 
-    let m = indicatif::MultiProgress::new();
-    let pb = m.add(pbar::new(courses.len() as u64)).with_prefix("All");
+    let pb = ctx
+        .multi
+        .add(pbar::new(courses.len() as u64))
+        .with_prefix("All");
     let futs = courses
         .into_iter()
         .map(async |course| -> anyhow::Result<_> {
             let course = course.get().await.context("fetch course")?;
             let announcements = get_announcements(
                 &course,
-                m.add(pbar::new(0).with_prefix(course.meta().name().to_owned())),
+                ctx.multi
+                    .add(pbar::new(0).with_prefix(course.meta().name().to_owned())),
             )
             .await
             .with_context(|| format!("fetch announcement handles of {}", course.meta().title()))?;
 
             pb.inc_length(announcements.len() as u64);
-            let futs = announcements
-                .into_iter()
-                .map(async |announcement| -> anyhow::Result<_> {
-                    pb.inc(1);
-                    Ok(announcement)
-                });
-            let announcements = try_join_all(futs).await?;
+            for _ in &announcements {
+                pb.inc(1);
+            }
 
             pb.inc(1);
             Ok((course, announcements))
         });
     let courses = try_join_all(futs).await?;
     pb.finish_and_clear();
-    m.clear().unwrap();
-    drop(pb);
-    drop(m);
+    ctx.multi.remove(&pb);
 
     Ok(courses)
 }
 
-pub async fn list(force: bool, cur_term: bool, otp_code: String) -> anyhow::Result<()> {
-    let courses = get_courses_and_announcements(force, cur_term, otp_code).await?;
+pub async fn list(
+    ctx: &CommandCtx<'_>,
+    force: bool,
+    cur_term: bool,
+    otp_code: String,
+) -> anyhow::Result<()> {
+    let courses = get_courses_and_announcements(ctx, force, cur_term, otp_code).await?;
     let all_announcements = courses
         .iter()
         .flat_map(|(course, announcements)| {
@@ -147,8 +152,14 @@ async fn list_brief(items: Vec<(Course, String, CourseAnnouncementHandle)>) -> a
     Ok(())
 }
 
-pub async fn show(force: bool, cur_term: bool, id: &str, otp_code: String) -> anyhow::Result<()> {
-    let items = fetch_announcements(force, cur_term, otp_code).await?;
+pub async fn show(
+    ctx: &CommandCtx<'_>,
+    force: bool,
+    cur_term: bool,
+    id: &str,
+    otp_code: String,
+) -> anyhow::Result<()> {
+    let items = fetch_announcements(ctx, force, cur_term, otp_code).await?;
     let Some((course, ann_id, announcement)) =
         items.into_iter().find(|(_, ann_id, _)| ann_id == id)
     else {
@@ -221,11 +232,12 @@ fn write_announcement_detail(
 }
 
 async fn fetch_announcements(
+    ctx: &CommandCtx<'_>,
     force: bool,
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<AnnouncementListItem>> {
-    let courses = get_courses_and_announcements(force, cur_term, otp_code).await?;
+    let courses = get_courses_and_announcements(ctx, force, cur_term, otp_code).await?;
 
     let mut all_announcements = courses
         .into_iter()
