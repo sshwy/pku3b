@@ -1,5 +1,12 @@
+pub mod blackboard;
 pub mod builder;
+#[cfg(feature = "thesislib")]
+pub mod drm_lib;
 pub mod low_level;
+pub mod portal;
+pub mod syllabus;
+#[cfg(feature = "thesislib")]
+pub mod thesis_lib;
 
 use anyhow::Context;
 pub use builder::ClientBuilder;
@@ -58,11 +65,3 @@ impl Client {
         self.0.download_artifact_ttl
     }
 }
-
-pub mod blackboard;
-#[cfg(feature = "thesislib")]
-pub mod drm_lib;
-pub mod portal;
-pub mod syllabus;
-#[cfg(feature = "thesislib")]
-pub mod thesis_lib;
