@@ -10,12 +10,11 @@ use scraper::Selector;
 use std::{
     collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
-    str::FromStr,
     sync::Arc,
 };
 
 use crate::{
-    multipart, qs,
+    multipart,
     utils::{with_cache, with_cache_bytes},
 };
 
