@@ -85,18 +85,19 @@ async fn get_courses_contents(
     otp_code: String,
     all_term: bool,
     course_title: Option<&str>,
+    course_id: Option<&str>,
 ) -> anyhow::Result<Vec<(Course, Vec<CourseContent>)>> {
-    let courses = load_courses(force, !all_term, otp_code).await?;
+    let mut courses = load_courses(force, !all_term, otp_code).await?;
 
-    let courses = if let Some(course_title) = course_title {
+    if let Some(course_title) = course_title {
         log::debug!("filtering courses by title: {course_title}");
-        courses
-            .into_iter()
-            .filter(|c| c.long_title().contains(course_title))
-            .collect()
-    } else {
-        courses
-    };
+        courses.retain(|c| c.long_title().contains(course_title));
+    }
+
+    if let Some(course_id) = course_id {
+        log::debug!("filtering courses by id: {course_id}");
+        courses.retain(|c| c.id() == course_id);
+    }
 
     // fetch each course concurrently
     let pb = m.add(pbar::new(courses.len() as u64)).with_prefix("All");
@@ -129,6 +130,7 @@ pub async fn list(
         otp_code,
         opts.all_term,
         opts.course_title.as_deref(),
+        None,
     )
     .await?;
 
@@ -159,7 +161,7 @@ pub async fn list(
 #[derive(clap::Args)]
 pub struct DownloadOptions {
     /// 课程内容 ID
-    ccid: String,
+    ccid: CourseContentID,
     /// 文件下载目录 (支持相对路径)
     #[arg(short = 'o', long)]
     outdir: Option<std::path::PathBuf>,
@@ -186,6 +188,7 @@ pub async fn download(
         otp_code,
         opts.all_term,
         opts.course_title.as_deref(),
+        Some(opts.ccid.course_id()),
     )
     .await?;
 
@@ -200,40 +203,61 @@ pub async fn download(
 
     log::debug!("{:?}", ct);
 
-    let atts = ct.attachments();
-    let tot = atts.len();
-    if tot == 0 {
-        return Ok(());
-    }
-
     let outdir = opts.outdir.unwrap_or_else(|| std::path::PathBuf::from("."));
     fs::create_dir_all(&outdir).await?;
 
-    println!("Downloading {} attachments to {}", tot, outdir.display());
+    println!("Content kind: {:?}", ct.kind());
 
     if let Some(output_desc) = &opts.output_desc {
-        buf_try!(@try fs::write(outdir.join(output_desc), ct.descriptions().join("\n")).await);
+        let dest = outdir.join(output_desc);
+        println!("Writing description to {}", dest.display());
+        buf_try!(@try fs::write(dest, ct.descriptions().join("\n")).await);
     }
 
-    let pb = m
-        .add(pbar::new(tot as u64))
-        .with_prefix("download")
-        .with_message(format!("[0/{tot}]"));
-    pb.tick();
-
-    for (i, (name, uri)) in atts.iter().enumerate() {
-        let dest = outdir.join(name);
-        pb.set_message(format!("[{}/{tot}] downloading '{name}'...", i + 1));
-        log::info!("downloading attachment {name} to {}", dest.display());
+    if matches!(ct.kind(), CourseContentKind::File) {
+        let dest = outdir.join(ct.title());
+        let uri = c
+            .client()
+            .bb_course_content_file_uri(ct.ccid().course_id(), ct.ccid().content_id())
+            .await?;
+        log::info!("File: {uri}");
+        let filename = uri.rsplit_once('/').unwrap().1;
+        let filename = percent_encoding::percent_decode(filename.as_bytes())
+            .decode_utf8_lossy()
+            .to_string();
+        println!("Downloading file {filename} to {}", dest.display());
+        let dest = outdir.join(&filename);
         c.client()
-            .course_attachment_download(uri, &dest)
+            .course_attachment_download(&uri, &dest, false)
             .await
-            .with_context(|| format!("download attachment '{name}'"))?;
-        pb.inc(1);
+            .with_context(|| format!("download attachment '{filename}'"))?;
     }
 
-    pb.finish_with_message("done.");
-    m.remove(&pb);
+    let atts = ct.attachments();
+    let tot = atts.len();
+    if !atts.is_empty() {
+        println!("Downloading {} attachments to {}", tot, outdir.display());
+
+        let pb = m
+            .add(pbar::new(tot as u64))
+            .with_prefix("download")
+            .with_message(format!("[0/{tot}]"));
+        pb.tick();
+
+        for (i, (name, uri)) in atts.iter().enumerate() {
+            let dest = outdir.join(name);
+            pb.set_message(format!("[{}/{tot}] downloading '{name}'...", i + 1));
+            log::info!("downloading attachment {name} to {}", dest.display());
+            c.client()
+                .course_attachment_download(uri, &dest, true)
+                .await
+                .with_context(|| format!("download attachment '{name}'"))?;
+            pb.inc(1);
+        }
+
+        pb.finish_with_message("done.");
+        m.remove(&pb);
+    }
 
     Ok(())
 }

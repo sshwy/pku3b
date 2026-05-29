@@ -34,13 +34,19 @@ impl Client {
         &self,
         uri: &str,
         dest: P,
+        redir: bool,
     ) -> anyhow::Result<()> {
         log::debug!("downloading attachment from {uri}");
-        let res = self.get_by_uri(uri).await?;
-        let loc = low_level::extract_redirect_url(&res)?;
+        let uri = if redir {
+            let res = self.get_by_uri(uri).await?;
+            let loc = low_level::extract_redirect_url(&res)?;
+            log::debug!("redirected to {loc}");
+            loc.to_owned()
+        } else {
+            uri.to_owned()
+        };
 
-        log::debug!("redirected to {loc}");
-        let res = self.get_by_uri(&loc).await?;
+        let res = self.get_by_uri(&uri).await?;
         anyhow::ensure!(res.status().is_success(), "status not success");
 
         let rbody = res.bytes().await?;
@@ -582,6 +588,38 @@ impl CourseContentStream {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CourseContentID {
+    course_id: String,
+    content_id: String,
+}
+
+impl CourseContentID {
+    pub fn course_id(&self) -> &str {
+        &self.course_id
+    }
+    pub fn content_id(&self) -> &str {
+        &self.content_id
+    }
+}
+
+impl std::fmt::Display for CourseContentID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.course_id, self.content_id)
+    }
+}
+
+impl std::str::FromStr for CourseContentID {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (course_id, content_id) = s.split_once(':').context("invalid course content id")?;
+        Ok(CourseContentID {
+            course_id: course_id.to_owned(),
+            content_id: content_id.to_owned(),
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CourseContent {
     client: Client,
@@ -594,8 +632,11 @@ impl CourseContent {
         &self.data.title
     }
 
-    pub fn ccid(&self) -> String {
-        course_content_id(&self.course, &self.data)
+    pub fn ccid(&self) -> CourseContentID {
+        CourseContentID {
+            course_id: self.course.id.clone(),
+            content_id: self.data.id.clone(),
+        }
     }
 
     pub fn kind(&self) -> &CourseContentKind {
@@ -626,6 +667,7 @@ impl CourseContent {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum CourseContentKind {
     Document,
+    File,
     Assignment,
     Announcement,
     Audio,
@@ -697,7 +739,8 @@ impl CourseContentData {
             Some("作业") => CourseContentKind::Assignment,
             Some("音频") => CourseContentKind::Audio,
             Some("内容文件夹") => CourseContentKind::Folder,
-            Some("项目") | Some("文件") => CourseContentKind::Document,
+            Some("项目") => CourseContentKind::Document,
+            Some("文件") => CourseContentKind::File,
             Some("测试") => CourseContentKind::Quiz,
             alt => {
                 log::warn!("unknown content kind: {alt:?}");
@@ -763,14 +806,6 @@ impl CourseContentData {
     }
 }
 
-fn course_content_id(course: &CourseMeta, content: &CourseContentData) -> String {
-    let mut hasher = std::hash::DefaultHasher::new();
-    course.id.hash(&mut hasher);
-    content.id.hash(&mut hasher);
-    let x = hasher.finish();
-    format!("{x:x}")
-}
-
 #[derive(Debug, Clone)]
 pub struct CourseAssignmentHandle {
     client: Client,
@@ -780,7 +815,11 @@ pub struct CourseAssignmentHandle {
 
 impl CourseAssignmentHandle {
     pub fn id(&self) -> String {
-        course_content_id(&self.course, &self.content)
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.course.id.hash(&mut hasher);
+        self.content.id.hash(&mut hasher);
+        let x = hasher.finish();
+        format!("{x:x}")
     }
 
     async fn _get(&self) -> anyhow::Result<CourseAssignmentData> {
@@ -1033,7 +1072,9 @@ impl CourseAssignment {
         uri: &str,
         dest: &std::path::Path,
     ) -> anyhow::Result<()> {
-        self.client.course_attachment_download(uri, dest).await
+        self.client
+            .course_attachment_download(uri, dest, true)
+            .await
     }
 }
 
