@@ -46,6 +46,7 @@ Usage: pku3b [COMMAND]
 
 Commands:
   assignment  获取课程作业信息/下载附件/提交作业 [aliases: a]
+  course-content  获取课程内容 [aliases: cc]
   coursetable 获取个人课表 [aliases: ct]
   announcement 获取课程公告 [aliases: ann]
   video       获取课程回放/下载课程回放 [aliases: v]
