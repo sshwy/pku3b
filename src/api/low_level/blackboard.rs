@@ -6,6 +6,8 @@ pub const SSO_LOGIN: &str =
     "https://course.pku.edu.cn/webapps/bb-sso-BBLEARN/execute/authValidate/campusLogin";
 pub const BB_HOME: &str = "https://course.pku.edu.cn/webapps/portal/execute/tabs/tabAction";
 pub const BB_LOGIN: &str = "https://course.pku.edu.cn/webapps/login/";
+pub const BB_CONTENT_FILE: &str =
+    "https://course.pku.edu.cn/webapps/blackboard/execute/content/file";
 pub const COURSE_INFO: &str = "https://course.pku.edu.cn/webapps/blackboard/execute/announcement";
 pub const UPLOAD_ASSIGNMENT: &str = "https://course.pku.edu.cn/webapps/assignment/uploadAssignment";
 pub const LIST_CONTENT: &str =
@@ -265,6 +267,34 @@ impl LowLevelClient {
 
         let rbody = res.text().await?;
         Ok(rbody)
+    }
+
+    pub async fn bb_course_content_file_uri(
+        &self,
+        course_id: &str,
+        content_id: &str,
+    ) -> anyhow::Result<String> {
+        let res = self
+            .http_client
+            .get(BB_CONTENT_FILE)?
+            .query(&[
+                ("cmd", "view"),
+                ("content_id", content_id),
+                ("course_id", course_id),
+                ("launch_in_new", "true"),
+            ])?
+            .send()
+            .await?;
+
+        let body = res.text().await?;
+        let re = regex::Regex::new(r#"document.location = '(.*?)';"#).unwrap();
+        let caps = re.captures(&body).unwrap();
+        let loc = caps.get(1).unwrap().as_str();
+        log::debug!("redirected to {loc}");
+
+        let res = self.get_by_uri(loc).await?;
+        let loc = extract_redirect_url(&res)?;
+        Ok(loc.to_owned())
     }
 }
 

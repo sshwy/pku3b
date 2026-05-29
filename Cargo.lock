@@ -2153,6 +2153,7 @@ dependencies = [
  "lopdf",
  "m3u8-rs",
  "memchr",
+ "percent-encoding",
  "pkcs8",
  "rand 0.9.4",
  "regex",
