@@ -43,9 +43,9 @@ enum VideoCommands {
     },
 }
 
-pub async fn run(cmd: CommandVideo) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandVideo, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        VideoCommands::List { all_term } => list(cmd.force, !all_term, cmd.otp_code).await?,
+        VideoCommands::List { all_term } => list(ctx, cmd.force, !all_term, cmd.otp_code).await?,
         #[cfg(feature = "video-download")]
         VideoCommands::Download {
             outdir,
@@ -56,10 +56,18 @@ pub async fn run(cmd: CommandVideo) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn list(force: bool, cur_term: bool, otp_code: String) -> anyhow::Result<()> {
+pub async fn list(
+    ctx: &CommandCtx<'_>,
+    force: bool,
+    cur_term: bool,
+    otp_code: String,
+) -> anyhow::Result<()> {
     let courses = load_courses(force, cur_term, otp_code).await?;
 
-    let pb = pbar::new(courses.len() as u64);
+    let pb = ctx
+        .multi
+        .add(pbar::new(courses.len() as u64))
+        .with_prefix("All");
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let vs = c.get_video_list().await.context("fetch video list")?;
@@ -68,6 +76,7 @@ pub async fn list(force: bool, cur_term: bool, otp_code: String) -> anyhow::Resu
     });
     let courses = try_join_all(futs).await?;
     pb.finish_and_clear();
+    ctx.multi.remove(&pb);
 
     let mut outbuf = Vec::new();
     let title = "课程回放";

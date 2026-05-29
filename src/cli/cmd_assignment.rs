@@ -59,14 +59,14 @@ enum AssignmentCommands {
     },
 }
 
-pub async fn run(cmd: CommandAssignment, m: &MultiProgress) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandAssignment, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
         AssignmentCommands::List { all, all_term } => {
-            list(m, cmd.force, all || all_term, !all_term, cmd.otp_code).await?
+            list(ctx, cmd.force, all || all_term, !all_term, cmd.otp_code).await?
         }
         AssignmentCommands::Download { id, dir, all_term } => {
             download(
-                m,
+                ctx,
                 id.as_deref(),
                 &dir,
                 cmd.force,
@@ -77,7 +77,7 @@ pub async fn run(cmd: CommandAssignment, m: &MultiProgress) -> anyhow::Result<()
             .await?
         }
         AssignmentCommands::Submit { id, path } => {
-            submit(m, id.as_deref(), path.as_deref(), cmd.otp_code).await?
+            submit(ctx, id.as_deref(), path.as_deref(), cmd.otp_code).await?
         }
     }
     Ok(())
@@ -130,7 +130,7 @@ async fn get_assignments(
 }
 
 async fn get_courses_and_assignments(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     cur_term: bool,
     otp_code: String,
@@ -138,12 +138,16 @@ async fn get_courses_and_assignments(
     let courses = load_courses(force, cur_term, otp_code).await?;
 
     // fetch each course concurrently
-    let pb = m.add(pbar::new(courses.len() as u64)).with_prefix("All");
+    let pb = ctx
+        .multi
+        .add(pbar::new(courses.len() as u64))
+        .with_prefix("All");
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
         let assignments = get_assignments(
             &c,
-            m.add(pbar::new(0).with_prefix(c.meta().name().to_owned())),
+            ctx.multi
+                .add(pbar::new(0).with_prefix(c.meta().name().to_owned())),
         )
         .await
         .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
@@ -162,19 +166,19 @@ async fn get_courses_and_assignments(
     });
     let courses = try_join_all(futs).await?;
     pb.finish_and_clear();
-    m.remove(&pb);
+    ctx.multi.remove(&pb);
 
     Ok(courses)
 }
 
 pub async fn list(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     all: bool,
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let courses = get_courses_and_assignments(m, force, cur_term, otp_code).await?;
+    let courses = get_courses_and_assignments(ctx, force, cur_term, otp_code).await?;
 
     let mut all_assignments = courses
         .iter()
@@ -214,13 +218,13 @@ pub async fn list(
 type AssignmentListItem = (Arc<Course>, String, CourseAssignment);
 
 async fn fetch_assignments(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     all: bool,
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<Vec<AssignmentListItem>> {
-    let courses = get_courses_and_assignments(m, force, cur_term, otp_code).await?;
+    let courses = get_courses_and_assignments(ctx, force, cur_term, otp_code).await?;
 
     let mut all_assignments = courses
         .into_iter()
@@ -265,7 +269,7 @@ async fn select_assignment(
 }
 
 pub async fn download(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     id: Option<&str>,
     dir: &std::path::Path,
     force: bool,
@@ -273,7 +277,7 @@ pub async fn download(
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let items = fetch_assignments(m, force, all, cur_term, otp_code).await?;
+    let items = fetch_assignments(ctx, force, all, cur_term, otp_code).await?;
     let a = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {
             Some(r) => r,
@@ -315,12 +319,12 @@ async fn download_data(
 }
 
 pub async fn submit(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     id: Option<&str>,
     path: Option<&std::path::Path>,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let items = fetch_assignments(m, false, false, true, otp_code).await?;
+    let items = fetch_assignments(ctx, false, false, true, otp_code).await?;
 
     let (c, _, a) = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {

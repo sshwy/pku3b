@@ -41,10 +41,12 @@ pub struct ListOptions {
     course_title: Option<String>,
 }
 
-pub async fn run(cmd: CommandCourseContent, m: &MultiProgress) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandCourseContent, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
-        CourseContentCommands::List(opts) => list(m, cmd.force, cmd.otp_code, opts).await?,
-        CourseContentCommands::Download(opts) => download(m, cmd.force, cmd.otp_code, opts).await?,
+        CourseContentCommands::List(opts) => list(ctx, cmd.force, cmd.otp_code, opts).await?,
+        CourseContentCommands::Download(opts) => {
+            download(ctx, cmd.force, cmd.otp_code, opts).await?
+        }
     }
     Ok(())
 }
@@ -84,7 +86,7 @@ async fn get_contents(
 }
 
 async fn get_courses_contents(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     otp_code: String,
     all_term: bool,
@@ -104,10 +106,15 @@ async fn get_courses_contents(
     }
 
     // fetch each course concurrently
-    let pb = m.add(pbar::new(courses.len() as u64)).with_prefix("All");
+    let pb = ctx
+        .multi
+        .add(pbar::new(courses.len() as u64))
+        .with_prefix("All");
     let futs = courses.into_iter().map(async |c| -> anyhow::Result<_> {
         let c = c.get().await.context("fetch course")?;
-        let _pb = m.add(pbar::new(0).with_prefix(c.meta().name().to_owned()));
+        let _pb = ctx
+            .multi
+            .add(pbar::new(0).with_prefix(c.meta().name().to_owned()));
         let contents = get_contents(&c, _pb)
             .await
             .with_context(|| format!("fetch assignment handles of {}", c.meta().title()))?;
@@ -117,19 +124,19 @@ async fn get_courses_contents(
     });
     let courses = try_join_all(futs).await?;
     pb.finish_and_clear();
-    m.remove(&pb);
+    ctx.multi.remove(&pb);
 
     Ok(courses)
 }
 
 pub async fn list(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     otp_code: String,
     opts: ListOptions,
 ) -> anyhow::Result<()> {
     let courses = get_courses_contents(
-        m,
+        ctx,
         force,
         otp_code,
         opts.all_term,
@@ -181,13 +188,13 @@ pub struct DownloadOptions {
 }
 
 pub async fn download(
-    m: &MultiProgress,
+    ctx: &CommandCtx<'_>,
     force: bool,
     otp_code: String,
     opts: DownloadOptions,
 ) -> anyhow::Result<()> {
     let courses = get_courses_contents(
-        m,
+        ctx,
         force,
         otp_code,
         opts.all_term,
@@ -242,7 +249,8 @@ pub async fn download(
     if !atts.is_empty() {
         println!("Downloading {} attachments to {}", tot, outdir.display());
 
-        let pb = m
+        let pb = ctx
+            .multi
             .add(pbar::new(tot as u64))
             .with_prefix("download")
             .with_message(format!("[0/{tot}]"));
@@ -260,7 +268,7 @@ pub async fn download(
         }
 
         pb.finish_with_message("done.");
-        m.remove(&pb);
+        ctx.multi.remove(&pb);
     }
 
     Ok(())

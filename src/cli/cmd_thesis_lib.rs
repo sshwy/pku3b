@@ -31,7 +31,7 @@ enum ThesisLibCommands {
     },
 }
 
-pub async fn run(cmd: CommandThesisLib) -> anyhow::Result<()> {
+pub async fn run(cmd: CommandThesisLib, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     match cmd.command {
         ThesisLibCommands::Search { keyword } => search(keyword).await?,
         ThesisLibCommands::Download {
@@ -39,7 +39,7 @@ pub async fn run(cmd: CommandThesisLib) -> anyhow::Result<()> {
             outdir,
             job,
             save_image,
-        } => download(keyid, outdir, job, save_image).await?,
+        } => download(ctx, keyid, outdir, job, save_image).await?,
     }
     Ok(())
 }
@@ -85,6 +85,7 @@ async fn search(keyword: String) -> anyhow::Result<()> {
 }
 
 async fn download(
+    ctx: &CommandCtx<'_>,
     keyid: String,
     outdir: Option<std::path::PathBuf>,
     n_job: u32,
@@ -118,8 +119,10 @@ async fn download(
 
     let ids = (0..=doc.maxpage()).collect_vec();
 
-    let m = indicatif::MultiProgress::new();
-    let pb = m.add(pbar::new(ids.len() as u64)).with_prefix("PDF pages");
+    let pb = ctx
+        .multi
+        .add(pbar::new(ids.len() as u64))
+        .with_prefix("PDF pages");
 
     let outdir = outdir.unwrap_or_else(|| std::path::PathBuf::from("."));
     fs::create_dir_all(&outdir).await?;
@@ -159,6 +162,7 @@ async fn download(
     let data: Vec<_> = page_results.into_iter().map(|(_, data)| data).collect();
 
     pb.finish();
+    ctx.multi.remove(&pb);
 
     #[cfg(feature = "thesislib-pdf")]
     {

@@ -13,6 +13,11 @@ mod cmd_ttshitu;
 mod cmd_video;
 mod pbar;
 
+/// Shared CLI context (global progress group from [`main`]).
+pub struct CommandCtx<'a> {
+    pub multi: &'a MultiProgress,
+}
+
 use crate::api::{blackboard::*, syllabus::*};
 use crate::cli::pbar::AsyncSpinner;
 use crate::{api, build, config, utils, walkdir};
@@ -302,6 +307,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
 }
 
 pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
+    let ctx = CommandCtx { multi: m };
     if let Some(command) = cli.command {
         match command {
             Commands::Config { attr, value } => command_config(attr, value).await?,
@@ -316,11 +322,11 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
                     command_cache_clean(true).await?
                 }
             }
-            Commands::Assignment(cmd) => cmd_assignment::run(cmd, m).await?,
-            Commands::CourseContent(cmd) => cmd_course_content::run(cmd, m).await?,
+            Commands::Assignment(cmd) => cmd_assignment::run(cmd, &ctx).await?,
+            Commands::CourseContent(cmd) => cmd_course_content::run(cmd, &ctx).await?,
             Commands::CourseTable(cmd) => cmd_course_table::run(cmd).await?,
-            Commands::Announcement(cmd) => cmd_announcement::run(cmd).await?,
-            Commands::Video(cmd) => cmd_video::run(cmd).await?,
+            Commands::Announcement(cmd) => cmd_announcement::run(cmd, &ctx).await?,
+            Commands::Video(cmd) => cmd_video::run(cmd, &ctx).await?,
             Commands::Grades(cmd) => cmd_grades::run(cmd).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd).await?,
 
@@ -331,7 +337,7 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
             Commands::Bark(cmd) => cmd_bark::run(cmd).await?,
 
             #[cfg(feature = "thesislib")]
-            Commands::ThesisLib(cmd) => cmd_thesis_lib::run(cmd).await?,
+            Commands::ThesisLib(cmd) => cmd_thesis_lib::run(cmd, &ctx).await?,
 
             #[cfg(feature = "dev")]
             Commands::Debug => command_debug().await?,
