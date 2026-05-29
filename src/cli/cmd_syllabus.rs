@@ -99,7 +99,7 @@ pub async fn set_autoelective(dual: Option<DualDegree>) -> anyhow::Result<()> {
     for i in 0..total {
         sp.set_message(format!("fetching page {}/{}...", i + 1, total));
         let data = sy.get_supplements(i).await?;
-        items.extend(data.into_iter());
+        items.extend(data);
     }
 
     drop(sp);

@@ -146,12 +146,11 @@ pub async fn run(cmd: CommandGrades) -> anyhow::Result<()> {
         };
 
         for col in &columns.results {
-            if let Some(grading) = &col.grading {
-                if grading.grading_type == "Calculated"
-                    && (col.name.contains("总计") && !col.name.contains("平时"))
-                {
-                    continue;
-                }
+            if let Some(grading) = &col.grading
+                && grading.grading_type == "Calculated"
+                && (col.name.contains("总计") && !col.name.contains("平时"))
+            {
+                continue;
             }
 
             let grade_data: Option<GradeUser> = match client
