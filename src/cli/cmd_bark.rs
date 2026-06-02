@@ -23,9 +23,8 @@ pub async fn run(cmd: CommandBark, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
-    let cfg_path = utils::default_config_path();
-    let mut cfg = config::read_cfg(&cfg_path)
+async fn init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
+    let mut cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -33,15 +32,14 @@ async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 
     cfg.bark = Some(config::BarkConfig { token });
 
-    config::write_cfg(&cfg_path, &cfg).await?;
+    config::write_cfg(&ctx.config_path, &cfg).await?;
 
     println!("{GR}{B}Bark 通知令牌已更新{B:#}{GR:#}");
     Ok(())
 }
 
-async fn test(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(&cfg_path)
+async fn test(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 

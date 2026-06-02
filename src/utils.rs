@@ -20,7 +20,7 @@ pub fn projectdir() -> dirs::ProjectDirs {
 }
 
 pub fn default_config_path() -> std::path::PathBuf {
-    crate::utils::projectdir().config_dir().join("cfg.toml")
+    projectdir().config_dir().join("cfg.toml")
 }
 
 pub fn default_user_agent_data_path() -> std::path::PathBuf {

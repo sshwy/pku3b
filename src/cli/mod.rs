@@ -16,6 +16,7 @@ mod pbar;
 /// Shared CLI context (global progress group from [`main`]).
 pub struct CommandCtx<'a> {
     pub multi: &'a MultiProgress,
+    pub config_path: std::path::PathBuf,
 }
 
 impl CommandCtx<'_> {
@@ -58,6 +59,10 @@ use utils::style::*;
     long_about = "a Better BlackBoard for PKUers. 北京大学教学网命令行工具 (️Win/Linux/Mac), 支持查看/提交作业、查看公告、下载课程回放."
 )]
 pub struct Cli {
+    /// 配置文件路径 (优先级高于 PKU3B_CONFIG)
+    #[arg(long, global = true, env = "PKU3B_CONFIG", value_name = "PATH")]
+    config: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -174,8 +179,7 @@ async fn load_blackboard(
     let client = build_client(enable_cache).await?;
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -228,12 +232,12 @@ async fn load_courses(
 }
 
 async fn command_config(
+    ctx: &CommandCtx<'_>,
     attr: Option<config::ConfigAttrs>,
     value: Option<String>,
 ) -> anyhow::Result<()> {
-    let cfg_path = utils::default_config_path();
-    log::info!("Config path: '{}'", cfg_path.display());
-    let mut cfg = match config::read_cfg(&cfg_path).await {
+    log::info!("Config path: '{}'", ctx.config_path.display());
+    let mut cfg = match config::read_cfg(&ctx.config_path).await {
         Ok(r) => r,
         Err(e) => {
             anyhow::bail!("fail to read config: {e} (hint: run `pku3b init` to initialize it)")
@@ -241,14 +245,14 @@ async fn command_config(
     };
 
     let Some(attr) = attr else {
-        let s = toml::to_string_pretty(&cfg)?;
+        let s = toml::to_string_pretty(&cfg.redacted())?;
         println!("{s}");
         return Ok(());
     };
 
     if let Some(value) = value {
         cfg.update(attr, value)?;
-        config::write_cfg(&cfg_path, &cfg).await?;
+        config::write_cfg(&ctx.config_path, &cfg).await?;
     } else {
         let mut buf = Vec::new();
         cfg.display(attr, &mut buf)?;
@@ -257,9 +261,7 @@ async fn command_config(
     Ok(())
 }
 
-async fn command_init() -> anyhow::Result<()> {
-    let cfg_path = utils::default_config_path();
-
+async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     let username = inquire::Text::new("输入 PKU IAAA 学号:").prompt()?;
     let password = inquire::Text::new("输入 PKU IAAA 密码:").prompt()?;
 
@@ -268,9 +270,10 @@ async fn command_init() -> anyhow::Result<()> {
         password,
         ttshitu: None,
         bark: None,
+        secret_backend: config::SecretBackend::Plaintext,
         auto_supplement: None,
     };
-    config::write_cfg(&cfg_path, &cfg).await?;
+    config::write_cfg(&ctx.config_path, &cfg).await?;
 
     println!("Configuration initialized.");
     Ok(())
@@ -318,11 +321,19 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
 }
 
 pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
-    let ctx = CommandCtx { multi: m };
+    let config_path = cli
+        .config
+        .clone()
+        .unwrap_or_else(utils::default_config_path);
+    let ctx = CommandCtx {
+        multi: m,
+        config_path,
+    };
+
     if let Some(command) = cli.command {
         match command {
-            Commands::Config { attr, value } => command_config(attr, value).await?,
-            Commands::Init => command_init().await?,
+            Commands::Config { attr, value } => command_config(&ctx, attr, value).await?,
+            Commands::Init => command_init(&ctx).await?,
             Commands::Cache { command } => {
                 if let Some(command) = command {
                     match command {
