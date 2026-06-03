@@ -43,7 +43,7 @@ http = { version = "1.2.0", default-features = false }
 image = { version = "0.25", optional = true, features = [
     "jpeg",
 ], default-features = false }
-indicatif = "0.17"
+indicatif = "0.18"
 indicatif-log-bridge = "0.2.3"
 inquire = { version = "0.7", features = [
     "crossterm",

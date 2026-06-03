@@ -192,7 +192,8 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - 📢 按 ID 查看公告详情: `pku3b announcement show <ID>`
 - 🎥 查看课程回放列表: `pku3b v ls`
 - 🎥 查看所有学期课程回放列表: `pku3b v ls --all-term`
-- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。
+- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。可用 `-o <DIR>` 指定保存目录。
+- ⏯️ 顺序下载某门课的全部课程回放: `pku3b v down-course <课程名关键字> -o <DIR>`: 若匹配到多门课程，会提示交互选择；文件名会使用课程名、回放时间和回放标题生成。
 - 📱 初始化 Bark 通知: `pku3b bark init` 或 `pku3b b init`
 - 📱 测试 Bark 通知: `pku3b bark test` 或 `pku3b b test`
 - 🧩 初始化 TT 识图账号密码: `pku3b ttshitu init`
