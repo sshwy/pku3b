@@ -41,7 +41,7 @@ async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 }
 
 async fn test(_ctx: &CommandCtx<'_>, image_path: Option<String>) -> anyhow::Result<()> {
-    let c = crate::http::Client::from_cyper(cyper::Client::new());
+    let c = crate::http::Client::from_cyper(cyper::Client::new()?);
 
     let cfg_path = utils::default_config_path();
     let cfg = config::read_cfg(cfg_path)

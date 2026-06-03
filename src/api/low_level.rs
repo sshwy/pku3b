@@ -32,17 +32,17 @@ pub struct LowLevelClient {
 }
 
 impl LowLevelClient {
-    pub fn new() -> Self {
+    pub fn create() -> anyhow::Result<Self> {
         let mut default_headers = http::HeaderMap::new();
         default_headers.insert(http::header::USER_AGENT, USER_AGENT.parse().unwrap());
         let http_client = cyper::Client::builder()
             .cookie_store(true)
             .default_headers(default_headers)
-            .build();
+            .build()?;
 
-        Self {
+        Ok(Self {
             http_client: crate::http::Client::from_cyper(http_client),
-        }
+        })
     }
 
     pub async fn load_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {

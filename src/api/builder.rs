@@ -36,9 +36,11 @@ impl ClientBuilder {
         log::info!("Cache TTL: {:?}", self.cache_ttl);
         log::info!("Download Artifact TTL: {:?}", self.download_artifact_ttl);
 
-        let http_client = self
-            .http_client
-            .unwrap_or_else(low_level::LowLevelClient::new);
+        let http_client = if let Some(c) = self.http_client {
+            c
+        } else {
+            low_level::LowLevelClient::create()?
+        };
 
         if let Some(path) = &self.cookie_restore_path
             && path.exists()

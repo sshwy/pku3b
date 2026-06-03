@@ -190,7 +190,8 @@ mod tests {
 
     #[compio::test]
     async fn save_set_cookies_creates_parent_dirs() {
-        let client = Client::from_cyper(cyper::Client::builder().cookie_store(true).build());
+        let client =
+            Client::from_cyper(cyper::Client::builder().cookie_store(true).build().unwrap());
         let (base, path) = test_cookie_path();
 
         client.save_set_cookies(&path).await.unwrap();

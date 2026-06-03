@@ -273,7 +273,7 @@ mod tests {
             .filter_module("html5ever::tree_builder", log::LevelFilter::Info)
             .init();
 
-        let c = LowLevelClient::new();
+        let c = LowLevelClient::create().unwrap();
         let username = std::env::var("PKU3B_TEST_USERNAME").unwrap();
         let password = std::env::var("PKU3B_TEST_PASSWORD").unwrap();
         c.sb_login(&username, &password).await.unwrap();

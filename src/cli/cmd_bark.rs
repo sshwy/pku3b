@@ -56,7 +56,7 @@ async fn test(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 }
 
 pub async fn send_bark_notification(token: &str, title: &str, body: &str) -> anyhow::Result<()> {
-    let client = cyper::Client::new();
+    let client = cyper::Client::new()?;
     let url = format!(
         "https://api.day.app/{}/{}/{}",
         urlencoding::encode(token),
