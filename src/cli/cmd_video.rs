@@ -188,7 +188,7 @@ pub async fn download(
 
     ctx.remove_spinner(sp);
 
-    download_course_video(ctx, &v, &id, &outdir).await?;
+    download_course_video(ctx, &v, &id, &outdir, true).await?;
 
     Ok(())
 }
@@ -204,31 +204,17 @@ pub async fn download_course(
 ) -> anyhow::Result<()> {
     let outdir = prepare_video_outdir(outdir).await?;
 
-    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
-    let mut matches = courses
-        .into_iter()
-        .filter(|c| c.id() == course_query || c.long_title().contains(course_query))
-        .collect::<Vec<_>>();
-
-    if matches.is_empty() {
-        anyhow::bail!("course matching '{course_query}' not found");
-    }
-
-    let course = if matches.len() == 1 {
-        matches.swap_remove(0)
-    } else {
-        let options = matches
-            .iter()
-            .map(|c| format!("{} {}", c.long_title(), c.id()))
-            .collect::<Vec<_>>();
-        let selected = inquire::Select::new("请选择要下载回放的课程", options).raw_prompt()?;
-        matches.swap_remove(selected.index)
-    };
+    let course = select_course(
+        ctx,
+        force,
+        cur_term,
+        otp_code,
+        course_query,
+        "请选择要下载回放的课程",
+    )
+    .await?;
 
     let sp = ctx.spinner();
-    sp.set_message("fetching course...");
-    let course = course.get().await.context("fetch course")?;
-
     sp.set_message("fetching video list...");
     let videos = course.get_video_list().await.context("fetch video list")?;
     ctx.remove_spinner(sp);
@@ -252,12 +238,55 @@ pub async fn download_course(
             .get()
             .await
             .with_context(|| format!("fetch video metadata for {}", id))?;
-        download_course_video(ctx, &video, &id, &outdir)
+        download_course_video(ctx, &video, &id, &outdir, true)
             .await
             .with_context(|| format!("download video {}", id))?;
     }
 
     println!("全部课程回放下载完成。");
+
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+pub(super) async fn archive_course_videos(
+    ctx: &CommandCtx<'_>,
+    course: &Course,
+    outdir: &std::path::Path,
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    fs::create_dir_all(outdir)
+        .await
+        .with_context(|| format!("create output directory {}", outdir.display()))?;
+
+    let sp = ctx.spinner();
+    sp.set_message("fetching video list...");
+    let videos = course.get_video_list().await.context("fetch video list")?;
+    ctx.remove_spinner(sp);
+
+    if videos.is_empty() {
+        println!("课程 {} 没有课程回放，跳过。", course.meta().title());
+        return Ok(());
+    }
+
+    println!(
+        "准备归档 {B}{}{B:#} 个课程回放到 {}",
+        videos.len(),
+        outdir.display()
+    );
+
+    let total = videos.len();
+    for (idx, video) in videos.into_iter().enumerate() {
+        let id = video.id();
+        println!("\n[{}/{}] {}", idx + 1, total, video.meta().title());
+        let video = video
+            .get()
+            .await
+            .with_context(|| format!("fetch video metadata for {}", id))?;
+        download_course_video(ctx, &video, &id, outdir, overwrite)
+            .await
+            .with_context(|| format!("download video {}", id))?;
+    }
 
     Ok(())
 }
@@ -279,6 +308,7 @@ async fn download_course_video(
     v: &CourseVideo,
     id: &str,
     outdir: &std::path::Path,
+    overwrite: bool,
 ) -> anyhow::Result<()> {
     println!(
         "下载课程回放：{} ({}, {})",
@@ -287,11 +317,14 @@ async fn download_course_video(
         v.meta().time()
     );
 
+    let dest = outdir.join(video_output_filename(v));
+    if dest.exists() && !overwrite {
+        println!("跳过已存在课程回放: {}", dest.display());
+        return Ok(());
+    }
+
     // prepare download dir
-    let dir = utils::projectdir()
-        .cache_dir()
-        .join("video_download")
-        .join(&id);
+    let dir = utils::cache_dir().join("video_download").join(&id);
     fs::create_dir_all(&dir)
         .await
         .context("create dir failed")?;
@@ -307,7 +340,6 @@ async fn download_course_video(
     let merged = dir.join("merged").with_extension("ts");
     merge_segments(ctx, &merged, &paths).await?;
 
-    let dest = outdir.join(video_output_filename(v));
     log::info!("Merged segments to {}", merged.display());
     log::info!(
         r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
@@ -352,23 +384,6 @@ fn video_output_filename(v: &CourseVideo) -> String {
         format!("{course}_{time}_{title}")
     };
     format!("{stem}.mp4")
-}
-
-#[cfg(feature = "video-download")]
-fn sanitize_filename_part(s: &str) -> String {
-    let s = s
-        .trim()
-        .chars()
-        .map(|c| match c {
-            '<' | '>' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
-            ':' => '-',
-            c if c.is_control() => '_',
-            c => c,
-        })
-        .collect::<String>();
-
-    let s = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    if s.is_empty() { "_".to_owned() } else { s }
 }
 
 #[cfg(feature = "video-download")]

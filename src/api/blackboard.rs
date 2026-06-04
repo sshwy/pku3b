@@ -369,6 +369,10 @@ impl CourseMeta {
         &self.id
     }
 
+    pub fn long_title(&self) -> &str {
+        &self.long_title
+    }
+
     /// Course Name (semester)
     pub fn title(&self) -> &str {
         self.long_title

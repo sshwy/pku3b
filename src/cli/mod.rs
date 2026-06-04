@@ -1,4 +1,5 @@
 mod cmd_announcement;
+mod cmd_archive;
 mod cmd_assignment;
 #[cfg(feature = "bark")]
 mod cmd_bark;
@@ -63,12 +64,20 @@ pub struct Cli {
     #[arg(long, global = true, env = "PKU3B_CONFIG", value_name = "PATH")]
     config: Option<std::path::PathBuf>,
 
+    /// 缓存目录路径 (优先级高于 PKU3B_CACHE_DIR)
+    #[arg(long, global = true, env = "PKU3B_CACHE_DIR", value_name = "PATH")]
+    cache_dir: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// 一键归档整门课程的作业、课程内容和课程回放
+    #[command(visible_alias("ar"))]
+    Archive(cmd_archive::CommandArchive),
+
     /// 获取课程作业信息/下载附件/提交作业
     #[command(visible_alias("a"), arg_required_else_help(true))]
     Assignment(cmd_assignment::CommandAssignment),
@@ -231,6 +240,140 @@ async fn load_courses(
     Ok(r)
 }
 
+struct SelectedCourseHandle {
+    handle: CourseHandle,
+    title_has_duplicates: bool,
+}
+
+fn select_course_handle(
+    courses: Vec<CourseHandle>,
+    course_query: &str,
+    prompt: &str,
+) -> anyhow::Result<SelectedCourseHandle> {
+    let titles = courses
+        .iter()
+        .map(|c| c.long_title().to_owned())
+        .collect::<Vec<_>>();
+    let mut matches = courses
+        .into_iter()
+        .filter(|c| c.id() == course_query || c.long_title().contains(course_query))
+        .collect::<Vec<_>>();
+
+    if matches.is_empty() {
+        anyhow::bail!("course matching '{course_query}' not found");
+    }
+
+    let handle = if matches.len() == 1 {
+        matches.swap_remove(0)
+    } else {
+        let options = matches
+            .iter()
+            .map(|c| format!("{} {}", c.long_title(), c.id()))
+            .collect::<Vec<_>>();
+        let selected = inquire::Select::new(prompt, options).raw_prompt()?;
+        matches.swap_remove(selected.index)
+    };
+    let title_has_duplicates = titles.iter().filter(|t| *t == handle.long_title()).count() > 1;
+
+    Ok(SelectedCourseHandle {
+        handle,
+        title_has_duplicates,
+    })
+}
+
+#[cfg(feature = "video-download")]
+async fn select_course(
+    ctx: &CommandCtx<'_>,
+    force: bool,
+    cur_term: bool,
+    otp_code: String,
+    course_query: &str,
+    prompt: &str,
+) -> anyhow::Result<Course> {
+    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
+    let selected = select_course_handle(courses, course_query, prompt)?;
+
+    let sp = ctx.spinner();
+    sp.set_message("fetching course...");
+    let course = selected.handle.get().await.context("fetch course")?;
+    ctx.remove_spinner(sp);
+
+    Ok(course)
+}
+
+fn sanitize_filename_part(s: &str) -> String {
+    let s = s
+        .trim()
+        .chars()
+        .map(|c| match c {
+            '<' | '>' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            ':' => '-',
+            c if c.is_whitespace() => ' ',
+            c if c.is_control() => '_',
+            c => c,
+        })
+        .collect::<String>();
+
+    let s = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    if s.is_empty() { "_".to_owned() } else { s }
+}
+
+fn numbered_entry_dir_name(index: usize, title: &str, id: &str) -> String {
+    format!(
+        "{index:03}_{}_{}",
+        sanitize_filename_part(title),
+        sanitize_filename_part(id)
+    )
+}
+
+fn should_skip_existing(path: &std::path::Path, overwrite: bool) -> bool {
+    if path.exists() && !overwrite {
+        println!("跳过已存在文件: {}", path.display());
+        true
+    } else {
+        false
+    }
+}
+
+async fn write_description_file(
+    dest: &std::path::Path,
+    descriptions: &[String],
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    if descriptions.is_empty() || should_skip_existing(dest, overwrite) {
+        return Ok(());
+    }
+
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)
+            .await
+            .with_context(|| format!("create output directory {}", parent.display()))?;
+    }
+
+    buf_try!(@try fs::write(dest, descriptions.join("\n")).await);
+    println!("写入描述: {}", dest.display());
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_filename_part_replaces_path_separators_and_colons() {
+        assert_eq!(
+            sanitize_filename_part(r#" 课件: 第 1/2\3?讲* "#),
+            "课件- 第 1_2_3_讲_"
+        );
+    }
+
+    #[test]
+    fn sanitize_filename_part_collapses_whitespace_and_uses_placeholder() {
+        assert_eq!(sanitize_filename_part("a\t \n b"), "a b");
+        assert_eq!(sanitize_filename_part("   "), "_");
+    }
+}
+
 async fn command_config(
     ctx: &CommandCtx<'_>,
     attr: Option<config::ConfigAttrs>,
@@ -280,14 +423,14 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 }
 
 async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
-    let dir = utils::projectdir();
-    log::info!("Cache dir: '{}'", dir.cache_dir().display());
+    let cache_dir = utils::cache_dir();
+    log::info!("Cache dir: '{}'", cache_dir.display());
     let sp = pbar::new_spinner();
     sp.set_message("scanning cache dir...");
 
     let mut total_bytes = 0;
-    if dir.cache_dir().exists() {
-        let d = std::fs::read_dir(dir.cache_dir())?;
+    if cache_dir.exists() {
+        let d = std::fs::read_dir(&cache_dir)?;
 
         let mut s = walkdir::walkdir(d, false);
         while let Some(e) = s.next().await {
@@ -306,7 +449,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
         }
 
         if !dry_run {
-            std::fs::remove_dir_all(dir.cache_dir())?;
+            std::fs::remove_dir_all(&cache_dir)?;
         }
     }
     drop(sp);
@@ -321,6 +464,10 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
 }
 
 pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
+    if let Some(cache_dir) = cli.cache_dir.clone() {
+        utils::set_cache_dir(cache_dir);
+    }
+
     let config_path = cli
         .config
         .clone()
@@ -344,6 +491,7 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
                     command_cache_clean(true).await?
                 }
             }
+            Commands::Archive(cmd) => cmd_archive::run(cmd, &ctx).await?,
             Commands::Assignment(cmd) => cmd_assignment::run(cmd, &ctx).await?,
             Commands::CourseContent(cmd) => cmd_course_content::run(cmd, &ctx).await?,
             Commands::CourseTable(cmd) => cmd_course_table::run(cmd, &ctx).await?,

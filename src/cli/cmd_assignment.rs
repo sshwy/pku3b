@@ -318,6 +318,95 @@ async fn download_data(
     Ok(())
 }
 
+pub(super) async fn archive_course_assignments(
+    ctx: &CommandCtx<'_>,
+    course: &Course,
+    outdir: &std::path::Path,
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    fs::create_dir_all(outdir)
+        .await
+        .with_context(|| format!("create output directory {}", outdir.display()))?;
+
+    let search_pb = ctx
+        .multi
+        .add(pbar::new(0).with_prefix(course.meta().name().to_owned()));
+    let handles = get_assignments(course, search_pb.clone())
+        .await
+        .with_context(|| format!("fetch assignments of {}", course.meta().title()))?;
+    ctx.multi.remove(&search_pb);
+
+    if handles.is_empty() {
+        println!("课程 {} 没有作业，跳过。", course.meta().title());
+        return Ok(());
+    }
+
+    let pb = ctx
+        .multi
+        .add(pbar::new(handles.len() as u64))
+        .with_prefix("assignments");
+    let mut assignments = Vec::new();
+    for handle in handles {
+        let id = handle.id();
+        let assignment = handle
+            .get()
+            .await
+            .with_context(|| format!("fetch assignment {}", id))?;
+        pb.inc(1);
+        assignments.push((id, assignment));
+    }
+    pb.finish_and_clear();
+    ctx.multi.remove(&pb);
+
+    assignments.sort_by_cached_key(|(_, a)| a.deadline());
+
+    println!(
+        "准备归档 {B}{}{B:#} 个作业到 {}",
+        assignments.len(),
+        outdir.display()
+    );
+
+    let total = assignments.len();
+    for (idx, (id, assignment)) in assignments.into_iter().enumerate() {
+        let dir = outdir.join(numbered_entry_dir_name(idx + 1, assignment.title(), &id));
+        fs::create_dir_all(&dir)
+            .await
+            .with_context(|| format!("create output directory {}", dir.display()))?;
+
+        write_description_file(
+            &dir.join("description.txt"),
+            assignment.descriptions(),
+            overwrite,
+        )
+        .await?;
+
+        let atts = assignment.attachments();
+        let tot = atts.len();
+        for (att_idx, (name, uri)) in atts.iter().enumerate() {
+            let filename = sanitize_filename_part(name);
+            let dest = dir.join(&filename);
+            if should_skip_existing(&dest, overwrite) {
+                continue;
+            }
+
+            println!(
+                "[作业 {}/{}][附件 {}/{}] 下载 {}",
+                idx + 1,
+                total,
+                att_idx + 1,
+                tot,
+                dest.display()
+            );
+            assignment
+                .download_attachment(uri, &dest)
+                .await
+                .with_context(|| format!("download attachment '{name}'"))?;
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn submit(
     ctx: &CommandCtx<'_>,
     id: Option<&str>,
