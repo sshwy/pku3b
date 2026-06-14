@@ -245,7 +245,7 @@ async fn command_config(
     };
 
     let Some(attr) = attr else {
-        let s = toml::to_string_pretty(&cfg)?;
+        let s = toml::to_string_pretty(&cfg.redacted())?;
         println!("{s}");
         return Ok(());
     };
@@ -270,6 +270,7 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
         password,
         ttshitu: None,
         bark: None,
+        secret_backend: config::SecretBackend::Plaintext,
         auto_supplement: None,
     };
     config::write_cfg(&ctx.config_path, &cfg).await?;
