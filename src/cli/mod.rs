@@ -63,6 +63,10 @@ pub struct Cli {
     #[arg(long, global = true, env = "PKU3B_CONFIG", value_name = "PATH")]
     config: Option<std::path::PathBuf>,
 
+    /// 缓存目录路径 (优先级高于 PKU3B_CACHE_DIR)
+    #[arg(long, global = true, env = "PKU3B_CACHE_DIR", value_name = "PATH")]
+    cache_dir: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -280,14 +284,14 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 }
 
 async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
-    let dir = utils::projectdir();
-    log::info!("Cache dir: '{}'", dir.cache_dir().display());
+    let cache_dir = utils::cache_dir();
+    log::info!("Cache dir: '{}'", cache_dir.display());
     let sp = pbar::new_spinner();
     sp.set_message("scanning cache dir...");
 
     let mut total_bytes = 0;
-    if dir.cache_dir().exists() {
-        let d = std::fs::read_dir(dir.cache_dir())?;
+    if cache_dir.exists() {
+        let d = std::fs::read_dir(&cache_dir)?;
 
         let mut s = walkdir::walkdir(d, false);
         while let Some(e) = s.next().await {
@@ -306,7 +310,7 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
         }
 
         if !dry_run {
-            std::fs::remove_dir_all(dir.cache_dir())?;
+            std::fs::remove_dir_all(&cache_dir)?;
         }
     }
     drop(sp);
@@ -321,6 +325,10 @@ async fn command_cache_clean(dry_run: bool) -> anyhow::Result<()> {
 }
 
 pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
+    if let Some(cache_dir) = cli.cache_dir.clone() {
+        utils::set_cache_dir(cache_dir);
+    }
+
     let config_path = cli
         .config
         .clone()

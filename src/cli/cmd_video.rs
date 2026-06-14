@@ -162,10 +162,7 @@ pub async fn download(
     println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
 
     // prepare download dir
-    let dir = utils::projectdir()
-        .cache_dir()
-        .join("video_download")
-        .join(&id);
+    let dir = utils::cache_dir().join("video_download").join(&id);
     fs::create_dir_all(&dir)
         .await
         .context("create dir failed")?;
