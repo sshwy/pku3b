@@ -273,3 +273,96 @@ pub async fn download(
 
     Ok(())
 }
+
+pub(super) async fn archive_course_contents(
+    ctx: &CommandCtx<'_>,
+    course: &Course,
+    outdir: &std::path::Path,
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    fs::create_dir_all(outdir)
+        .await
+        .with_context(|| format!("create output directory {}", outdir.display()))?;
+
+    let search_pb = ctx
+        .multi
+        .add(pbar::new(0).with_prefix(course.meta().name().to_owned()));
+    let contents = get_contents(course, search_pb.clone())
+        .await
+        .with_context(|| format!("fetch course contents of {}", course.meta().title()))?;
+    ctx.multi.remove(&search_pb);
+
+    if contents.is_empty() {
+        println!("课程 {} 没有课程内容，跳过。", course.meta().title());
+        return Ok(());
+    }
+
+    println!(
+        "准备归档 {B}{}{B:#} 个课程内容到 {}",
+        contents.len(),
+        outdir.display()
+    );
+
+    let total = contents.len();
+    for (idx, ct) in contents.into_iter().enumerate() {
+        let ccid = ct.ccid();
+        let ccid_str = ccid.to_string();
+        let dir = outdir.join(numbered_entry_dir_name(idx + 1, ct.title(), &ccid_str));
+        fs::create_dir_all(&dir)
+            .await
+            .with_context(|| format!("create output directory {}", dir.display()))?;
+
+        write_description_file(&dir.join("description.txt"), ct.descriptions(), overwrite).await?;
+
+        if matches!(ct.kind(), CourseContentKind::File) {
+            let uri = course
+                .client()
+                .bb_course_content_file_uri(ccid.course_id(), ccid.content_id())
+                .await?;
+            log::info!("File: {uri}");
+            let filename = uri.rsplit_once('/').unwrap().1;
+            let filename = percent_encoding::percent_decode(filename.as_bytes())
+                .decode_utf8_lossy()
+                .to_string();
+            let dest = dir.join(sanitize_filename_part(&filename));
+            if !should_skip_existing(&dest, overwrite) {
+                println!(
+                    "[课程内容 {}/{}] 下载文件 {}",
+                    idx + 1,
+                    total,
+                    dest.display()
+                );
+                course
+                    .client()
+                    .course_attachment_download(&uri, &dest, false)
+                    .await
+                    .with_context(|| format!("download file '{filename}'"))?;
+            }
+        }
+
+        let atts = ct.attachments();
+        let tot = atts.len();
+        for (att_idx, (name, uri)) in atts.iter().enumerate() {
+            let dest = dir.join(sanitize_filename_part(name));
+            if should_skip_existing(&dest, overwrite) {
+                continue;
+            }
+
+            println!(
+                "[课程内容 {}/{}][附件 {}/{}] 下载 {}",
+                idx + 1,
+                total,
+                att_idx + 1,
+                tot,
+                dest.display()
+            );
+            course
+                .client()
+                .course_attachment_download(uri, &dest, true)
+                .await
+                .with_context(|| format!("download attachment '{name}'"))?;
+        }
+    }
+
+    Ok(())
+}

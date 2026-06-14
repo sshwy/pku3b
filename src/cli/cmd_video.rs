@@ -216,6 +216,133 @@ pub async fn download(
 }
 
 #[cfg(feature = "video-download")]
+pub(super) async fn archive_course_videos(
+    ctx: &CommandCtx<'_>,
+    course: &Course,
+    outdir: &std::path::Path,
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    fs::create_dir_all(outdir)
+        .await
+        .with_context(|| format!("create output directory {}", outdir.display()))?;
+
+    let sp = ctx.spinner();
+    sp.set_message("fetching video list...");
+    let videos = course.get_video_list().await.context("fetch video list")?;
+    ctx.remove_spinner(sp);
+
+    if videos.is_empty() {
+        println!("课程 {} 没有课程回放，跳过。", course.meta().title());
+        return Ok(());
+    }
+
+    println!(
+        "准备归档 {B}{}{B:#} 个课程回放到 {}",
+        videos.len(),
+        outdir.display()
+    );
+
+    let total = videos.len();
+    for (idx, video) in videos.into_iter().enumerate() {
+        let id = video.id();
+        println!("\n[{}/{}] {}", idx + 1, total, video.meta().title());
+        let video = video
+            .get()
+            .await
+            .with_context(|| format!("fetch video metadata for {}", id))?;
+        archive_course_video(ctx, &video, &id, outdir, overwrite)
+            .await
+            .with_context(|| format!("download video {}", id))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+async fn archive_course_video(
+    ctx: &CommandCtx<'_>,
+    v: &CourseVideo,
+    id: &str,
+    outdir: &std::path::Path,
+    overwrite: bool,
+) -> anyhow::Result<()> {
+    println!(
+        "下载课程回放：{} ({}, {})",
+        v.course_name(),
+        v.meta().title(),
+        v.meta().time()
+    );
+
+    let dest = outdir.join(archive_video_output_filename(v));
+    if dest.exists() && !overwrite {
+        println!("跳过已存在课程回放: {}", dest.display());
+        return Ok(());
+    }
+
+    let dir = utils::projectdir()
+        .cache_dir()
+        .join("video_download")
+        .join(id);
+    fs::create_dir_all(&dir)
+        .await
+        .context("create dir failed")?;
+
+    let paths = download_segments(ctx, v, &dir)
+        .await
+        .context("download ts segments")?;
+
+    let m3u8 = dir.join("playlist").with_extension("m3u8");
+    buf_try!(@try fs::write(&m3u8, v.m3u8_raw()).await);
+
+    let merged = dir.join("merged").with_extension("ts");
+    merge_segments(ctx, &merged, &paths).await?;
+
+    log::info!("Merged segments to {}", merged.display());
+    log::info!(
+        r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
+        merged.display(),
+        dest.display(),
+    );
+
+    let sp = ctx.spinner();
+    sp.set_message("Converting to mp4 file...");
+    let c = compio::process::Command::new("ffmpeg")
+        .args(["-y", "-hide_banner", "-loglevel", "quiet"])
+        .args(["-i", merged.to_string_lossy().as_ref()])
+        .args(["-c", "copy"])
+        .arg(&dest)
+        .output()
+        .await
+        .context("execute ffmpeg")?;
+    ctx.remove_spinner(sp);
+
+    if c.status.success() {
+        println!(
+            "下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}",
+            dest.display()
+        );
+    } else {
+        anyhow::bail!("ffmpeg failed with exit code {:?}", c.status.code());
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+fn archive_video_output_filename(v: &CourseVideo) -> String {
+    let course = sanitize_filename_part(v.course_name());
+    let time = sanitize_filename_part(v.meta().time());
+    let title = sanitize_filename_part(v.meta().title());
+
+    let stem = if title.is_empty() || title == time {
+        format!("{course}_{time}")
+    } else {
+        format!("{course}_{time}_{title}")
+    };
+    format!("{stem}.mp4")
+}
+
+#[cfg(feature = "video-download")]
 async fn download_segments(
     ctx: &CommandCtx<'_>,
     v: &CourseVideo,
