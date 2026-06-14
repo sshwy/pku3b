@@ -41,6 +41,22 @@ enum VideoCommands {
         #[arg(short = 'o', long)]
         outdir: Option<std::path::PathBuf>,
     },
+
+    /// 顺序下载匹配课程的全部课程回放视频
+    #[command(visible_alias("down-course"))]
+    #[cfg(feature = "video-download")]
+    DownloadCourse {
+        /// 课程标题关键字；匹配多门课程时会交互选择
+        course: String,
+
+        /// 在所有学期的课程范围中查找
+        #[arg(long, default_value = "false")]
+        all_term: bool,
+
+        /// 文件下载目录 (支持相对路径)
+        #[arg(short = 'o', long)]
+        outdir: Option<std::path::PathBuf>,
+    },
 }
 
 pub async fn run(cmd: CommandVideo, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
@@ -57,6 +73,22 @@ pub async fn run(cmd: CommandVideo, ctx: &CommandCtx<'_>) -> anyhow::Result<()> 
                 outdir.as_deref(),
                 cmd.force,
                 id,
+                !all_term,
+                cmd.otp_code,
+            )
+            .await?
+        }
+        #[cfg(feature = "video-download")]
+        VideoCommands::DownloadCourse {
+            course,
+            outdir,
+            all_term,
+        } => {
+            download_course(
+                ctx,
+                outdir.as_deref(),
+                cmd.force,
+                &course,
                 !all_term,
                 cmd.otp_code,
             )
@@ -126,10 +158,7 @@ pub async fn download(
     cur_term: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let outdir = outdir.unwrap_or(std::path::Path::new("."));
-    if !outdir.exists() {
-        anyhow::bail!("output directory {:?} not exists", outdir.display());
-    }
+    let outdir = prepare_video_outdir(outdir).await?;
 
     let (_, courses, sp) = load_client_courses(ctx, force, cur_term, otp_code).await?;
 
@@ -159,7 +188,104 @@ pub async fn download(
 
     ctx.remove_spinner(sp);
 
-    println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
+    download_course_video(ctx, &v, &id, &outdir).await?;
+
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+pub async fn download_course(
+    ctx: &CommandCtx<'_>,
+    outdir: Option<&std::path::Path>,
+    force: bool,
+    course_query: &str,
+    cur_term: bool,
+    otp_code: String,
+) -> anyhow::Result<()> {
+    let outdir = prepare_video_outdir(outdir).await?;
+
+    let courses = load_courses(ctx, force, cur_term, otp_code).await?;
+    let mut matches = courses
+        .into_iter()
+        .filter(|c| c.id() == course_query || c.long_title().contains(course_query))
+        .collect::<Vec<_>>();
+
+    if matches.is_empty() {
+        anyhow::bail!("course matching '{course_query}' not found");
+    }
+
+    let course = if matches.len() == 1 {
+        matches.swap_remove(0)
+    } else {
+        let options = matches
+            .iter()
+            .map(|c| format!("{} {}", c.long_title(), c.id()))
+            .collect::<Vec<_>>();
+        let selected = inquire::Select::new("请选择要下载回放的课程", options).raw_prompt()?;
+        matches.swap_remove(selected.index)
+    };
+
+    let sp = ctx.spinner();
+    sp.set_message("fetching course...");
+    let course = course.get().await.context("fetch course")?;
+
+    sp.set_message("fetching video list...");
+    let videos = course.get_video_list().await.context("fetch video list")?;
+    ctx.remove_spinner(sp);
+
+    if videos.is_empty() {
+        anyhow::bail!("course '{}' has no videos", course.meta().title());
+    }
+
+    println!(
+        "准备下载 {B}{}{B:#} 的 {B}{}{B:#} 个课程回放到 {}",
+        course.meta().title(),
+        videos.len(),
+        outdir.display()
+    );
+
+    let total = videos.len();
+    for (idx, video) in videos.into_iter().enumerate() {
+        let id = video.id();
+        println!("\n[{}/{}] {}", idx + 1, total, video.meta().title());
+        let video = video
+            .get()
+            .await
+            .with_context(|| format!("fetch video metadata for {}", id))?;
+        download_course_video(ctx, &video, &id, &outdir)
+            .await
+            .with_context(|| format!("download video {}", id))?;
+    }
+
+    println!("全部课程回放下载完成。");
+
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+async fn prepare_video_outdir(
+    outdir: Option<&std::path::Path>,
+) -> anyhow::Result<std::path::PathBuf> {
+    let outdir = outdir.unwrap_or(std::path::Path::new("."));
+    fs::create_dir_all(outdir)
+        .await
+        .with_context(|| format!("create output directory {}", outdir.display()))?;
+    Ok(outdir.to_path_buf())
+}
+
+#[cfg(feature = "video-download")]
+async fn download_course_video(
+    ctx: &CommandCtx<'_>,
+    v: &CourseVideo,
+    id: &str,
+    outdir: &std::path::Path,
+) -> anyhow::Result<()> {
+    println!(
+        "下载课程回放：{} ({}, {})",
+        v.course_name(),
+        v.meta().title(),
+        v.meta().time()
+    );
 
     // prepare download dir
     let dir = utils::projectdir()
@@ -181,8 +307,7 @@ pub async fn download(
     let merged = dir.join("merged").with_extension("ts");
     merge_segments(ctx, &merged, &paths).await?;
 
-    let dest = format!("{}_{}.mp4", v.course_name(), v.meta().title());
-    let dest = outdir.join(&dest);
+    let dest = outdir.join(video_output_filename(v));
     log::info!("Merged segments to {}", merged.display());
     log::info!(
         r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
@@ -213,6 +338,37 @@ pub async fn download(
     }
 
     Ok(())
+}
+
+#[cfg(feature = "video-download")]
+fn video_output_filename(v: &CourseVideo) -> String {
+    let course = sanitize_filename_part(v.course_name());
+    let time = sanitize_filename_part(v.meta().time());
+    let title = sanitize_filename_part(v.meta().title());
+
+    let stem = if title.is_empty() || title == time {
+        format!("{course}_{time}")
+    } else {
+        format!("{course}_{time}_{title}")
+    };
+    format!("{stem}.mp4")
+}
+
+#[cfg(feature = "video-download")]
+fn sanitize_filename_part(s: &str) -> String {
+    let s = s
+        .trim()
+        .chars()
+        .map(|c| match c {
+            '<' | '>' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            ':' => '-',
+            c if c.is_control() => '_',
+            c => c,
+        })
+        .collect::<String>();
+
+    let s = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    if s.is_empty() { "_".to_owned() } else { s }
 }
 
 #[cfg(feature = "video-download")]
