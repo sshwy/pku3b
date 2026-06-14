@@ -48,8 +48,7 @@ pub async fn show(ctx: &CommandCtx<'_>, dual: Option<DualDegree>) -> anyhow::Res
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -87,8 +86,7 @@ pub async fn set_autoelective(
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(&cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -119,7 +117,7 @@ pub async fn set_autoelective(
     });
 
     let items = items.to_owned();
-    config::write_cfg(&cfg_path, &cfg).await?;
+    config::write_cfg(&ctx.config_path, &cfg).await?;
 
     println!("\n{GR}{B}添加成功{B:#}，您现在的补退选课程为：");
     for c in items {
@@ -179,8 +177,7 @@ pub async fn unset_autoelective(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let mut cfg = config::read_cfg(&cfg_path)
+    let mut cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -194,7 +191,7 @@ pub async fn unset_autoelective(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 
     items.remove(idx);
 
-    config::write_cfg(&cfg_path, &cfg).await?;
+    config::write_cfg(&ctx.config_path, &cfg).await?;
 
     println!("{B}移除成功{B:#}");
     Ok(())
@@ -235,8 +232,7 @@ pub async fn launch_autoelective(
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(&cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 

@@ -1,6 +1,5 @@
 use super::*;
 use crate::config;
-use crate::utils;
 use anyhow::Context;
 use compio::buf::buf_try;
 use compio::fs;
@@ -34,8 +33,7 @@ pub async fn run(cmd: CommandCourseTable, ctx: &CommandCtx<'_>) -> anyhow::Resul
 
     let sp = ctx.spinner();
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(&cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 

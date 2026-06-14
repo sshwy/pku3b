@@ -23,9 +23,8 @@ pub async fn run(cmd: CommandTtshitu, ctx: &CommandCtx<'_>) -> anyhow::Result<()
     Ok(())
 }
 
-async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
-    let cfg_path = utils::default_config_path();
-    let mut cfg = config::read_cfg(&cfg_path)
+async fn init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
+    let mut cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -34,17 +33,16 @@ async fn init(_ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 
     cfg.ttshitu = Some(config::TTShiTuConfig { username, password });
 
-    config::write_cfg(cfg_path, &cfg).await?;
+    config::write_cfg(&ctx.config_path, &cfg).await?;
 
     println!("TT 识图配置已更新");
     Ok(())
 }
 
-async fn test(_ctx: &CommandCtx<'_>, image_path: Option<String>) -> anyhow::Result<()> {
+async fn test(ctx: &CommandCtx<'_>, image_path: Option<String>) -> anyhow::Result<()> {
     let c = crate::http::Client::from_cyper(cyper::Client::new()?);
 
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
     let ttshitu_cfg = cfg.ttshitu.as_ref().context("ttshitu not configured")?;

@@ -20,7 +20,7 @@ base64 = { version = "0.22", optional = true }
 bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 compio = { version = "0.19", features = [
     "macros",
     "process",

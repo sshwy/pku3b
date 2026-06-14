@@ -50,8 +50,7 @@ async fn search(ctx: &CommandCtx<'_>, keyword: String) -> anyhow::Result<()> {
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
@@ -100,8 +99,7 @@ async fn download(
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
-    let cfg_path = utils::default_config_path();
-    let cfg = config::read_cfg(cfg_path)
+    let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
 
