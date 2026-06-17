@@ -177,6 +177,30 @@ PKU3B_CONFIG=./cfg.toml pku3b coursetable
 
 命令行参数 `--config` 的优先级高于环境变量 `PKU3B_CONFIG`。
 
+### 敏感信息存储
+
+默认情况下，`pku3b` 会把配置写入本地配置文件。若希望密码、TT 识图账号密码和 Bark token 不以明文形式保存在配置文件中，可以使用 `keyring` 后端，将敏感信息交给系统钥匙串/密钥环保存。
+
+`keyring` 后端需要二进制在构建时启用 `keyring` feature。使用 cargo 安装时可以这样安装：
+
+```bash
+cargo install pku3b --features keyring
+```
+
+初始化配置后，执行以下命令即可把敏感信息迁移到系统 keyring，并在配置文件中清空对应明文字段：
+
+```bash
+pku3b config secret-backend keyring
+```
+
+之后正常使用 `pku3b` 即可。若需要恢复为明文配置文件存储，可以执行：
+
+```bash
+pku3b config secret-backend plaintext
+```
+
+如果当前配置使用了 `secret_backend = "keyring"`，但正在运行的 `pku3b` 没有启用 `keyring` feature，程序会提示需要使用支持 keyring 的构建。
+
 ## Bark 通知功能 📱
 
 pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865) 发送选课通知到 iPhone/iPad：
