@@ -158,6 +158,28 @@ pku3b init
 
 完成初始化设置后即可使用该工具啦。如果之后想修改配置，可以使用 `pku3b config -h` 查看帮助。
 
+## 课程回放下载 🎥
+
+下载单个课程回放时，先用 `pku3b video list` 查看回放 ID，再执行：
+
+```bash
+pku3b video download <VIDEO_ID> -o ./videos
+```
+
+如果要顺序下载某门课的全部课程回放，可以使用课程 ID 精确匹配，或使用课程标题关键字进行匹配：
+
+```bash
+pku3b video download-course "投资学" -o ./videos
+```
+
+匹配到多门课程时，`pku3b` 会提示你交互选择。默认只在当前学期课程中查找；若要下载历史学期课程回放，可以加上 `--all-term`：
+
+```bash
+pku3b video download-course "投资学" -o ./videos --all-term
+```
+
+输出目录不存在时会自动创建。批量下载生成的 mp4 文件名会包含课程名、回放时间和回放标题，便于按时间顺序整理。
+
 ## Bark 通知功能 📱
 
 pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865) 发送选课通知到 iPhone/iPad：
@@ -192,7 +214,8 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - 📢 按 ID 查看公告详情: `pku3b announcement show <ID>`
 - 🎥 查看课程回放列表: `pku3b v ls`
 - 🎥 查看所有学期课程回放列表: `pku3b v ls --all-term`
-- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。
+- ⏯️ 下载课程回放: `pku3b v down <ID>`: ID 请在课程回放列表中复制，该命令会将视频转换为 mp4 格式保存在执行命令时所在的目录下（如果要下载历史学期的课程回放，需要使用 `--all-term` 选项）。可用 `-o <DIR>` 指定保存目录。
+- ⏯️ 顺序下载某门课的全部课程回放: `pku3b v down-course <课程名关键字> -o <DIR>`: 若匹配到多门课程，会提示交互选择；文件名会使用课程名、回放时间和回放标题生成。
 - 📱 初始化 Bark 通知: `pku3b bark init` 或 `pku3b b init`
 - 📱 测试 Bark 通知: `pku3b bark test` 或 `pku3b b test`
 - 🧩 初始化 TT 识图账号密码: `pku3b ttshitu init`
