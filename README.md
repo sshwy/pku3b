@@ -158,6 +158,28 @@ pku3b init
 
 完成初始化设置后即可使用该工具啦。如果之后想修改配置，可以使用 `pku3b config -h` 查看帮助。
 
+## 课程回放下载 🎥
+
+下载单个课程回放时，先用 `pku3b video list` 查看回放 ID，再执行：
+
+```bash
+pku3b video download <VIDEO_ID> -o ./videos
+```
+
+如果要顺序下载某门课的全部课程回放，可以使用课程 ID 精确匹配，或使用课程标题关键字进行匹配：
+
+```bash
+pku3b video download-course "投资学" -o ./videos
+```
+
+匹配到多门课程时，`pku3b` 会提示你交互选择。默认只在当前学期课程中查找；若要下载历史学期课程回放，可以加上 `--all-term`：
+
+```bash
+pku3b video download-course "投资学" -o ./videos --all-term
+```
+
+输出目录不存在时会自动创建。批量下载生成的 mp4 文件名会包含课程名、回放时间和回放标题，便于按时间顺序整理。
+
 ## Bark 通知功能 📱
 
 pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notifications/id1403753865) 发送选课通知到 iPhone/iPad：
