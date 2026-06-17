@@ -60,9 +60,10 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-      --config <PATH>  配置文件路径 (优先级高于 PKU3B_CONFIG) [env: PKU3B_CONFIG=]
-  -h, --help           Print help (see more with '--help')
-  -V, --version        Print version
+      --config <PATH>     配置文件路径 (优先级高于 PKU3B_CONFIG) [env: PKU3B_CONFIG=]
+      --cache-dir <PATH>  缓存目录路径 (优先级高于 PKU3B_CACHE_DIR) [env: PKU3B_CACHE_DIR=]
+  -h, --help            Print help (see more with '--help')
+  -V, --version         Print version
 ```
 
 ## Demo 🎬
@@ -200,6 +201,23 @@ pku3b config secret-backend plaintext
 ```
 
 如果当前配置使用了 `secret_backend = "keyring"`，但正在运行的 `pku3b` 没有启用 `keyring` feature，程序会提示需要使用支持 keyring 的构建。
+
+### 缓存目录
+
+`pku3b` 会把登录状态、接口缓存和课程回放下载过程中的临时分片保存到缓存目录中。默认缓存目录由操作系统决定；如果课程回放较大，或默认缓存目录所在磁盘空间不足，可以使用全局参数 `--cache-dir <PATH>` 指定新的缓存目录：
+
+```bash
+pku3b --cache-dir ./cache/pku3b cache show
+pku3b --cache-dir /data/pku3b-cache video download <VIDEO_ID>
+```
+
+也可以通过环境变量 `PKU3B_CACHE_DIR` 指定默认缓存目录：
+
+```bash
+PKU3B_CACHE_DIR=./cache/pku3b pku3b cache show
+```
+
+命令行参数 `--cache-dir` 的优先级高于环境变量 `PKU3B_CACHE_DIR`。缓存写入会先写入临时文件再重命名，避免中断或磁盘空间不足时留下半截缓存文件；如果课程回放的已缓存加密分片解密失败，程序会自动重新拉取该分片。
 
 ## Bark 通知功能 📱
 
