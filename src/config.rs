@@ -1,4 +1,8 @@
+#[cfg(feature = "keyring")]
+use anyhow::Context as _;
 use compio::fs;
+#[cfg(not(feature = "keyring"))]
+use std::convert::Infallible;
 #[cfg(feature = "keyring")]
 use std::path::Path;
 
@@ -159,6 +163,12 @@ impl Config {
     }
 
     #[cfg(feature = "keyring")]
+    fn keyring_get_required(path: &Path, key: &str) -> anyhow::Result<String> {
+        Self::keyring_get(path, key)?
+            .with_context(|| format!("secret `{key}` not found in keyring"))
+    }
+
+    #[cfg(feature = "keyring")]
     fn keyring_delete(path: &Path, key: &str) -> anyhow::Result<()> {
         let entry = keyring::Entry::new(KEYRING_SERVICE, &Self::keyring_account(path, key))?;
         match entry.delete_credential() {
@@ -182,40 +192,33 @@ impl Config {
 
     #[cfg(feature = "keyring")]
     fn fill_from_keyring(&mut self, path: &Path) -> anyhow::Result<()> {
-        if let Some(v) = Self::keyring_get(path, "password")? {
-            self.password = v;
-        }
+        self.password = Self::keyring_get_required(path, "password")?;
         if let Some(tt) = &mut self.ttshitu {
-            if let Some(v) = Self::keyring_get(path, "ttshitu.username")? {
-                tt.username = v;
-            }
-            if let Some(v) = Self::keyring_get(path, "ttshitu.password")? {
-                tt.password = v;
-            }
+            tt.username = Self::keyring_get_required(path, "ttshitu.username")?;
+            tt.password = Self::keyring_get_required(path, "ttshitu.password")?;
         }
-        if let Some(bark) = &mut self.bark
-            && let Some(v) = Self::keyring_get(path, "bark.token")?
-        {
-            bark.token = v;
+        if let Some(bark) = &mut self.bark {
+            bark.token = Self::keyring_get_required(path, "bark.token")?;
         }
         Ok(())
     }
 
     #[cfg(feature = "keyring")]
-    fn remove_from_keyring(path: &Path) -> anyhow::Result<()> {
+    fn remove_from_keyring(path: &Path) {
         for key in [
             "password",
             "ttshitu.username",
             "ttshitu.password",
             "bark.token",
         ] {
-            Self::keyring_delete(path, key)?;
+            if let Err(e) = Self::keyring_delete(path, key) {
+                log::warn!("failed to remove keyring secret `{key}`: {e:#}");
+            }
         }
-        Ok(())
     }
 
     #[cfg(not(feature = "keyring"))]
-    fn ensure_keyring_enabled() -> anyhow::Result<()> {
+    fn ensure_keyring_enabled() -> anyhow::Result<Infallible> {
         anyhow::bail!(
             "secret_backend is set to keyring, but this binary was built without the `keyring` feature"
         )
@@ -320,13 +323,12 @@ pub async fn write_cfg(path: impl AsRef<std::path::Path>, cfg: &Config) -> anyho
         }
         #[cfg(not(feature = "keyring"))]
         {
-            Config::ensure_keyring_enabled()?;
-            unreachable!("ensure_keyring_enabled always returns an error")
+            match Config::ensure_keyring_enabled()? {}
         }
     } else {
         #[cfg(feature = "keyring")]
         {
-            Config::remove_from_keyring(path)?;
+            Config::remove_from_keyring(path);
         }
         cfg.clone()
     };
