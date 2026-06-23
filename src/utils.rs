@@ -36,10 +36,6 @@ pub fn cache_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| projectdir().cache_dir().to_path_buf())
 }
 
-fn cache_tmp_path(path: &std::path::Path) -> std::path::PathBuf {
-    path.with_extension(format!("tmp-{}", std::process::id()))
-}
-
 pub fn default_user_agent_data_path() -> std::path::PathBuf {
     cache_dir().join("ua.json")
 }
@@ -83,9 +79,7 @@ where
     let r = fut.await?;
     fs::create_dir_all(path.parent().unwrap()).await?;
     let buf = serde_json::to_vec(&r)?;
-    let tmp_path = cache_tmp_path(path);
-    buf_try!(@try fs::write(&tmp_path, buf).await);
-    fs::rename(tmp_path, path).await?;
+    buf_try!(@try fs::write(path, buf).await);
 
     Ok(r)
 }
@@ -120,9 +114,7 @@ where
 
     let r = fut.await?;
     fs::create_dir_all(path.parent().unwrap()).await?;
-    let tmp_path = cache_tmp_path(path);
-    buf_try!(@try fs::write(&tmp_path, r.clone()).await);
-    fs::rename(tmp_path, path).await?;
+    let (_, r) = buf_try!(@try fs::write(path, r).await);
 
     Ok(r)
 }

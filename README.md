@@ -217,7 +217,7 @@ pku3b --cache-dir /data/pku3b-cache video download <VIDEO_ID>
 PKU3B_CACHE_DIR=./cache/pku3b pku3b cache show
 ```
 
-命令行参数 `--cache-dir` 的优先级高于环境变量 `PKU3B_CACHE_DIR`。缓存写入会先写入临时文件再重命名，避免中断或磁盘空间不足时留下半截缓存文件；如果课程回放的已缓存加密分片解密失败，程序会自动重新拉取该分片。
+命令行参数 `--cache-dir` 的优先级高于环境变量 `PKU3B_CACHE_DIR`。
 
 ## Bark 通知功能 📱
 
