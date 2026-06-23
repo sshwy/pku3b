@@ -360,21 +360,10 @@ impl CourseVideo {
         if let Some(key) = key {
             // sequence number may be used to construct IV
             let seq = (self.pl.media_sequence as usize + index) as u128;
-            bytes = match self.decrypt_segment(key, bytes, seq).await {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    log::warn!(
-                        "decrypt cached segment #{index} failed, retrying without cache: {e:#}"
-                    );
-                    let fresh_bytes = self
-                        ._download_segment(&seg_url)
-                        .await
-                        .context("redownload segment data")?;
-                    self.decrypt_segment(key, fresh_bytes, seq)
-                        .await
-                        .context("decrypt redownloaded segment data")?
-                }
-            };
+            bytes = self
+                .decrypt_segment(key, bytes, seq)
+                .await
+                .context("decrypt segment data")?;
         }
 
         Ok(bytes)
