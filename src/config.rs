@@ -28,13 +28,6 @@ pub struct Config {
     pub secret_backend: SecretBackend,
 
     pub auto_supplement: Option<Vec<SupplementCourseConfig>>,
-
-    /// 默认的 TA 课程 ID（如 "_98207_1"）
-    #[serde(default)]
-    pub ta_course_id: Option<String>,
-    /// 默认的批改组 ID
-    #[serde(default)]
-    pub ta_group_id: Option<String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -99,20 +92,6 @@ impl Config {
                 };
                 writeln!(buf, "{backend}")?
             }
-            ConfigAttrs::TaCourseId => {
-                if let Some(cid) = &self.ta_course_id {
-                    writeln!(buf, "{cid}")?
-                } else {
-                    writeln!(buf, "<not set>")?
-                }
-            }
-            ConfigAttrs::TaGroupId => {
-                if let Some(gid) = &self.ta_group_id {
-                    writeln!(buf, "{gid}")?
-                } else {
-                    writeln!(buf, "<not set>")?
-                }
-            }
         };
         Ok(())
     }
@@ -151,8 +130,6 @@ impl Config {
                     ),
                 };
             }
-            ConfigAttrs::TaCourseId => self.ta_course_id = Some(value),
-            ConfigAttrs::TaGroupId => self.ta_group_id = Some(value),
         }
 
         Ok(())
@@ -267,8 +244,6 @@ pub enum ConfigAttrs {
     TTShiTuPassword,
     BarkToken,
     SecretBackend,
-    TaCourseId,
-    TaGroupId,
 }
 
 impl clap::ValueEnum for ConfigAttrs {
@@ -280,8 +255,6 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::TTShiTuPassword,
             Self::BarkToken,
             Self::SecretBackend,
-            Self::TaCourseId,
-            Self::TaGroupId,
         ]
     }
 
@@ -293,8 +266,6 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::TTShiTuPassword => Some(clap::builder::PossibleValue::new("ttshitu.password")),
             Self::BarkToken => Some(clap::builder::PossibleValue::new("bark.token")),
             Self::SecretBackend => Some(clap::builder::PossibleValue::new("secret-backend")),
-            Self::TaCourseId => Some(clap::builder::PossibleValue::new("ta-course-id")),
-            Self::TaGroupId => Some(clap::builder::PossibleValue::new("ta-group-id")),
         }
     }
 }

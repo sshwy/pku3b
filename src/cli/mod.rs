@@ -282,8 +282,6 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
         bark: None,
         secret_backend: config::SecretBackend::Plaintext,
         auto_supplement: None,
-        ta_course_id: None,
-        ta_group_id: None,
     };
     config::write_cfg(&ctx.config_path, &cfg).await?;
 

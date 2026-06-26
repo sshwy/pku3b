@@ -262,13 +262,6 @@ pku3b ta hw grade --recheck  # 复查已评分提交
 
 ### 配置
 
-在 `config.toml` 中可预设默认值：
-
-```toml
-ta_course_id = "_98207_1"       # 默认课程 ID，避免每次选择
-ta_group_id = "group_12345"     # 默认批改组，避免每次选择
-```
-
 下载和评分默认只处理每人最新一次提交，如需处理全部历史提交可加 `-A`：
 
 ```bash
@@ -281,9 +274,6 @@ pku3b ta hw grade -A            # 评分时处理全部历史提交
 ```bash
 pku3b ta hw down --no-rename    # 不重命名，保留原始文件名
 ```
-
-> [!TIP]
-> 建议配置 `ta_group_id` 为自己的批改组 ID，这样每次执行 `ta hw` 命令时无需重复选择。
 
 ### 典型工作流
 

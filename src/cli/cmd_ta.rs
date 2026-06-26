@@ -1,7 +1,6 @@
 use super::*;
 
 use crate::api::blackboard::{AttemptFileInfo, CourseGroup, CourseMembership};
-use crate::config;
 use anyhow::Context as _;
 use compio::fs;
 use std::io::Write as _;
@@ -172,10 +171,7 @@ async fn ta_group_ls(ctx: &CommandCtx<'_>, force: bool, otp_code: String) -> any
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-    let course_id = select_course(&ta_courses, &cfg)?;
+    let course_id = select_course(&ta_courses)?;
 
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
@@ -221,10 +217,7 @@ async fn ta_group_show(
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-    let course_id = select_course(&ta_courses, &cfg)?;
+    let course_id = select_course(&ta_courses)?;
 
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
@@ -283,10 +276,7 @@ async fn ta_hw_ls(
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-    let course_id = select_course(&ta_courses, &cfg)?;
+    let course_id = select_course(&ta_courses)?;
 
     let group_users: Option<std::collections::HashSet<String>> = if let Some(gid) = group_idx {
         let groups = b.get_course_groups(&course_id).await?;
@@ -295,9 +285,6 @@ async fn ta_hw_ls(
             .get(gid.wrapping_sub(1))
             .context("invalid group index")?;
         let members = b.get_group_users(&course_id, &group.id).await?;
-        Some(members.into_iter().collect())
-    } else if let Some(ref gid) = cfg.ta_group_id {
-        let members = b.get_group_users(&course_id, gid).await?;
         Some(members.into_iter().collect())
     } else {
         None
@@ -409,14 +396,10 @@ async fn ta_hw_down(
 ) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let course_id = select_course(&ta_courses, &cfg)?;
+    let course_id = select_course(&ta_courses)?;
 
     // Resolve group
     sp.set_message("fetching groups...");
@@ -427,22 +410,7 @@ async fn ta_hw_down(
         anyhow::bail!("no grading groups found in this course");
     }
 
-    let group = if let Some(gid) = group_idx {
-        sub_groups
-            .get(gid.wrapping_sub(1))
-            .map(|g| *g)
-            .context("invalid group index")?
-    } else if let Some(ref default_gid) = cfg.ta_group_id {
-        match sub_groups.iter().find(|g| g.id == *default_gid) {
-            Some(g) => g,
-            None => {
-                log::warn!("configured ta_group_id not found, selecting interactively...");
-                select_group_interactive(&sub_groups)?
-            }
-        }
-    } else {
-        select_group_interactive(&sub_groups)?
-    };
+    let group = resolve_group(&sub_groups, group_idx)?;
 
     sp.set_message(format!("fetching members of {}...", group.name));
     let group_members: std::collections::HashSet<String> = b
@@ -606,19 +574,15 @@ async fn ta_grade(
     all_attempts: bool,
 ) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let course_id = select_course(&ta_courses, &cfg)?;
+    let course_id = select_course(&ta_courses)?;
 
     // Resolve group
     let groups = b.get_course_groups(&course_id).await?;
     let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
-    let group = resolve_group(&sub_groups, group_idx, &cfg)?;
+    let group = resolve_group(&sub_groups, group_idx)?;
 
     // Resolve HW
     let detail = b.course_detail(&course_id).await?;
@@ -830,7 +794,6 @@ async fn ta_grade(
 fn resolve_group<'a>(
     groups: &[&'a CourseGroup],
     idx: Option<usize>,
-    cfg: &config::Config,
 ) -> anyhow::Result<&'a CourseGroup> {
     if groups.is_empty() {
         anyhow::bail!("no groups found in this course");
@@ -840,12 +803,6 @@ fn resolve_group<'a>(
             .get(gid.wrapping_sub(1))
             .copied()
             .context("invalid group index")
-    } else if let Some(ref default_gid) = cfg.ta_group_id {
-        groups
-            .iter()
-            .find(|g| g.id == *default_gid)
-            .copied()
-            .context("configured ta_group_id not found")
     } else {
         select_group_interactive(groups)
     }
@@ -873,18 +830,12 @@ fn resolve_hw<'a>(
 
 fn select_course(
     enrollments: &[crate::api::blackboard::CourseEnrollment],
-    cfg: &config::Config,
 ) -> anyhow::Result<String> {
     if enrollments.is_empty() {
         anyhow::bail!("no TeachingAssistant courses found (hint: check your account permissions)");
     }
     if enrollments.len() == 1 {
         return Ok(enrollments[0].course_id.clone());
-    }
-    if let Some(ref cid) = cfg.ta_course_id {
-        if enrollments.iter().any(|e| e.course_id == *cid) {
-            return Ok(cid.clone());
-        }
     }
     let items: Vec<String> = enrollments.iter().map(|e| e.course_id.clone()).collect();
     let selection = inquire::Select::new("选择课程:", items).prompt()?;
