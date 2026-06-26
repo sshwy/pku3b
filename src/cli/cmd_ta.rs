@@ -470,7 +470,9 @@ async fn ta_hw_down(
         vec![resolve_hw(&hw_cols, hw_id)?]
     };
 
-    let dir = std::path::PathBuf::from(".");
+    let dir = dirs::BaseDirs::new()
+        .map(|d| d.home_dir().join("Downloads"))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
     if !dir.exists() {
         fs::create_dir_all(&dir).await?;
     }
