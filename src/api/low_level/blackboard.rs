@@ -479,7 +479,7 @@ impl LowLevelClient {
 
         let res = self
             .http_client
-            .post_fresh(SAVE_RECONCILE_GRADE)?
+            .post(SAVE_RECONCILE_GRADE)?
             .header("origin", "https://course.pku.edu.cn")?
             .header("referer", &referer)?
             .header("x-requested-with", "XMLHttpRequest")?
