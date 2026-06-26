@@ -253,11 +253,12 @@ pku3b ta hw down --all-hw  # 一键下载所有作业未评分提交
 
 ### 交互式登分
 
-`pku3b ta hw grade` 会逐个学生提示输入分数和评语，自动提交到教学网。输入 `q` 跳过当前学生，`e` 退出评分。
+`pku3b ta hw grade` 会逐个学生提示输入分数和评语，自动提交到教学网。输入 `q` 跳过当前学生，`e` 退出评分。加 `-A` 可处理全部历史提交（默认仅最新一次）。
 
 ```bash
-pku3b ta hw grade          # 交互登分（仅未评分）
+pku3b ta hw grade          # 交互登分（仅未评分，每人最新提交）
 pku3b ta hw grade -g 1     # 指定批改组
+pku3b ta hw grade -A       # 处理全部历史提交
 pku3b ta hw grade --recheck  # 复查已评分提交
 ```
 
@@ -266,9 +267,21 @@ pku3b ta hw grade --recheck  # 复查已评分提交
 在 `config.toml` 中可预设默认值：
 
 ```toml
-ta_group_id = "group_12345"   # 默认批改组，避免每次选择
-ta_latest_only = true         # 仅保留每人最新提交（自动淘汰逾期前版本）
-ta_rename_files = true        # 下载时重命名为 "学号_姓名_原始文件名"
+ta_course_id = "_98207_1"       # 默认课程 ID，避免每次选择
+ta_group_id = "group_12345"     # 默认批改组，避免每次选择
+```
+
+下载和评分默认只处理每人最新一次提交，如需处理全部历史提交可加 `-A`：
+
+```bash
+pku3b ta hw down -A             # 下载全部历史提交
+pku3b ta hw grade -A            # 评分时处理全部历史提交
+```
+
+下载默认重命名为 `学号_姓名_原始文件名`，如需保留原始文件名可加 `--no-rename`：
+
+```bash
+pku3b ta hw down --no-rename    # 不重命名，保留原始文件名
 ```
 
 > [!TIP]

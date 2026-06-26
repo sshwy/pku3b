@@ -17,10 +17,6 @@ pub enum SecretBackend {
     Keyring,
 }
 
-fn default_true() -> bool {
-    true
-}
-
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct Config {
     pub username: String,
@@ -39,12 +35,6 @@ pub struct Config {
     /// 默认的批改组 ID
     #[serde(default)]
     pub ta_group_id: Option<String>,
-    /// 下载提交文件时自动重命名为 {学生姓名}_{作业名}_{原始名}
-    #[serde(default = "default_true")]
-    pub ta_rename_files: bool,
-    /// 每个学生只下载最新一次提交
-    #[serde(default = "default_true")]
-    pub ta_latest_only: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -123,8 +113,6 @@ impl Config {
                     writeln!(buf, "<not set>")?
                 }
             }
-            ConfigAttrs::TaRenameFiles => writeln!(buf, "{}", self.ta_rename_files)?,
-            ConfigAttrs::TaLatestOnly => writeln!(buf, "{}", self.ta_latest_only)?,
         };
         Ok(())
     }
@@ -165,16 +153,6 @@ impl Config {
             }
             ConfigAttrs::TaCourseId => self.ta_course_id = Some(value),
             ConfigAttrs::TaGroupId => self.ta_group_id = Some(value),
-            ConfigAttrs::TaRenameFiles => {
-                self.ta_rename_files = value
-                    .parse()
-                    .map_err(|_| anyhow::anyhow!("expected true or false"))?
-            }
-            ConfigAttrs::TaLatestOnly => {
-                self.ta_latest_only = value
-                    .parse()
-                    .map_err(|_| anyhow::anyhow!("expected true or false"))?
-            }
         }
 
         Ok(())
@@ -291,8 +269,6 @@ pub enum ConfigAttrs {
     SecretBackend,
     TaCourseId,
     TaGroupId,
-    TaRenameFiles,
-    TaLatestOnly,
 }
 
 impl clap::ValueEnum for ConfigAttrs {
@@ -306,8 +282,6 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::SecretBackend,
             Self::TaCourseId,
             Self::TaGroupId,
-            Self::TaRenameFiles,
-            Self::TaLatestOnly,
         ]
     }
 
@@ -321,8 +295,6 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::SecretBackend => Some(clap::builder::PossibleValue::new("secret-backend")),
             Self::TaCourseId => Some(clap::builder::PossibleValue::new("ta-course-id")),
             Self::TaGroupId => Some(clap::builder::PossibleValue::new("ta-group-id")),
-            Self::TaRenameFiles => Some(clap::builder::PossibleValue::new("ta-rename-files")),
-            Self::TaLatestOnly => Some(clap::builder::PossibleValue::new("ta-latest-only")),
         }
     }
 }

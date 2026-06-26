@@ -181,11 +181,11 @@ async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
 
 async fn load_blackboard(
     ctx: &CommandCtx<'_>,
-    enable_cache: bool,
     otp_code: String,
     force: bool,
 ) -> anyhow::Result<(Blackboard, AsyncSpinner)> {
     let sp = ctx.spinner();
+    let enable_cache = !force;
     let client = build_client(enable_cache).await?;
 
     sp.set_message("reading config...");
@@ -220,7 +220,7 @@ async fn load_client_courses(
     only_current: bool,
     otp_code: String,
 ) -> anyhow::Result<(Blackboard, Vec<CourseHandle>, AsyncSpinner)> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let courses = b
@@ -284,8 +284,6 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
         auto_supplement: None,
         ta_course_id: None,
         ta_group_id: None,
-        ta_rename_files: true,
-        ta_latest_only: true,
     };
     config::write_cfg(&ctx.config_path, &cfg).await?;
 

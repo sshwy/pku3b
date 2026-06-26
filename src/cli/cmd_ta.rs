@@ -61,9 +61,12 @@ enum TaHwCommands {
         otp_code: String,
         #[arg(short, long)]
         group: Option<usize>,
-        /// 批量评分
+        /// 复查已评分提交
         #[arg(short, long, default_value = "false")]
         recheck: bool,
+        /// 下载/评分全部历史提交（默认只取最新一次）
+        #[arg(short = 'A', long, default_value = "false")]
+        all_attempts: bool,
     },
     /// 下载作业提交文件
     Down {
@@ -82,11 +85,17 @@ enum TaHwCommands {
         #[arg(short = 'u', long, default_value = "false")]
         ungraded: bool,
         /// 下载全部（含已评分）
-        #[arg(short = 'A', long, default_value = "false")]
+        #[arg(short = 'a', long, default_value = "false")]
         all: bool,
         /// 下载所有作业的未评分提交（不弹出选择）
         #[arg(long, default_value = "false")]
         all_hw: bool,
+        /// 不重命名文件（默认重命名为 学号_姓名_原始文件名）
+        #[arg(long, default_value = "false")]
+        no_rename: bool,
+        /// 下载/评分全部历史提交（默认只取最新一次）
+        #[arg(short = 'A', long, default_value = "false")]
+        all_attempts: bool,
     },
 }
 
@@ -130,7 +139,8 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 otp_code,
                 group,
                 recheck,
-            } => ta_grade(ctx, id, force, otp_code, group, recheck).await?,
+                all_attempts,
+            } => ta_grade(ctx, id, force, otp_code, group, recheck, all_attempts).await?,
             TaHwCommands::Down {
                 id,
                 force,
@@ -140,9 +150,21 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 ungraded,
                 all,
                 all_hw,
+                no_rename,
+                all_attempts,
             } => {
                 ta_hw_down(
-                    ctx, id, force, all_term, otp_code, group, ungraded, all, all_hw,
+                    ctx,
+                    id,
+                    force,
+                    all_term,
+                    otp_code,
+                    group,
+                    ungraded,
+                    all,
+                    all_hw,
+                    no_rename,
+                    all_attempts,
                 )
                 .await?
             }
@@ -162,7 +184,7 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 // ── Group commands ──
 
 async fn ta_group_ls(ctx: &CommandCtx<'_>, force: bool, otp_code: String) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -211,7 +233,7 @@ async fn ta_group_show(
     force: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -273,7 +295,7 @@ async fn ta_hw_ls(
     otp_code: String,
     group_idx: Option<usize>,
 ) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -396,8 +418,10 @@ async fn ta_hw_down(
     ungraded: bool,
     all: bool,
     all_hw: bool,
+    no_rename: bool,
+    all_attempts: bool,
 ) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
 
     let cfg = config::read_cfg(&ctx.config_path)
         .await
@@ -490,7 +514,7 @@ async fn ta_hw_down(
         }
 
         // Deduplicate: keep only latest per user if configured
-        if cfg.ta_latest_only {
+        if !all_attempts {
             attempts.sort_by(|a, b| b.attempt_date.cmp(&a.attempt_date));
             let mut seen = std::collections::HashSet::new();
             attempts.retain(|a| seen.insert(a.user_id.clone()));
@@ -537,7 +561,7 @@ async fn ta_hw_down(
                 }
             };
 
-            let dest_name = if cfg.ta_rename_files {
+            let dest_name = if !no_rename {
                 let user_name = b.get_user_name(&attempt.user_id).await.unwrap_or_default();
                 if user_name.is_empty() {
                     original_name
@@ -593,7 +617,7 @@ async fn ta_review(
     otp_code: String,
     group_idx: Option<usize>,
 ) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config")?;
@@ -722,8 +746,9 @@ async fn ta_grade(
     otp_code: String,
     group_idx: Option<usize>,
     recheck: bool,
+    all_attempts: bool,
 ) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
+    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config")?;
@@ -773,7 +798,7 @@ async fn ta_grade(
     pending.sort_by(|a, b| a.student_user_id.cmp(&b.student_user_id));
 
     // Deduplicate: keep only latest attempt per student if configured
-    if cfg.ta_latest_only {
+    if !all_attempts {
         let extract_num = |id: &str| {
             id.strip_prefix('_')
                 .and_then(|s| s.rsplit('_').nth(1))
@@ -887,7 +912,7 @@ async fn ta_grade(
                 println!("  {GR}✓ 已保存: {}={}{fb_info}{GR:#}", name, score);
 
                 // Auto-grade earlier attempts with same score
-                if cfg.ta_latest_only {
+                if !all_attempts {
                     let extract_num = |id: &str| {
                         id.strip_prefix('_')
                             .and_then(|s| s.rsplit('_').nth(1))
