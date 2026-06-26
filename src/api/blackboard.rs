@@ -468,7 +468,7 @@ pub struct ReconcileAttempt {
     pub status: String,
     #[serde(default)]
     #[serde(rename = "reconciledScore")]
-    pub reconciled_score: Option<f64>,
+    pub _reconciled_score: Option<f64>,
     #[serde(default)]
     #[serde(rename = "provisionalGrades")]
     pub provisional_grades: Vec<ProvisionalGrade>,
@@ -477,7 +477,8 @@ pub struct ReconcileAttempt {
 #[derive(Debug, Deserialize)]
 pub struct ProvisionalGrade {
     #[serde(rename = "graderUserId")]
-    pub grader_user_id: String,
+    #[serde(default)]
+    pub _grader_user_id: Option<String>,
     pub score: Option<f64>,
     pub status: String,
 }

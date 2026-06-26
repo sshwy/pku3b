@@ -40,17 +40,6 @@ enum TaHwCommands {
         #[arg(short, long)]
         group: Option<usize>,
     },
-    /// 查看评分复核状态
-    Review {
-        /// 作业编号（不填则交互选择）
-        id: Option<usize>,
-        #[arg(short, long, default_value = "false")]
-        force: bool,
-        #[arg(long, default_value = "")]
-        otp_code: String,
-        #[arg(short, long)]
-        group: Option<usize>,
-    },
     /// 登分（给作业打分）
     Grade {
         /// 作业编号（不填则交互选择）
@@ -127,12 +116,6 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 otp_code,
                 group,
             } => ta_hw_ls(ctx, force, all_term, otp_code, group).await?,
-            TaHwCommands::Review {
-                id,
-                force,
-                otp_code,
-                group,
-            } => ta_review(ctx, id, force, otp_code, group).await?,
             TaHwCommands::Grade {
                 id,
                 force,
@@ -605,137 +588,6 @@ async fn ta_hw_down(
         )?;
     }
 
-    Ok(())
-}
-
-// ── Review & Grade commands ──
-
-async fn ta_review(
-    ctx: &CommandCtx<'_>,
-    hw_id: Option<usize>,
-    force: bool,
-    otp_code: String,
-    group_idx: Option<usize>,
-) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, otp_code, force).await?;
-    let cfg = config::read_cfg(&ctx.config_path)
-        .await
-        .context("read config")?;
-
-    sp.set_message("fetching courses...");
-    let user_id = b.user_info_id().await?;
-    let ta_courses = b.get_ta_courses(&user_id).await?;
-    let course_id = select_course(&ta_courses, &cfg)?;
-
-    // Resolve group
-    sp.set_message("fetching groups...");
-    let groups = b.get_course_groups(&course_id).await?;
-    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
-    let group = resolve_group(&sub_groups, group_idx, &cfg)?;
-
-    // Resolve HW
-    let detail = b.course_detail(&course_id).await?;
-    let columns = detail.gradebook_columns().await?;
-    let hw_cols = filter_hw_columns(&columns);
-    let hw_col = resolve_hw(&hw_cols, hw_id)?;
-
-    sp.set_message(format!("fetching review data for {}...", hw_col.name));
-
-    // Get reconcile data
-    let data = b
-        .load_reconcile_data(&course_id, &hw_col.id)
-        .await
-        .context("fetch reconcile data")?;
-
-    // Get group members and names
-    let group_members: std::collections::HashSet<String> = b
-        .get_group_users(&course_id, &group.id)
-        .await?
-        .into_iter()
-        .collect();
-
-    // Filter attempts by group members
-    let mut group_attempts: Vec<&crate::api::blackboard::ReconcileAttempt> = data
-        .attempts
-        .iter()
-        .filter(|a| group_members.contains(&a.student_user_id))
-        .collect();
-    group_attempts.sort_by(|a, b| a.student_user_id.cmp(&b.student_user_id));
-
-    let graded = group_attempts
-        .iter()
-        .filter(|a| a.status == "COMPLETED")
-        .count();
-    let needs_review = group_attempts
-        .iter()
-        .filter(|a| a.status == "NEEDS_GRADING")
-        .count();
-
-    let my_id = &user_id;
-
-    sp.finish_with_message("done.");
-
-    let mut outbuf = Vec::new();
-    writeln!(
-        outbuf,
-        "{D}>{D:#} {B}{} — {}{B:#} {D}<{D:#}\n",
-        hw_col.name, group.name
-    )?;
-    writeln!(
-        outbuf,
-        "  {D}{:>4} {:<25} {:<12} {:<8} {}{D:#}",
-        "#", "学生", "状态", "分数", "批改人"
-    )?;
-
-    // Collect user names
-    let mut names = std::collections::HashMap::new();
-    for a in &group_attempts {
-        if !names.contains_key(&a.student_user_id) {
-            let name = b
-                .get_user_name(&a.student_user_id)
-                .await
-                .unwrap_or_default();
-            names.insert(a.student_user_id.clone(), name);
-        }
-    }
-
-    for (i, a) in group_attempts.iter().enumerate() {
-        let name = names
-            .get(&a.student_user_id)
-            .map(|s| s.as_str())
-            .unwrap_or("?");
-        let grade_info = a.provisional_grades.first();
-        let grader = grade_info
-            .map(|pg| {
-                if pg.grader_user_id == *my_id {
-                    format!("{GR}{} (你){GR:#}", pg.grader_user_id)
-                } else {
-                    pg.grader_user_id.clone()
-                }
-            })
-            .unwrap_or_else(|| "-".to_string());
-        let score_str = a
-            .reconciled_score
-            .map(|s| format!("{:.1}", s))
-            .unwrap_or_else(|| "-".to_string());
-
-        write!(outbuf, "  {D}{:>4}{D:#}  ", i + 1)?;
-        write!(outbuf, "{:<25}  ", name)?;
-        if a.status == "COMPLETED" {
-            write!(outbuf, "{GR}COMPLETED   {GR:#}")?;
-        } else {
-            write!(outbuf, "{RD}NEEDS_GRADING{RD:#}")?;
-        }
-        writeln!(outbuf, "  {:<8}  {}", score_str, grader)?;
-    }
-
-    writeln!(
-        outbuf,
-        "\n{D}已批改: {GR}{graded}{D:#}/{GR}{}{D:#}    需要批改: {RD}{needs_review}{D:#}",
-        group_attempts.len()
-    )?;
-
-    buf_try!(@try fs::stdout().write_all(outbuf).await);
     Ok(())
 }
 

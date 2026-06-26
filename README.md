@@ -237,8 +237,6 @@ pku3b ta group show <ID>   # 查看某组成员
 ```bash
 pku3b ta hw ls             # 列出作业及已评/未评分数
 pku3b ta hw ls -g 1        # 按批改组筛选
-pku3b ta hw review         # 查看评分复核状态
-pku3b ta hw review -g 1    # 按组查看复核状态
 ```
 
 ### 批量下载
@@ -301,7 +299,7 @@ pku3b ta hw down --all-hw
 pku3b ta hw grade -g 1
 
 # 4. 确认评分状态
-pku3b ta hw review -g 1
+pku3b ta hw ls -g 1
 ```
 
 ## Bark 通知功能 📱
