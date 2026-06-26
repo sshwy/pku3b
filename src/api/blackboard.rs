@@ -458,30 +458,17 @@ pub enum AttemptFileInfo {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct ReconcileData {
-    #[serde(default)]
-    pub graders: Vec<GraderInfo>,
     #[serde(default)]
     pub attempts: Vec<ReconcileAttempt>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct GraderInfo {
-    #[serde(rename = "graderUserId")]
-    pub grader_user_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct ReconcileAttempt {
     #[serde(rename = "attemptId")]
     pub attempt_id: String,
     #[serde(rename = "studentUserId")]
     pub student_user_id: String,
-    #[serde(rename = "studentId")]
-    pub student_id: String,
     pub status: String,
     #[serde(default)]
     #[serde(rename = "reconciledScore")]
@@ -492,18 +479,11 @@ pub struct ReconcileAttempt {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct ProvisionalGrade {
     #[serde(rename = "graderUserId")]
     pub grader_user_id: String,
     pub score: Option<f64>,
     pub status: String,
-    #[serde(default)]
-    #[serde(rename = "hasNotes")]
-    pub has_notes: bool,
-    #[serde(default)]
-    #[serde(rename = "hasFeedback")]
-    pub has_feedback: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -666,15 +646,11 @@ pub struct GradeUser {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct AttemptRecord {
     pub id: String,
     #[serde(rename = "userId")]
     pub user_id: String,
     pub status: Option<String>,
-    #[serde(rename = "displayGrade")]
-    pub display_grade: Option<DisplayGrade>,
-    pub score: Option<f64>,
     #[serde(rename = "attemptDate")]
     pub attempt_date: Option<String>,
     #[serde(default)]
