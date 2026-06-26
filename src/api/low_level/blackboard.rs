@@ -25,9 +25,6 @@ pub const RECONCILE_GRADES: &str =
     "https://course.pku.edu.cn/webapps/gradebook/controller/reconcileGrades";
 pub const SAVE_RECONCILE_GRADE: &str =
     "https://course.pku.edu.cn/webapps/gradebook/controller/saveReconcileGrade";
-pub const SET_ATTEMPT_IGNORED: &str =
-    "https://course.pku.edu.cn/webapps/gradebook/do/instructor/setAttemptIgnored";
-
 #[derive(Debug)]
 pub struct BlackboardUnautherizedError;
 
@@ -493,32 +490,5 @@ impl LowLevelClient {
             res.status()
         );
         Ok(res.text().await?)
-    }
-
-    /// 忽略某次提交（在 students 有多份提交时，忽略较早的）
-    pub async fn bb_set_attempt_ignored(
-        &self,
-        course_id: &str,
-        attempt_id: &str,
-        outcome_definition_id: &str,
-        course_membership_id: &str,
-    ) -> anyhow::Result<()> {
-        let res = self
-            .http_client
-            .get(SET_ATTEMPT_IGNORED)?
-            .query(&[
-                ("course_id", course_id),
-                ("attemptId", attempt_id),
-                ("outcomeDefinitionId", outcome_definition_id),
-                ("courseMembershipId", course_membership_id),
-            ])?
-            .send()
-            .await?;
-        anyhow::ensure!(
-            res.status().is_success(),
-            "set attempt ignored failed: {}",
-            res.status()
-        );
-        Ok(())
     }
 }

@@ -385,24 +385,6 @@ impl Blackboard {
         Ok(())
     }
 
-    pub async fn set_attempt_ignored(
-        &self,
-        course_id: &str,
-        attempt_id: &str,
-        outcome_definition_id: &str,
-        course_membership_id: &str,
-    ) -> anyhow::Result<()> {
-        self.client
-            .bb_set_attempt_ignored(
-                course_id,
-                attempt_id,
-                outcome_definition_id,
-                course_membership_id,
-            )
-            .await?;
-        Ok(())
-    }
-
     pub async fn get_attempt_file_info(
         &self,
         attempt_id: &str,
@@ -476,6 +458,7 @@ pub enum AttemptFileInfo {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ReconcileData {
     #[serde(default)]
     pub graders: Vec<GraderInfo>,
@@ -484,12 +467,14 @@ pub struct ReconcileData {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct GraderInfo {
     #[serde(rename = "graderUserId")]
     pub grader_user_id: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ReconcileAttempt {
     #[serde(rename = "attemptId")]
     pub attempt_id: String,
@@ -507,6 +492,7 @@ pub struct ReconcileAttempt {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ProvisionalGrade {
     #[serde(rename = "graderUserId")]
     pub grader_user_id: String,
@@ -680,15 +666,14 @@ pub struct GradeUser {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct AttemptRecord {
     pub id: String,
     #[serde(rename = "userId")]
     pub user_id: String,
-    #[allow(dead_code)]
     pub status: Option<String>,
     #[serde(rename = "displayGrade")]
     pub display_grade: Option<DisplayGrade>,
-    #[allow(dead_code)]
     pub score: Option<f64>,
     #[serde(rename = "attemptDate")]
     pub attempt_date: Option<String>,
