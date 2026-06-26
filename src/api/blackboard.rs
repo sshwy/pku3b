@@ -237,10 +237,7 @@ impl Blackboard {
             .collect())
     }
 
-    pub async fn get_course_groups(
-        &self,
-        course_id: &str,
-    ) -> anyhow::Result<Vec<CourseGroup>> {
+    pub async fn get_course_groups(&self, course_id: &str) -> anyhow::Result<Vec<CourseGroup>> {
         #[derive(Debug, Deserialize)]
         struct Wrapper {
             results: Vec<CourseGroup>,
@@ -344,8 +341,7 @@ impl Blackboard {
             .client
             .bb_load_reconcile_data(course_id, column_id)
             .await?;
-        let data: ReconcileData =
-            serde_json::from_str(&body).context("parse reconcile data")?;
+        let data: ReconcileData = serde_json::from_str(&body).context("parse reconcile data")?;
         Ok(data)
     }
 
@@ -377,7 +373,14 @@ impl Blackboard {
         feedback: Option<&str>,
     ) -> anyhow::Result<()> {
         self.client
-            .bb_save_grade(attempt_id, gradable_item_id, score, course_id, nonce, feedback)
+            .bb_save_grade(
+                attempt_id,
+                gradable_item_id,
+                score,
+                course_id,
+                nonce,
+                feedback,
+            )
             .await?;
         Ok(())
     }
@@ -390,7 +393,12 @@ impl Blackboard {
         course_membership_id: &str,
     ) -> anyhow::Result<()> {
         self.client
-            .bb_set_attempt_ignored(course_id, attempt_id, outcome_definition_id, course_membership_id)
+            .bb_set_attempt_ignored(
+                course_id,
+                attempt_id,
+                outcome_definition_id,
+                course_membership_id,
+            )
             .await?;
         Ok(())
     }
@@ -430,8 +438,8 @@ impl Blackboard {
             #[serde(rename = "fileName")]
             file_name: Option<String>,
         }
-        let iv: InlineViewResponse = serde_json::from_str(&json_text)
-            .context("parse inlineView response")?;
+        let iv: InlineViewResponse =
+            serde_json::from_str(&json_text).context("parse inlineView response")?;
 
         Ok(AttemptFileInfo::File {
             download_url: iv.download_url.unwrap_or_default(),
@@ -461,7 +469,10 @@ pub struct CourseMembership {
 
 pub enum AttemptFileInfo {
     NoFile,
-    File { download_url: String, file_name: String },
+    File {
+        download_url: String,
+        file_name: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]

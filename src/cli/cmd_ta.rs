@@ -140,13 +140,20 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 ungraded,
                 all,
                 all_hw,
-            } => ta_hw_down(ctx, id, force, all_term, otp_code, group, ungraded, all, all_hw).await?,
+            } => {
+                ta_hw_down(
+                    ctx, id, force, all_term, otp_code, group, ungraded, all, all_hw,
+                )
+                .await?
+            }
         },
         TaCommands::Group { command } => match command {
             TaGroupCommands::Ls { force, otp_code } => ta_group_ls(ctx, force, otp_code).await?,
-            TaGroupCommands::Show { id, force, otp_code } => {
-                ta_group_show(ctx, id, force, otp_code).await?
-            }
+            TaGroupCommands::Show {
+                id,
+                force,
+                otp_code,
+            } => ta_group_show(ctx, id, force, otp_code).await?,
         },
     }
     Ok(())
@@ -154,24 +161,21 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
 
 // ── Group commands ──
 
-async fn ta_group_ls(
-    ctx: &CommandCtx<'_>,
-    force: bool,
-    otp_code: String,
-) -> anyhow::Result<()> {
+async fn ta_group_ls(ctx: &CommandCtx<'_>, force: bool, otp_code: String) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
     let course_id = select_course(&ta_courses, &cfg)?;
 
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
 
-    let sub_groups: Vec<&CourseGroup> =
-        groups.iter().filter(|g| !g.is_group_set).collect();
+    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
 
     sp.finish_with_message("done.");
 
@@ -187,7 +191,13 @@ async fn ta_group_ls(
                 .await
                 .map(|u| u.len())
                 .unwrap_or(0);
-            writeln!(outbuf, "  {B}{}{B:#}  {}  {D}({}人){D:#}", i + 1, g.name, count)?;
+            writeln!(
+                outbuf,
+                "  {B}{}{B:#}  {}  {D}({}人){D:#}",
+                i + 1,
+                g.name,
+                count
+            )?;
         }
     }
 
@@ -206,13 +216,14 @@ async fn ta_group_show(
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
     let course_id = select_course(&ta_courses, &cfg)?;
 
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
-    let sub_groups: Vec<&CourseGroup> =
-        groups.iter().filter(|g| !g.is_group_set).collect();
+    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
 
     let group = sub_groups
         .get(id.wrapping_sub(1))
@@ -267,13 +278,14 @@ async fn ta_hw_ls(
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
     let ta_courses = b.get_ta_courses(&user_id).await?;
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
     let course_id = select_course(&ta_courses, &cfg)?;
 
     let group_users: Option<std::collections::HashSet<String>> = if let Some(gid) = group_idx {
         let groups = b.get_course_groups(&course_id).await?;
-        let sub_groups: Vec<&CourseGroup> =
-            groups.iter().filter(|g| !g.is_group_set).collect();
+        let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
         let group = sub_groups
             .get(gid.wrapping_sub(1))
             .context("invalid group index")?;
@@ -291,7 +303,9 @@ async fn ta_hw_ls(
     let mut total_ungraded = 0usize;
 
     for col in &columns {
-        let Some(grading) = &col.grading else { continue };
+        let Some(grading) = &col.grading else {
+            continue;
+        };
         if grading.grading_type != "Attempts" {
             continue;
         }
@@ -347,7 +361,11 @@ async fn ta_hw_ls(
     let mut outbuf = Vec::new();
     writeln!(outbuf, "{D}>{D:#} {B}作业列表{B:#} {D}<{D:#}\n")?;
 
-    let name_max = hw_items.iter().map(|h| h.name.chars().count()).max().unwrap_or(20);
+    let name_max = hw_items
+        .iter()
+        .map(|h| h.name.chars().count())
+        .max()
+        .unwrap_or(20);
     for (i, hw) in hw_items.iter().enumerate() {
         let pad = " ".repeat(name_max.saturating_sub(hw.name.chars().count()));
         write!(outbuf, "  {B}{}{B:#}  {}{pad}  ", i + 1, hw.name)?;
@@ -381,7 +399,9 @@ async fn ta_hw_down(
 ) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
 
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -391,8 +411,7 @@ async fn ta_hw_down(
     // Resolve group
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
-    let sub_groups: Vec<&CourseGroup> =
-        groups.iter().filter(|g| !g.is_group_set).collect();
+    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
 
     if sub_groups.is_empty() {
         anyhow::bail!("no grading groups found in this course");
@@ -416,11 +435,11 @@ async fn ta_hw_down(
     };
 
     sp.set_message(format!("fetching members of {}...", group.name));
-    let group_members: std::collections::HashSet<String> =
-        b.get_group_users(&course_id, &group.id)
-            .await?
-            .into_iter()
-            .collect();
+    let group_members: std::collections::HashSet<String> = b
+        .get_group_users(&course_id, &group.id)
+        .await?
+        .into_iter()
+        .collect();
 
     // Resolve assignment
     let detail = b.course_detail(&course_id).await?;
@@ -434,10 +453,8 @@ async fn ta_hw_down(
     // Get membership map (shared across all HWs)
     sp.set_message("fetching membership data...");
     let memberships = b.get_course_memberships(&course_id).await?;
-    let membership_map: std::collections::HashMap<String, &CourseMembership> = memberships
-        .iter()
-        .map(|m| (m.user_id.clone(), m))
-        .collect();
+    let membership_map: std::collections::HashMap<String, &CourseMembership> =
+        memberships.iter().map(|m| (m.user_id.clone(), m)).collect();
 
     // When all_hw, iterate all assignments
     let target_hw: Vec<&crate::api::blackboard::GradebookColumn> = if all_hw {
@@ -506,12 +523,7 @@ async fn ta_hw_down(
             };
 
             let file_info = b
-                .get_attempt_file_info(
-                    &attempt.id,
-                    &course_id,
-                    &hw_col.id,
-                    &membership.id,
-                )
+                .get_attempt_file_info(&attempt.id, &course_id, &hw_col.id, &membership.id)
                 .await?;
 
             let (download_url, original_name) = match file_info {
@@ -526,10 +538,7 @@ async fn ta_hw_down(
             };
 
             let dest_name = if cfg.ta_rename_files {
-                let user_name = b
-                    .get_user_name(&attempt.user_id)
-                    .await
-                    .unwrap_or_default();
+                let user_name = b.get_user_name(&attempt.user_id).await.unwrap_or_default();
                 if user_name.is_empty() {
                     original_name
                 } else {
@@ -585,7 +594,9 @@ async fn ta_review(
     group_idx: Option<usize>,
 ) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -595,8 +606,7 @@ async fn ta_review(
     // Resolve group
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
-    let sub_groups: Vec<&CourseGroup> =
-        groups.iter().filter(|g| !g.is_group_set).collect();
+    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
     let group = resolve_group(&sub_groups, group_idx, &cfg)?;
 
     // Resolve HW
@@ -614,11 +624,11 @@ async fn ta_review(
         .context("fetch reconcile data")?;
 
     // Get group members and names
-    let group_members: std::collections::HashSet<String> =
-        b.get_group_users(&course_id, &group.id)
-            .await?
-            .into_iter()
-            .collect();
+    let group_members: std::collections::HashSet<String> = b
+        .get_group_users(&course_id, &group.id)
+        .await?
+        .into_iter()
+        .collect();
 
     // Filter attempts by group members
     let mut group_attempts: Vec<&crate::api::blackboard::ReconcileAttempt> = data
@@ -628,7 +638,10 @@ async fn ta_review(
         .collect();
     group_attempts.sort_by(|a, b| a.student_user_id.cmp(&b.student_user_id));
 
-    let graded = group_attempts.iter().filter(|a| a.status == "COMPLETED").count();
+    let graded = group_attempts
+        .iter()
+        .filter(|a| a.status == "COMPLETED")
+        .count();
     let needs_review = group_attempts
         .iter()
         .filter(|a| a.status == "NEEDS_GRADING")
@@ -654,13 +667,19 @@ async fn ta_review(
     let mut names = std::collections::HashMap::new();
     for a in &group_attempts {
         if !names.contains_key(&a.student_user_id) {
-            let name = b.get_user_name(&a.student_user_id).await.unwrap_or_default();
+            let name = b
+                .get_user_name(&a.student_user_id)
+                .await
+                .unwrap_or_default();
             names.insert(a.student_user_id.clone(), name);
         }
     }
 
     for (i, a) in group_attempts.iter().enumerate() {
-        let name = names.get(&a.student_user_id).map(|s| s.as_str()).unwrap_or("?");
+        let name = names
+            .get(&a.student_user_id)
+            .map(|s| s.as_str())
+            .unwrap_or("?");
         let grade_info = a.provisional_grades.first();
         let grader = grade_info
             .map(|pg| {
@@ -705,7 +724,9 @@ async fn ta_grade(
     recheck: bool,
 ) -> anyhow::Result<()> {
     let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
-    let cfg = config::read_cfg(&ctx.config_path).await.context("read config")?;
+    let cfg = config::read_cfg(&ctx.config_path)
+        .await
+        .context("read config")?;
 
     sp.set_message("fetching courses...");
     let user_id = b.user_info_id().await?;
@@ -714,8 +735,7 @@ async fn ta_grade(
 
     // Resolve group
     let groups = b.get_course_groups(&course_id).await?;
-    let sub_groups: Vec<&CourseGroup> =
-        groups.iter().filter(|g| !g.is_group_set).collect();
+    let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
     let group = resolve_group(&sub_groups, group_idx, &cfg)?;
 
     // Resolve HW
@@ -723,11 +743,7 @@ async fn ta_grade(
     let columns = detail.gradebook_columns().await?;
     let hw_cols = filter_hw_columns(&columns);
     let hw_col = resolve_hw(&hw_cols, hw_id)?;
-    let possible = hw_col
-        .score
-        .as_ref()
-        .map(|s| s.possible)
-        .unwrap_or(100.0);
+    let possible = hw_col.score.as_ref().map(|s| s.possible).unwrap_or(100.0);
 
     sp.set_message(format!("fetching grading data for {}...", hw_col.name));
     let data = b
@@ -736,11 +752,11 @@ async fn ta_grade(
         .context("fetch reconcile data")?;
 
     // Get group members + membership mapping
-    let group_members: std::collections::HashSet<String> =
-        b.get_group_users(&course_id, &group.id)
-            .await?
-            .into_iter()
-            .collect();
+    let group_members: std::collections::HashSet<String> = b
+        .get_group_users(&course_id, &group.id)
+        .await?
+        .into_iter()
+        .collect();
     // Filter
     let mut pending: Vec<&crate::api::blackboard::ReconcileAttempt> = data
         .attempts
@@ -813,15 +829,10 @@ async fn ta_grade(
             }
         }
 
-        let prompt = format!(
-            "[{}/{}] {} (满分 {:.0}):",
-            i + 1,
-            total,
-            name,
-            possible
-        );
-        let input: String =
-            inquire::Text::new(&prompt).with_help_message("输入分数，q 跳过，e 退出").prompt()?;
+        let prompt = format!("[{}/{}] {} (满分 {:.0}):", i + 1, total, name, possible);
+        let input: String = inquire::Text::new(&prompt)
+            .with_help_message("输入分数，q 跳过，e 退出")
+            .prompt()?;
 
         if input.trim().eq_ignore_ascii_case("q") {
             continue;
@@ -838,21 +849,23 @@ async fn ta_grade(
             }
         };
 
-        let feedback_prompt = format!(
-            "[{}/{}] {} 评语（可选，回车跳过）:",
-            i + 1,
-            total,
-            name,
-        );
-        let feedback: String =
-            inquire::Text::new(&feedback_prompt).with_help_message("输入评语，回车跳过").prompt()?;
+        let feedback_prompt = format!("[{}/{}] {} 评语（可选，回车跳过）:", i + 1, total, name,);
+        let feedback: String = inquire::Text::new(&feedback_prompt)
+            .with_help_message("输入评语，回车跳过")
+            .prompt()?;
         let feedback_opt = if feedback.trim().is_empty() {
             None
         } else {
             Some(feedback.trim().to_owned())
         };
 
-        mp.set_message(format!("[{}/{}] saving grade {}={}...", i + 1, total, name, score));
+        mp.set_message(format!(
+            "[{}/{}] saving grade {}={}...",
+            i + 1,
+            total,
+            name,
+            score
+        ));
 
         match b
             .save_grade(
@@ -890,7 +903,9 @@ async fn ta_grade(
                         {
                             log::info!(
                                 "auto-grading earlier attempt {} for {} with score {}",
-                                other.attempt_id, name, score
+                                other.attempt_id,
+                                name,
+                                score
                             );
                             if let Err(e) = b
                                 .save_grade(
@@ -994,10 +1009,16 @@ fn select_course(
     Ok(selection)
 }
 
-fn filter_hw_columns(columns: &[crate::api::blackboard::GradebookColumn]) -> Vec<&crate::api::blackboard::GradebookColumn> {
+fn filter_hw_columns(
+    columns: &[crate::api::blackboard::GradebookColumn],
+) -> Vec<&crate::api::blackboard::GradebookColumn> {
     columns
         .iter()
-        .filter(|c| c.grading.as_ref().is_some_and(|g| g.grading_type == "Attempts"))
+        .filter(|c| {
+            c.grading
+                .as_ref()
+                .is_some_and(|g| g.grading_type == "Attempts")
+        })
         .collect()
 }
 

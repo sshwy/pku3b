@@ -344,7 +344,11 @@ impl LowLevelClient {
             .send()
             .await?;
 
-        anyhow::ensure!(res.status().is_success(), "inlineView failed: {}", res.status());
+        anyhow::ensure!(
+            res.status().is_success(),
+            "inlineView failed: {}",
+            res.status()
+        );
 
         Ok(res.text().await?)
     }
@@ -373,7 +377,11 @@ impl LowLevelClient {
             .send()
             .await?;
 
-        anyhow::ensure!(res.status().is_success(), "grading page failed: {}", res.status());
+        anyhow::ensure!(
+            res.status().is_success(),
+            "grading page failed: {}",
+            res.status()
+        );
 
         let rbody = res.text().await?;
         Ok(scraper::Html::parse_document(&rbody))
@@ -513,5 +521,4 @@ impl LowLevelClient {
         );
         Ok(())
     }
-
 }
