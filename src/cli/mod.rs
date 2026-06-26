@@ -102,7 +102,7 @@ enum Commands {
     #[command(visible_alias("s"), arg_required_else_help(true))]
     Syllabus(cmd_syllabus::CommandSyllabus),
 
-    /// 助教功能：查看批改组、下载学生作业提交
+    /// 助教功能：查看批改组、下载作业提交、交互式登分
     #[command(name = "ta", arg_required_else_help(true))]
     Ta(cmd_ta::CommandTa),
 
