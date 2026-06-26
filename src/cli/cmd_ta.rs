@@ -296,6 +296,9 @@ async fn ta_hw_ls(
             .context("invalid group index")?;
         let members = b.get_group_users(&course_id, &group.id).await?;
         Some(members.into_iter().collect())
+    } else if let Some(ref gid) = cfg.ta_group_id {
+        let members = b.get_group_users(&course_id, gid).await?;
+        Some(members.into_iter().collect())
     } else {
         None
     };
