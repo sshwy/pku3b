@@ -1,7 +1,6 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle, WeakProgressBar};
 struct TickerHandle {
-    #[allow(dead_code)]
-    handle: compio::runtime::JoinHandle<()>,
+    _handle: compio::runtime::JoinHandle<()>,
 }
 
 fn spawn_pb_ticker(pb: WeakProgressBar, interval: std::time::Duration) -> TickerHandle {
@@ -12,7 +11,7 @@ fn spawn_pb_ticker(pb: WeakProgressBar, interval: std::time::Duration) -> Ticker
         }
     });
 
-    TickerHandle { handle: h }
+    TickerHandle { _handle: h }
 }
 
 fn pb_style() -> ProgressStyle {
@@ -27,8 +26,7 @@ fn pb_style() -> ProgressStyle {
 /// Progress bar that ticks asynchronously
 pub struct AsyncSpinner {
     pb: ProgressBar,
-    #[allow(dead_code)]
-    ticker: TickerHandle,
+    _ticker: TickerHandle,
 }
 
 impl std::ops::Deref for AsyncSpinner {
@@ -41,7 +39,10 @@ impl std::ops::Deref for AsyncSpinner {
 fn new_async_spinner(pb: ProgressBar) -> AsyncSpinner {
     let w = pb.downgrade();
     let ticker = spawn_pb_ticker(w, std::time::Duration::from_millis(100));
-    AsyncSpinner { pb, ticker }
+    AsyncSpinner {
+        pb,
+        _ticker: ticker,
+    }
 }
 
 /// Create a new spinner with a default style (standalone, not attached to a [`MultiProgress`]).

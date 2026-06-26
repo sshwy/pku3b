@@ -435,11 +435,7 @@ pub struct CourseGroup {
     pub id: String,
     pub name: String,
     #[serde(rename = "isGroupSet")]
-    #[allow(dead_code)]
     pub is_group_set: bool,
-    #[serde(rename = "parentId")]
-    #[allow(dead_code)]
-    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
