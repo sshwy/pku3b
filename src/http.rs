@@ -45,6 +45,15 @@ impl Client {
         })
     }
 
+    /// Start building a POST request with a fresh connection pool.
+    pub fn post_fresh<U: IntoUrl>(&self, url: U) -> cyper::Result<RequestBuilder> {
+        let fresh = cyper::Client::builder().build()?;
+        Ok(RequestBuilder {
+            builder: fresh.post(url)?,
+            cookie_store: self.cookie_store.clone(),
+        })
+    }
+
     /// Save the current cookie store to a JSON file.
     pub async fn save_set_cookies<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
         let mut buf = Vec::new();

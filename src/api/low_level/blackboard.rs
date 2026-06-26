@@ -16,6 +16,17 @@ pub const VIDEO_LIST: &str =
     "https://course.pku.edu.cn/webapps/bb-streammedia-hqy-BBLEARN/videoList.action";
 pub const VIDEO_SUB_INFO: &str =
     "https://yjapise.pku.edu.cn/courseapi/v2/schedule/get-sub-info-by-auth-data";
+pub const INLINE_VIEW: &str = "https://course.pku.edu.cn/webapps/assignment/inlineView";
+pub const GRADE_ASSIGNMENT: &str =
+    "https://course.pku.edu.cn/webapps/assignment/gradeAssignmentRedirector";
+pub const LOAD_RECONCILE_DATA: &str =
+    "https://course.pku.edu.cn/webapps/gradebook/controller/loadReconcileData";
+pub const RECONCILE_GRADES: &str =
+    "https://course.pku.edu.cn/webapps/gradebook/controller/reconcileGrades";
+pub const SAVE_RECONCILE_GRADE: &str =
+    "https://course.pku.edu.cn/webapps/gradebook/controller/saveReconcileGrade";
+pub const SET_ATTEMPT_IGNORED: &str =
+    "https://course.pku.edu.cn/webapps/gradebook/do/instructor/setAttemptIgnored";
 
 #[derive(Debug)]
 pub struct BlackboardUnautherizedError;
@@ -314,4 +325,193 @@ impl LowLevelClient {
         let data: T = serde_json::from_str(&rbody)?;
         Ok(data)
     }
+
+    /// 获取 inlineView 返回的 JSON 文本（包含 downloadUrl）
+    pub async fn bb_inline_view(
+        &self,
+        file_id: &str,
+        attempt_id: &str,
+        course_id: &str,
+    ) -> anyhow::Result<String> {
+        let res = self
+            .http_client
+            .get(INLINE_VIEW)?
+            .query(&[
+                ("file_id", file_id),
+                ("attempt_id", attempt_id),
+                ("course_id", course_id),
+            ])?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "inlineView failed: {}", res.status());
+
+        Ok(res.text().await?)
+    }
+
+    /// 获取 TA 评分页面 HTML，用于提取 file_id
+    pub async fn bb_grading_page(
+        &self,
+        outcome_definition_id: &str,
+        course_id: &str,
+        attempt_id: &str,
+        course_membership_id: &str,
+    ) -> anyhow::Result<Html> {
+        let res = self
+            .http_client
+            .get(GRADE_ASSIGNMENT)?
+            .query(&[
+                ("outcomeDefinitionId", outcome_definition_id),
+                ("course_id", course_id),
+                ("attempt_id", attempt_id),
+                ("courseMembershipId", course_membership_id),
+                ("mode", "inline"),
+                ("currentAttemptIndex", "0"),
+                ("numAttempts", "1"),
+                ("sequenceId", &format!("{course_id}_0")),
+            ])?
+            .send()
+            .await?;
+
+        anyhow::ensure!(res.status().is_success(), "grading page failed: {}", res.status());
+
+        let rbody = res.text().await?;
+        Ok(scraper::Html::parse_document(&rbody))
+    }
+
+    /// 下载提交文件（使用 inlineView 返回的 downloadUrl 的相对路径部分）
+    pub async fn bb_download_attempt_file(
+        &self,
+        download_url: &str,
+    ) -> anyhow::Result<bytes::Bytes> {
+        let url = format!("https://course.pku.edu.cn{download_url}");
+        let res = self.http_client.get(&url)?.send().await?;
+
+        anyhow::ensure!(
+            res.status().is_success(),
+            "attempt file download failed: {}",
+            res.status()
+        );
+
+        Ok(res.bytes().await?)
+    }
+
+    /// 获取 reconciliation 数据（评分复核信息）
+    pub async fn bb_load_reconcile_data(
+        &self,
+        course_id: &str,
+        column_id: &str,
+    ) -> anyhow::Result<String> {
+        let res = self
+            .http_client
+            .get(LOAD_RECONCILE_DATA)?
+            .query(&[("course_id", course_id), ("id", column_id)])?
+            .send()
+            .await?;
+        anyhow::ensure!(
+            res.status().is_success(),
+            "load reconcile data failed: {}",
+            res.status()
+        );
+        Ok(res.text().await?)
+    }
+
+    /// 获取 reconcile 页面 HTML（用于提取 CSRF nonce）
+    pub async fn bb_reconcile_page(
+        &self,
+        course_id: &str,
+        column_id: &str,
+    ) -> anyhow::Result<Html> {
+        let res = self
+            .http_client
+            .get(RECONCILE_GRADES)?
+            .query(&[("course_id", course_id), ("id", column_id)])?
+            .send()
+            .await?;
+        anyhow::ensure!(
+            res.status().is_success(),
+            "reconcile page failed: {}",
+            res.status()
+        );
+        let body = res.text().await?;
+        Ok(scraper::Html::parse_document(&body))
+    }
+
+    /// 保存评分（登分）
+    pub async fn bb_save_grade(
+        &self,
+        attempt_id: &str,
+        gradable_item_id: &str,
+        score: f64,
+        course_id: &str,
+        nonce: &str,
+        feedback: Option<&str>,
+    ) -> anyhow::Result<String> {
+        let has_feedback = feedback.is_some();
+        let mut params: Vec<(&str, String)> = vec![
+            ("attemptId", attempt_id.to_owned()),
+            ("gradableItemId", gradable_item_id.to_owned()),
+            ("score", format!("{score:.2}")),
+            ("hasFeedback", has_feedback.to_string()),
+            ("showStagedFeedbackToStu", "true".to_owned()),
+            ("isDetailPage", "false".to_owned()),
+            ("reconcileMode", "A".to_owned()),
+            ("course_id", course_id.to_owned()),
+            (
+                "blackboard.platform.security.NonceUtil.nonce.ajax",
+                nonce.to_owned(),
+            ),
+        ];
+        if let Some(fb) = feedback {
+            params.push(("myfeedbacktext", fb.to_owned()));
+        }
+        let referer = format!(
+            "https://course.pku.edu.cn/webapps/gradebook/controller/reconcileGrades?course_id={course_id}&id={gradable_item_id}"
+        );
+
+        let res = self
+            .http_client
+            .post_fresh(SAVE_RECONCILE_GRADE)?
+            .header("origin", "https://course.pku.edu.cn")?
+            .header("referer", &referer)?
+            .header("x-requested-with", "XMLHttpRequest")?
+            .header("x-prototype-version", "1.7")?
+            .form(&params)?
+            .send()
+            .await?;
+        anyhow::ensure!(
+            res.status().is_success(),
+            "save grade failed: {}",
+            res.status()
+        );
+        Ok(res.text().await?)
+    }
+
+    /// 忽略某次提交（在 students 有多份提交时，忽略较早的）
+    pub async fn bb_set_attempt_ignored(
+        &self,
+        course_id: &str,
+        attempt_id: &str,
+        outcome_definition_id: &str,
+        course_membership_id: &str,
+    ) -> anyhow::Result<()> {
+        let res = self
+            .http_client
+            .get(SET_ATTEMPT_IGNORED)?
+            .query(&[
+                ("course_id", course_id),
+                ("attemptId", attempt_id),
+                ("outcomeDefinitionId", outcome_definition_id),
+                ("courseMembershipId", course_membership_id),
+            ])?
+            .send()
+            .await?;
+        anyhow::ensure!(
+            res.status().is_success(),
+            "set attempt ignored failed: {}",
+            res.status()
+        );
+        Ok(())
+    }
+
 }

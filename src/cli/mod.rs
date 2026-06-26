@@ -6,6 +6,7 @@ mod cmd_course_content;
 mod cmd_course_table;
 mod cmd_grades;
 mod cmd_syllabus;
+mod cmd_ta;
 #[cfg(feature = "thesislib")]
 mod cmd_thesis_lib;
 #[cfg(feature = "ttshitu")]
@@ -101,6 +102,10 @@ enum Commands {
     #[command(visible_alias("s"), arg_required_else_help(true))]
     Syllabus(cmd_syllabus::CommandSyllabus),
 
+    /// 助教功能：查看批改组、下载学生作业提交
+    #[command(name = "ta", arg_required_else_help(true))]
+    Ta(cmd_ta::CommandTa),
+
     /// 图形验证码识别
     #[cfg(feature = "ttshitu")]
     #[command(visible_alias("tt"), arg_required_else_help(true))]
@@ -178,6 +183,7 @@ async fn load_blackboard(
     ctx: &CommandCtx<'_>,
     enable_cache: bool,
     otp_code: String,
+    force: bool,
 ) -> anyhow::Result<(Blackboard, AsyncSpinner)> {
     let sp = ctx.spinner();
     let client = build_client(enable_cache).await?;
@@ -200,7 +206,7 @@ async fn load_blackboard(
 
     sp.set_message("logging in to blackboard...");
     let blackboard = client
-        .blackboard(&cfg.username, &cfg.password, &otp_code)
+        .blackboard(&cfg.username, &cfg.password, &otp_code, force)
         .await
         .context("login to blackboard")?;
 
@@ -214,7 +220,7 @@ async fn load_client_courses(
     only_current: bool,
     otp_code: String,
 ) -> anyhow::Result<(Blackboard, Vec<CourseHandle>, AsyncSpinner)> {
-    let (b, sp) = load_blackboard(ctx, !force, otp_code).await?;
+    let (b, sp) = load_blackboard(ctx, !force, otp_code, force).await?;
 
     sp.set_message("fetching courses...");
     let courses = b
@@ -276,6 +282,10 @@ async fn command_init(ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
         bark: None,
         secret_backend: config::SecretBackend::Plaintext,
         auto_supplement: None,
+        ta_course_id: None,
+        ta_group_id: None,
+        ta_rename_files: true,
+        ta_latest_only: true,
     };
     config::write_cfg(&ctx.config_path, &cfg).await?;
 
@@ -359,6 +369,7 @@ pub async fn start(cli: Cli, m: &MultiProgress) -> anyhow::Result<()> {
             Commands::Video(cmd) => cmd_video::run(cmd, &ctx).await?,
             Commands::Grades(cmd) => cmd_grades::run(cmd, &ctx).await?,
             Commands::Syllabus(cmd) => cmd_syllabus::run(cmd, &ctx).await?,
+            Commands::Ta(cmd) => cmd_ta::run(cmd, &ctx).await?,
 
             #[cfg(feature = "ttshitu")]
             Commands::Ttshitu(cmd) => cmd_ttshitu::run(cmd, &ctx).await?,

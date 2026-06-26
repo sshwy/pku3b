@@ -11,21 +11,36 @@ impl Client {
         username: &str,
         password: &str,
         otp_code: &str,
+        force: bool,
     ) -> anyhow::Result<Blackboard> {
         let c = &self.0.http_client;
-        if let Err(e) = c.bb_homepage().await {
-            // expect unauthorized error
-            if let Err(e) = e.downcast::<BlackboardUnautherizedError>() {
-                log::error!("error during preflight: {e}");
+        let need_login = if force {
+            true
+        } else {
+            match c.bb_homepage().await {
+                Ok(_) => {
+                    log::info!("reuse saved login session");
+                    false
+                }
+                Err(e) => {
+                    if let Err(e) = e.downcast::<BlackboardUnautherizedError>() {
+                        log::error!("error during preflight: {e}");
+                    }
+                    true
+                }
             }
+        };
+
+        if need_login {
             c.bb_login(username, password, otp_code).await?;
+
+            // Warm up both web and REST API sessions after login
+            c.bb_homepage().await?;
 
             if let Some(path) = &self.0.cookie_restore_path {
                 c.save_set_cookies(path).await?;
                 log::info!("blackboard login session saved to {}", path.display());
             }
-        } else {
-            log::info!("reuse saved login session");
         }
 
         Ok(Blackboard {
@@ -166,6 +181,13 @@ impl Blackboard {
             .http_client
             .api_get("https://course.pku.edu.cn/learn/api/public/v1/users/me")
             .await
+            .map_err(|e| {
+                if format!("{e}").contains("401") {
+                    anyhow::anyhow!("session expired — use -f or --force to re-login ({e})")
+                } else {
+                    e
+                }
+            })
             .context("fetch user info")?;
         Ok(user_info.id)
     }
@@ -206,6 +228,285 @@ impl Blackboard {
             data: val,
         })
     }
+
+    pub async fn get_ta_courses(&self, user_id: &str) -> anyhow::Result<Vec<CourseEnrollment>> {
+        let enrollments = self.user_courses(user_id).await?;
+        Ok(enrollments
+            .into_iter()
+            .filter(|e| e.course_role_id == "TeachingAssistant")
+            .collect())
+    }
+
+    pub async fn get_course_groups(
+        &self,
+        course_id: &str,
+    ) -> anyhow::Result<Vec<CourseGroup>> {
+        #[derive(Debug, Deserialize)]
+        struct Wrapper {
+            results: Vec<CourseGroup>,
+        }
+        let val: Wrapper = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v1/courses/{}/groups",
+                course_id
+            ))
+            .await
+            .context("fetch course groups")?;
+        Ok(val.results)
+    }
+
+    pub async fn get_group_users(
+        &self,
+        course_id: &str,
+        group_id: &str,
+    ) -> anyhow::Result<Vec<String>> {
+        #[derive(Debug, Deserialize)]
+        struct UserRef {
+            #[serde(rename = "userId")]
+            user_id: String,
+        }
+        let val: serde_json::Value = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/groups/{}/users",
+                course_id, group_id
+            ))
+            .await
+            .context("fetch group users")?;
+        // v2 API may return {results:[{userId:...}]} or just [{userId:...}]
+        let users: Vec<UserRef> = if let Some(results) = val.get("results") {
+            serde_json::from_value(results.clone())?
+        } else {
+            serde_json::from_value(val)?
+        };
+        Ok(users.into_iter().map(|u| u.user_id).collect())
+    }
+
+    pub async fn get_course_memberships(
+        &self,
+        course_id: &str,
+    ) -> anyhow::Result<Vec<CourseMembership>> {
+        let val: serde_json::Value = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v1/courses/{}/users",
+                course_id
+            ))
+            .await
+            .context("fetch course memberships")?;
+        #[derive(Deserialize)]
+        struct Wrapper {
+            results: Vec<CourseMembership>,
+        }
+        let w: Wrapper = serde_json::from_value(val)?;
+        Ok(w.results)
+    }
+
+    pub async fn get_user_name(&self, user_id: &str) -> anyhow::Result<String> {
+        #[derive(Deserialize)]
+        struct UserName {
+            given: String,
+        }
+        #[derive(Deserialize)]
+        struct UserInfo {
+            name: UserName,
+        }
+        let info: UserInfo = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v1/users/{}",
+                user_id
+            ))
+            .await
+            .context("fetch user name")?;
+        Ok(info.name.given)
+    }
+
+    pub async fn download_attempt_file(&self, download_url: &str) -> anyhow::Result<bytes::Bytes> {
+        self.client.bb_download_attempt_file(download_url).await
+    }
+
+    pub async fn load_reconcile_data(
+        &self,
+        course_id: &str,
+        column_id: &str,
+    ) -> anyhow::Result<ReconcileData> {
+        let body = self
+            .client
+            .bb_load_reconcile_data(course_id, column_id)
+            .await?;
+        let data: ReconcileData =
+            serde_json::from_str(&body).context("parse reconcile data")?;
+        Ok(data)
+    }
+
+    pub async fn get_reconcile_nonce(
+        &self,
+        course_id: &str,
+        column_id: &str,
+    ) -> anyhow::Result<String> {
+        let html = self.client.bb_reconcile_page(course_id, column_id).await?;
+        let html_str = html.root_element().html();
+        let nonce = regex::Regex::new(
+            r#"name="blackboard\.platform\.security\.NonceUtil\.nonce\.ajax"[^>]*value="([^"]+)""#,
+        )
+        .unwrap()
+        .captures(&html_str)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_owned())
+        .context("nonce not found in reconcile page")?;
+        Ok(nonce)
+    }
+
+    pub async fn save_grade(
+        &self,
+        attempt_id: &str,
+        gradable_item_id: &str,
+        score: f64,
+        course_id: &str,
+        nonce: &str,
+        feedback: Option<&str>,
+    ) -> anyhow::Result<()> {
+        self.client
+            .bb_save_grade(attempt_id, gradable_item_id, score, course_id, nonce, feedback)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn set_attempt_ignored(
+        &self,
+        course_id: &str,
+        attempt_id: &str,
+        outcome_definition_id: &str,
+        course_membership_id: &str,
+    ) -> anyhow::Result<()> {
+        self.client
+            .bb_set_attempt_ignored(course_id, attempt_id, outcome_definition_id, course_membership_id)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_attempt_file_info(
+        &self,
+        attempt_id: &str,
+        course_id: &str,
+        column_id: &str,
+        membership_id: &str,
+    ) -> anyhow::Result<AttemptFileInfo> {
+        let html = self
+            .client
+            .bb_grading_page(column_id, course_id, attempt_id, membership_id)
+            .await?;
+
+        let html_str = html.root_element().html();
+        let file_id = regex::Regex::new(r"inlineView\(\s*event\s*,\s*'([^']+)'")
+            .unwrap()
+            .captures(&html_str)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_owned());
+
+        let Some(file_id) = file_id else {
+            return Ok(AttemptFileInfo::NoFile);
+        };
+
+        let json_text = self
+            .client
+            .bb_inline_view(&file_id, attempt_id, course_id)
+            .await?;
+
+        #[derive(Deserialize)]
+        struct InlineViewResponse {
+            #[serde(rename = "downloadUrl")]
+            download_url: Option<String>,
+            #[serde(rename = "fileName")]
+            file_name: Option<String>,
+        }
+        let iv: InlineViewResponse = serde_json::from_str(&json_text)
+            .context("parse inlineView response")?;
+
+        Ok(AttemptFileInfo::File {
+            download_url: iv.download_url.unwrap_or_default(),
+            file_name: iv.file_name.unwrap_or_default(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CourseGroup {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "isGroupSet")]
+    #[allow(dead_code)]
+    pub is_group_set: bool,
+    #[serde(rename = "parentId")]
+    #[allow(dead_code)]
+    pub parent_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CourseMembership {
+    pub id: String,
+    #[serde(rename = "userId")]
+    pub user_id: String,
+}
+
+pub enum AttemptFileInfo {
+    NoFile,
+    File { download_url: String, file_name: String },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReconcileData {
+    #[serde(default)]
+    pub graders: Vec<GraderInfo>,
+    #[serde(default)]
+    pub attempts: Vec<ReconcileAttempt>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraderInfo {
+    #[serde(rename = "graderUserId")]
+    pub grader_user_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReconcileAttempt {
+    #[serde(rename = "attemptId")]
+    pub attempt_id: String,
+    #[serde(rename = "studentUserId")]
+    pub student_user_id: String,
+    #[serde(rename = "studentId")]
+    pub student_id: String,
+    pub status: String,
+    #[serde(default)]
+    #[serde(rename = "reconciledScore")]
+    pub reconciled_score: Option<f64>,
+    #[serde(default)]
+    #[serde(rename = "provisionalGrades")]
+    pub provisional_grades: Vec<ProvisionalGrade>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProvisionalGrade {
+    #[serde(rename = "graderUserId")]
+    pub grader_user_id: String,
+    pub score: Option<f64>,
+    pub status: String,
+    #[serde(default)]
+    #[serde(rename = "hasNotes")]
+    pub has_notes: bool,
+    #[serde(default)]
+    #[serde(rename = "hasFeedback")]
+    pub has_feedback: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -227,7 +528,7 @@ impl CourseDetailHandle {
         &self.data
     }
 
-    async fn gradebook_columns(&self) -> anyhow::Result<Vec<GradebookColumn>> {
+    pub async fn gradebook_columns(&self) -> anyhow::Result<Vec<GradebookColumn>> {
         #[derive(Debug, Deserialize)]
         struct GradebookColumns {
             results: Vec<GradebookColumn>,
@@ -246,7 +547,7 @@ impl CourseDetailHandle {
         Ok(val.results)
     }
 
-    async fn gradedata(&self, column_id: &str) -> anyhow::Result<Vec<GradeUser>> {
+    pub async fn gradedata(&self, column_id: &str) -> anyhow::Result<Vec<GradeUser>> {
         #[derive(Debug, Deserialize)]
         struct GradeUsers {
             results: Vec<GradeUser>,
@@ -262,6 +563,25 @@ impl CourseDetailHandle {
             ))
             .await
             .context("fetch gradebook columns")?;
+        Ok(val.results)
+    }
+
+    pub async fn get_attempts(&self, column_id: &str) -> anyhow::Result<Vec<AttemptRecord>> {
+        #[derive(Debug, Deserialize)]
+        struct AttemptsResult {
+            results: Vec<AttemptRecord>,
+        }
+
+        let val: AttemptsResult = self
+            .client
+            .0
+            .http_client
+            .api_get(&format!(
+                "https://course.pku.edu.cn/learn/api/public/v2/courses/{}/gradebook/columns/{}/attempts",
+                self.id, column_id
+            ))
+            .await
+            .context("fetch attempts")?;
         Ok(val.results)
     }
 
@@ -319,33 +639,55 @@ struct Availability {
 }
 
 #[derive(Debug, Deserialize)]
-struct GradebookColumn {
-    id: String,
-    name: String,
-    score: Option<ColumnScore>,
-    grading: Option<Grading>,
+pub struct GradebookColumn {
+    pub id: String,
+    pub name: String,
+    pub score: Option<ColumnScore>,
+    pub grading: Option<Grading>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ColumnScore {
-    possible: f64,
+pub struct ColumnScore {
+    pub possible: f64,
 }
 
 #[derive(Debug, Deserialize)]
-struct Grading {
+pub struct Grading {
     #[serde(rename = "type")]
-    grading_type: String,
+    pub grading_type: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct GradeUser {
+pub struct GradeUser {
+    #[serde(rename = "userId")]
+    pub user_id: String,
     #[serde(rename = "displayGrade")]
-    display_grade: Option<DisplayGrade>,
+    pub display_grade: Option<DisplayGrade>,
+    pub status: Option<String>,
+    #[serde(default)]
+    pub exempt: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct DisplayGrade {
-    score: Option<f64>,
+pub struct AttemptRecord {
+    pub id: String,
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    #[allow(dead_code)]
+    pub status: Option<String>,
+    #[serde(rename = "displayGrade")]
+    pub display_grade: Option<DisplayGrade>,
+    #[allow(dead_code)]
+    pub score: Option<f64>,
+    #[serde(rename = "attemptDate")]
+    pub attempt_date: Option<String>,
+    #[serde(default)]
+    pub exempt: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DisplayGrade {
+    pub score: Option<f64>,
 }
 
 #[derive(Debug)]

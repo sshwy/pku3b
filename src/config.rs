@@ -17,6 +17,10 @@ pub enum SecretBackend {
     Keyring,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct Config {
     pub username: String,
@@ -28,6 +32,19 @@ pub struct Config {
     pub secret_backend: SecretBackend,
 
     pub auto_supplement: Option<Vec<SupplementCourseConfig>>,
+
+    /// 默认的 TA 课程 ID（如 "_98207_1"）
+    #[serde(default)]
+    pub ta_course_id: Option<String>,
+    /// 默认的批改组 ID
+    #[serde(default)]
+    pub ta_group_id: Option<String>,
+    /// 下载提交文件时自动重命名为 {学生姓名}_{作业名}_{原始名}
+    #[serde(default = "default_true")]
+    pub ta_rename_files: bool,
+    /// 每个学生只下载最新一次提交
+    #[serde(default = "default_true")]
+    pub ta_latest_only: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -92,6 +109,22 @@ impl Config {
                 };
                 writeln!(buf, "{backend}")?
             }
+            ConfigAttrs::TaCourseId => {
+                if let Some(cid) = &self.ta_course_id {
+                    writeln!(buf, "{cid}")?
+                } else {
+                    writeln!(buf, "<not set>")?
+                }
+            }
+            ConfigAttrs::TaGroupId => {
+                if let Some(gid) = &self.ta_group_id {
+                    writeln!(buf, "{gid}")?
+                } else {
+                    writeln!(buf, "<not set>")?
+                }
+            }
+            ConfigAttrs::TaRenameFiles => writeln!(buf, "{}", self.ta_rename_files)?,
+            ConfigAttrs::TaLatestOnly => writeln!(buf, "{}", self.ta_latest_only)?,
         };
         Ok(())
     }
@@ -129,6 +162,18 @@ impl Config {
                         "invalid secret backend: {value} (expected: plaintext | keyring)"
                     ),
                 };
+            }
+            ConfigAttrs::TaCourseId => self.ta_course_id = Some(value),
+            ConfigAttrs::TaGroupId => self.ta_group_id = Some(value),
+            ConfigAttrs::TaRenameFiles => {
+                self.ta_rename_files = value
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("expected true or false"))?
+            }
+            ConfigAttrs::TaLatestOnly => {
+                self.ta_latest_only = value
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("expected true or false"))?
             }
         }
 
@@ -244,6 +289,10 @@ pub enum ConfigAttrs {
     TTShiTuPassword,
     BarkToken,
     SecretBackend,
+    TaCourseId,
+    TaGroupId,
+    TaRenameFiles,
+    TaLatestOnly,
 }
 
 impl clap::ValueEnum for ConfigAttrs {
@@ -255,6 +304,10 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::TTShiTuPassword,
             Self::BarkToken,
             Self::SecretBackend,
+            Self::TaCourseId,
+            Self::TaGroupId,
+            Self::TaRenameFiles,
+            Self::TaLatestOnly,
         ]
     }
 
@@ -266,6 +319,10 @@ impl clap::ValueEnum for ConfigAttrs {
             Self::TTShiTuPassword => Some(clap::builder::PossibleValue::new("ttshitu.password")),
             Self::BarkToken => Some(clap::builder::PossibleValue::new("bark.token")),
             Self::SecretBackend => Some(clap::builder::PossibleValue::new("secret-backend")),
+            Self::TaCourseId => Some(clap::builder::PossibleValue::new("ta-course-id")),
+            Self::TaGroupId => Some(clap::builder::PossibleValue::new("ta-group-id")),
+            Self::TaRenameFiles => Some(clap::builder::PossibleValue::new("ta-rename-files")),
+            Self::TaLatestOnly => Some(clap::builder::PossibleValue::new("ta-latest-only")),
         }
     }
 }
