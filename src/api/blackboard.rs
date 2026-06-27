@@ -489,6 +489,24 @@ pub struct CourseEnrollment {
     pub course_id: String,
     #[serde(rename = "courseRoleId")]
     pub course_role_id: String,
+    #[serde(default)]
+    #[serde(rename = "course")]
+    pub course: Option<CourseBrief>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CourseBrief {
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(default)]
+    #[serde(rename = "term")]
+    pub term: Option<TermBrief>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TermBrief {
+    #[serde(rename = "name")]
+    pub name: String,
 }
 
 pub struct CourseDetailHandle {

@@ -837,9 +837,23 @@ fn select_course(
     if enrollments.len() == 1 {
         return Ok(enrollments[0].course_id.clone());
     }
-    let items: Vec<String> = enrollments.iter().map(|e| e.course_id.clone()).collect();
-    let selection = inquire::Select::new("选择课程:", items).prompt()?;
-    Ok(selection)
+    let items: Vec<String> = enrollments
+        .iter()
+        .map(|e| {
+            let name = e.course.as_ref().map(|c| c.name.as_str()).unwrap_or("?");
+            let term = e
+                .course
+                .as_ref()
+                .and_then(|c| c.term.as_ref())
+                .map(|t| t.name.as_str())
+                .unwrap_or("");
+            format!("{name}  {term}  ({})", e.course_id)
+        })
+        .collect();
+    let selection = inquire::Select::new("选择课程:", items.clone()).prompt()?;
+    // Extract course_id from the selected item
+    let idx = items.iter().position(|i| *i == selection).unwrap();
+    Ok(enrollments[idx].course_id.clone())
 }
 
 fn filter_hw_columns(
