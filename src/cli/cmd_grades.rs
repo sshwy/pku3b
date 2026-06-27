@@ -15,7 +15,7 @@ fn extract_term(name: &str) -> &str {
 }
 
 pub async fn run(cmd: CommandGrades, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
-    let (b, sp) = load_blackboard(ctx, !cmd.force, cmd.otp_code).await?;
+    let (b, sp) = load_blackboard(ctx, cmd.otp_code, cmd.force).await?;
 
     sp.set_message("fetching user info...");
     let user_id = b.user_info_id().await?;
