@@ -673,8 +673,10 @@ async fn ta_grade(
         let name = b.get_user_name(sid).await.unwrap_or_else(|_| sid.clone());
         let existing = targets
             .first()
-            .and_then(|a| a.provisional_grades.first())
-            .and_then(|pg| pg.score)
+            .and_then(|a| {
+                a._reconciled_score
+                    .or_else(|| a.provisional_grades.first().and_then(|pg| pg.score))
+            })
             .map(|s| format!(" (当前: {s})"))
             .unwrap_or_default();
         let score_val = match score_arg {
