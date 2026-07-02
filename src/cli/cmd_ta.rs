@@ -77,9 +77,12 @@ enum TaHwCommands {
         all_term: bool,
         #[arg(long, default_value = "")]
         otp_code: String,
-        /// 批改组编号
+        /// 批改组编号（-s 覆盖此选项）
         #[arg(short, long)]
         group: Option<usize>,
+        /// 只下载指定学生的提交（覆盖 -g）
+        #[arg(short = 's', long, value_name = "USER_ID")]
+        student: Option<String>,
         /// 下载全部（含已评分），默认仅未评分
         #[arg(short = 'a', long, default_value = "false")]
         all: bool,
@@ -162,6 +165,7 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 all_term,
                 otp_code,
                 group,
+                student,
                 all,
                 all_hw,
                 no_rename,
@@ -175,6 +179,7 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                     all_term,
                     otp_code,
                     group,
+                    student,
                     all,
                     all_hw,
                     no_rename,
@@ -433,6 +438,7 @@ async fn ta_hw_down(
     _all_term: bool,
     otp_code: String,
     group_idx: Option<usize>,
+    student: Option<String>,
     all: bool,
     all_hw: bool,
     no_rename: bool,
@@ -446,23 +452,25 @@ async fn ta_hw_down(
     let ta_courses = b.get_ta_courses(&user_id).await?;
     let course_id = select_course(&ta_courses, course)?;
 
-    // Resolve group
+    // Resolve group (skipped when -s is given without -g)
     sp.set_message("fetching groups...");
     let groups = b.get_course_groups(&course_id).await?;
     let sub_groups: Vec<&CourseGroup> = groups.iter().filter(|g| !g.is_group_set).collect();
-
-    if sub_groups.is_empty() {
-        anyhow::bail!("no grading groups found in this course");
-    }
-
-    let group = resolve_group(&sub_groups, group_idx)?;
-
-    sp.set_message(format!("fetching members of {}...", group.name));
-    let group_members: std::collections::HashSet<String> = b
-        .get_group_users(&course_id, &group.id)
-        .await?
-        .into_iter()
-        .collect();
+    let group_name: String;
+    let group_members: std::collections::HashSet<String>;
+    if student.is_some() && group_idx.is_none() {
+        group_name = student.clone().unwrap();
+        group_members = std::collections::HashSet::new();
+    } else {
+        let group = resolve_group(&sub_groups, group_idx)?;
+        group_name = group.name.clone();
+        sp.set_message(format!("fetching members of {}...", group_name));
+        group_members = b
+            .get_group_users(&course_id, &group.id)
+            .await?
+            .into_iter()
+            .collect()
+    };
 
     // Resolve assignment
     let detail = b.course_detail(&course_id).await?;
@@ -510,8 +518,12 @@ async fn ta_hw_down(
         log::info!("fetching submissions for {}...", hw_col.name);
         let mut attempts = detail.get_attempts(&hw_col.id).await?;
 
-        // Filter: group members only
-        attempts.retain(|a| group_members.contains(&a.user_id));
+        // Filter: student (-s) overrides group
+        if let Some(ref sid) = student {
+            attempts.retain(|a| &a.user_id == sid);
+        } else {
+            attempts.retain(|a| group_members.contains(&a.user_id));
+        }
 
         // Default to ungraded only; use -a to include already-graded submissions
         if !all {
@@ -535,7 +547,7 @@ async fn ta_hw_down(
         writeln!(
             std::io::stdout(),
             "{D}>{D:#} {B}下载 {}{B:#} - {}{D} {total} submissions{D:#}",
-            group.name,
+            group_name,
             hw_col.name,
         )?;
 
