@@ -481,6 +481,16 @@ async fn ta_hw_down(
 
     // When all_hw, iterate all assignments
     let target_hw: Vec<&crate::api::blackboard::GradebookColumn> = if all_hw {
+        sp.finish_and_clear();
+        let confirmed = inquire::Confirm::new(&format!(
+            "确认下载 {B}全部 {hw_count} 个{B:#} 作业的未评分提交？",
+            hw_count = hw_cols.len()
+        ))
+        .with_default(false)
+        .prompt()?;
+        if !confirmed {
+            return Ok(());
+        }
         hw_cols.iter().copied().collect()
     } else {
         vec![resolve_hw(&hw_cols, hw_id)?]
