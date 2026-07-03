@@ -53,9 +53,6 @@ enum TaHwCommands {
         otp_code: String,
         #[arg(short, long)]
         group: Option<usize>,
-        /// 下载/评分全部历史提交（默认只取最新一次）
-        #[arg(short = 'A', long, default_value = "false")]
-        all_attempts: bool,
         /// 直接给指定学生打分（学号，如 _170599_1），跳过交互
         #[arg(short = 's', long, value_name = "USER_ID")]
         student: Option<String>,
@@ -141,24 +138,10 @@ pub async fn run(cmd: CommandTa, ctx: &CommandCtx<'_>) -> anyhow::Result<()> {
                 force,
                 otp_code,
                 group,
-                all_attempts,
                 student,
                 score,
                 course,
-            } => {
-                ta_grade(
-                    ctx,
-                    id,
-                    force,
-                    otp_code,
-                    group,
-                    all_attempts,
-                    student,
-                    score,
-                    course,
-                )
-                .await?
-            }
+            } => ta_grade(ctx, id, force, otp_code, group, student, score, course).await?,
             TaHwCommands::Down {
                 id,
                 force,
@@ -636,7 +619,6 @@ async fn ta_grade(
     force: bool,
     otp_code: String,
     group_idx: Option<usize>,
-    all_attempts: bool,
     student: Option<String>,
     score_arg: Option<f64>,
     course: Option<String>,
@@ -730,24 +712,6 @@ async fn ta_grade(
         .filter(|a| group_members.contains(&a.student_user_id) && a.status == "NEEDS_GRADING")
         .collect();
     pending.sort_by(|a, b| a.student_user_id.cmp(&b.student_user_id));
-
-    // Deduplicate: keep only latest attempt per student if configured
-    if !all_attempts {
-        let extract_num = |id: &str| {
-            id.strip_prefix('_')
-                .and_then(|s| s.rsplit('_').nth(1))
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(0)
-        };
-        pending.sort_by(|a, b| {
-            let na = extract_num(&a.attempt_id);
-            let nb = extract_num(&b.attempt_id);
-            nb.cmp(&na)
-        });
-        let mut seen = std::collections::HashSet::new();
-        pending.retain(|a| seen.insert(a.student_user_id.clone()));
-        pending.sort_by(|a, b| a.student_user_id.cmp(&b.student_user_id));
-    }
 
     if pending.is_empty() {
         sp.finish_with_message("all submissions are already graded!");
@@ -863,47 +827,6 @@ async fn ta_grade(
                     .map(|f| format!(" [评语: {}]", f))
                     .unwrap_or_default();
                 println!("  {GR}✓ 已保存: {}={}{fb_info}{GR:#}", name, score);
-
-                // Auto-grade earlier attempts with same score
-                if !all_attempts {
-                    let extract_num = |id: &str| {
-                        id.strip_prefix('_')
-                            .and_then(|s| s.rsplit('_').nth(1))
-                            .and_then(|s| s.parse::<u64>().ok())
-                            .unwrap_or(0)
-                    };
-                    let latest_num = extract_num(&a.attempt_id);
-                    for other in &data.attempts {
-                        if other.student_user_id == a.student_user_id
-                            && other.attempt_id != a.attempt_id
-                            && extract_num(&other.attempt_id) < latest_num
-                            && other.status == "NEEDS_GRADING"
-                        {
-                            log::info!(
-                                "auto-grading earlier attempt {} for {} with score {}",
-                                other.attempt_id,
-                                name,
-                                score
-                            );
-                            if let Err(e) = b
-                                .save_grade(
-                                    &other.attempt_id,
-                                    &hw_col.id,
-                                    score,
-                                    &course_id,
-                                    &nonce,
-                                    None,
-                                )
-                                .await
-                            {
-                                log::warn!(
-                                    "failed to auto-grade attempt {}: {e:#}",
-                                    other.attempt_id
-                                );
-                            }
-                        }
-                    }
-                }
             }
             Err(e) => {
                 println!("  {RD}✗ 保存失败: {e:#}{RD:#}");
