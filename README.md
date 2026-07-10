@@ -232,61 +232,65 @@ pku3b ta group ls          # 列出所有批改组及人数
 pku3b ta group show <ID>   # 查看某组成员
 ```
 
-### 管理作业提交
+### 查看作业列表
 
 ```bash
-pku3b ta hw ls             # 列出作业及已评/未评分数
+pku3b ta hw ls             # 列出作业及已评/未评/总人数
 pku3b ta hw ls -g 1        # 按批改组筛选
+pku3b ta hw ls -c _98207_1 # 跳过课程选择
 ```
 
-### 批量下载
+### 下载作业提交
+
+默认仅下载未评分、最新一次提交，自动重命名为 `学号_姓名_原文件名`。文件保存到系统 Downloads 文件夹。
 
 ```bash
-pku3b ta hw down           # 交互选择作业下载
-pku3b ta hw down -g 1      # 只下载某组提交
-pku3b ta hw down -u        # 只下载未评分
-pku3b ta hw down -A        # 下载全部（含已评分）
-pku3b ta hw down --all-hw  # 一键下载所有作业未评分提交
+pku3b ta hw down                 # 交互选择作业下载
+pku3b ta hw down -g 1            # 只下载某组提交
+pku3b ta hw down -g 1 -i 3       # 指定作业（编号见 ta hw ls）
+pku3b ta hw down -g 1 -s _ID     # 只下载某学生（不需 -g）
+pku3b ta hw down -g 1 -a         # 含已评分
+pku3b ta hw down -g 1 -A         # 所有历史提交
+pku3b ta hw down -g 1 --no-rename # 保留原始文件名
+pku3b ta hw down -g 1 --all-hw   # 一键下载所有作业（有确认弹窗）
 ```
 
-### 交互式登分
+### 登分
 
-`pku3b ta hw grade` 会逐个学生提示输入分数和评语，自动提交到教学网。输入 `q` 跳过当前学生，`e` 退出评分。加 `-A` 可处理全部历史提交（默认仅最新一次）。
+支持三种模式。评分默认处理该学生的**全部历史提交**。
+
+**单人**（`-s` 指定学号，`-S` 可选分数）：
 
 ```bash
-pku3b ta hw grade          # 交互登分（仅未评分，每人最新提交）
-pku3b ta hw grade -g 1     # 指定批改组
-pku3b ta hw grade -A       # 处理全部历史提交
-pku3b ta hw grade --recheck  # 复查已评分提交
+pku3b ta hw grade -c _98207_1 -s _ID -S 10 -i 3   # 直接打分
+pku3b ta hw grade -c _98207_1 -s _ID -i 3          # 交互输分数
 ```
 
-### 配置
-
-下载和评分默认只处理每人最新一次提交，如需处理全部历史提交可加 `-A`：
+**批量**（`-S` 不跟 `-s`，给组内全部待评分打统一分，有确认弹窗）：
 
 ```bash
-pku3b ta hw down -A             # 下载全部历史提交
-pku3b ta hw grade -A            # 评分时处理全部历史提交
+pku3b ta hw grade -g 1 -c _98207_1 -S 10 -i 3
 ```
 
-下载默认重命名为 `学号_姓名_原始文件名`，如需保留原始文件名可加 `--no-rename`：
+**交互**（逐个学生提示，`q` 跳过，`e` 退出）：
 
 ```bash
-pku3b ta hw down --no-rename    # 不重命名，保留原始文件名
+pku3b ta hw grade -g 1 -c _98207_1 -i 3
 ```
 
 ### 典型工作流
 
 ```bash
-# 1. 查看有哪些作业和批改组
+# 1. 查看批改组和作业
 pku3b ta group ls
-pku3b ta hw ls
+pku3b ta hw ls -g 1
 
-# 2. 一键下载自己组所有未评分作业
-pku3b ta hw down --all-hw
+# 2. 一键下载本组所有未评分作业
+pku3b ta hw down -g 1 --all-hw -c _98207_1
 
-# 3. 本地批改后，交互式登分
-pku3b ta hw grade -g 1
+# 3. 本地批改后登分
+pku3b ta hw grade -g 1 -c _98207_1          # 交互
+pku3b ta hw grade -c _98207_1 -s _ID -S 10  # 或单人直接打分
 
 # 4. 确认评分状态
 pku3b ta hw ls -g 1
