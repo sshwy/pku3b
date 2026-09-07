@@ -37,6 +37,7 @@ impl LowLevelClient {
         default_headers.insert(http::header::USER_AGENT, USER_AGENT.parse().unwrap());
         let http_client = cyper::Client::builder()
             .cookie_store(true)
+            .redirect(cyper::redirect::Policy::none())
             .default_headers(default_headers)
             .build()?;
 
@@ -165,6 +166,37 @@ pub fn extract_redirect_url(res: &cyper::Response) -> anyhow::Result<&str> {
 mod tests {
     use super::*;
     use base64::Engine as _;
+
+    #[compio::test]
+    async fn client_leaves_redirects_for_callers_to_handle() {
+        use std::io::{Read as _, Write as _};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 1024];
+            stream.read_exact(&mut request[..1]).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 302 Found\r\nLocation: http://{addr}/final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+        });
+
+        let client = LowLevelClient::create().unwrap();
+        let res = client
+            .get_by_uri(&format!("http://{addr}/start"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(res.status(), http::StatusCode::FOUND);
+        assert_eq!(
+            extract_redirect_url(&res).unwrap(),
+            format!("http://{addr}/final")
+        );
+    }
 
     #[test]
     fn test_convert_uri() {
