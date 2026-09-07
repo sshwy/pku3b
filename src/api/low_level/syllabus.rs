@@ -34,6 +34,9 @@ impl LowLevelClient {
         if res.status() == http::StatusCode::OK {
             // Check for dual degree selection page
             let res = res.text().await?;
+            if res.contains("用户选课类别ERR") {
+                anyhow::bail!("页面显示用户选课类别ERR");
+            }
             let res = Html::parse_document(res.as_str());
             let selector1 =
                 scraper::Selector::parse("#div1").expect("Static CSS selector should parse");
