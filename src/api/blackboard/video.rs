@@ -1,7 +1,7 @@
 use super::{Client, Course, CourseMeta};
 use crate::api::low_level;
 use crate::qs;
-use crate::utils::{with_cache, with_cache_bytes};
+use crate::utils::{refresh_cache_bytes, with_cache, with_cache_bytes};
 use anyhow::Context;
 use cyper::IntoUrl;
 use scraper::Selector;
@@ -348,8 +348,9 @@ impl CourseVideo {
 
         // fetch maybe encrypted segment data
         let seg_url: String = self.pl_url.join(&seg.uri).context("join seg url")?.into();
+        let segment_cache_key = format!("CourseVideo::download_segment_{seg_url}");
         let mut bytes = with_cache_bytes(
-            &format!("CourseVideo::download_segment_{seg_url}"),
+            &segment_cache_key,
             self.client.download_artifact_ttl(),
             self._download_segment(&seg_url),
         )
@@ -360,10 +361,21 @@ impl CourseVideo {
         if let Some(key) = key {
             // sequence number may be used to construct IV
             let seq = (self.pl.media_sequence as usize + index) as u128;
-            bytes = self
-                .decrypt_segment(key, bytes, seq)
-                .await
-                .context("decrypt segment data")?;
+            bytes = match self.decrypt_segment(key, bytes, seq).await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    log::warn!(
+                        "decrypt cached segment #{index} failed, refreshing cached bytes: {e:#}"
+                    );
+                    let fresh_bytes =
+                        refresh_cache_bytes(&segment_cache_key, self._download_segment(&seg_url))
+                            .await
+                            .context("refresh segment cache")?;
+                    self.decrypt_segment(key, fresh_bytes, seq)
+                        .await
+                        .context("decrypt refreshed segment data")?
+                }
+            };
         }
 
         Ok(bytes)
