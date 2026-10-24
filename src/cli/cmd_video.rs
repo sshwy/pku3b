@@ -26,7 +26,7 @@ enum VideoCommands {
         all_term: bool,
     },
 
-    /// 下载课程回放视频 (MP4 格式)，支持断点续传
+    /// 下载课程回放视频 (MP4 格式)，HLS 分片支持断点续传
     #[command(visible_alias("down"))]
     #[cfg(feature = "video-download")]
     Download {
@@ -64,6 +64,102 @@ pub async fn run(cmd: CommandVideo, ctx: &CommandCtx<'_>) -> anyhow::Result<()> 
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, feature = "video-download"))]
+mod tests {
+    use super::*;
+    use std::io::{Read as _, Write as _};
+
+    struct DownloadDir(std::path::PathBuf);
+
+    impl DownloadDir {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "pku3b-mp4-{}-{}",
+                std::process::id(),
+                rand::random::<u64>()
+            ));
+            std::fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for DownloadDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    async fn response(status: &str, advertised: usize, body: &[u8]) -> cyper::Response {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let status = status.to_owned();
+        let body = body.to_vec();
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut request = [0; 1024];
+            socket.read(&mut request).unwrap();
+            write!(
+                socket,
+                "HTTP/1.1 {status}\r\nContent-Length: {advertised}\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+            for chunk in body.chunks(4096) {
+                socket.write_all(chunk).unwrap();
+            }
+        });
+        let client = cyper::Client::builder().no_proxy().build().unwrap();
+        let result = client
+            .get(format!("http://{addr}/video.mp4"))
+            .unwrap()
+            .send()
+            .await
+            .unwrap();
+        server.join().unwrap();
+        result
+    }
+
+    #[compio::test]
+    async fn publishes_complete_mp4_response() {
+        let directory = DownloadDir::new();
+        let dest = directory.0.join("video.mp4");
+        let body = vec![42; 65536];
+        let response = response("200 OK", body.len(), &body).await;
+        download_mp4(response, &dest).await.unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
+        assert!(!dest.with_extension("mp4.part").exists());
+    }
+
+    #[compio::test]
+    async fn truncated_response_keeps_partial_and_existing_destination() {
+        let directory = DownloadDir::new();
+        let dest = directory.0.join("video.mp4");
+        std::fs::write(&dest, b"existing video").unwrap();
+        let response = response("200 OK", 1024, b"short body").await;
+        assert!(download_mp4(response, &dest).await.is_err());
+        assert_eq!(std::fs::read(&dest).unwrap(), b"existing video");
+        assert!(dest.with_extension("mp4.part").exists());
+    }
+
+    #[compio::test]
+    async fn rejects_http_errors_without_publishing_video() {
+        let directory = DownloadDir::new();
+        let dest = directory.0.join("video.mp4");
+        let response = response("404 Not Found", 0, b"").await;
+        assert!(download_mp4(response, &dest).await.is_err());
+        assert!(!dest.exists());
+        assert!(!dest.with_extension("mp4.part").exists());
+    }
+
+    #[compio::test]
+    async fn rejects_empty_mp4_response() {
+        let directory = DownloadDir::new();
+        let dest = directory.0.join("video.mp4");
+        let response = response("200 OK", 0, b"").await;
+        assert!(download_mp4(response, &dest).await.is_err());
+        assert!(!dest.exists());
+    }
 }
 
 pub async fn list(
@@ -155,9 +251,31 @@ pub async fn download(
     };
 
     sp.set_message("fetch video metadata...");
-    let v = v.get().await?;
+    let source = v.get().await?;
 
     ctx.remove_spinner(sp);
+
+    let v = match source {
+        CourseVideoSource::Hls(video) => video,
+        CourseVideoSource::Mp4 {
+            course_name,
+            title,
+            response,
+        } => {
+            println!("下载课程回放：{} ({})", course_name, title);
+            let dest = outdir.join(format!("{}_{}.mp4", course_name, title));
+            let sp = ctx.spinner();
+            sp.set_message("Downloading MP4 file...");
+            let result = download_mp4(response, &dest).await;
+            ctx.remove_spinner(sp);
+            result?;
+            println!(
+                "下载完成, 文件保存为: {GR}{H2}{}{H2:#}{GR:#}",
+                dest.display()
+            );
+            return Ok(());
+        }
+    };
 
     println!("下载课程回放：{} ({})", v.course_name(), v.meta().title());
 
@@ -209,6 +327,37 @@ pub async fn download(
         anyhow::bail!("ffmpeg failed with exit code {:?}", c.status.code());
     }
 
+    Ok(())
+}
+
+#[cfg(feature = "video-download")]
+async fn download_mp4(response: cyper::Response, dest: &std::path::Path) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        response.status() == http::StatusCode::OK,
+        "get MP4 source returned {}",
+        response.status()
+    );
+    let expected = response.content_length();
+    let partial = dest.with_extension("mp4.part");
+    let file = fs::File::create(&partial)
+        .await
+        .context("create MP4 partial file")?;
+    let mut file = std::io::Cursor::new(file);
+    let mut stream = response.bytes_stream();
+    let mut downloaded = 0_u64;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("read MP4 response")?;
+        downloaded += chunk.len() as u64;
+        buf_try!(@try file.write_all(chunk).await);
+    }
+    anyhow::ensure!(downloaded > 0, "MP4 response was empty");
+    if let Some(expected) = expected {
+        anyhow::ensure!(downloaded == expected, "MP4 response length mismatch");
+    }
+    drop(file);
+    fs::rename(&partial, dest)
+        .await
+        .context("publish downloaded MP4")?;
     Ok(())
 }
 
