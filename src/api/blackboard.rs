@@ -3,7 +3,7 @@ mod video;
 use super::*;
 use crate::api::low_level::blackboard::BlackboardUnautherizedError;
 use serde::Deserialize;
-pub use video::CourseVideo;
+pub use video::{CourseVideo, CourseVideoSource};
 
 impl Client {
     pub async fn blackboard(
