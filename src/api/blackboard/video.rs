@@ -165,7 +165,7 @@ impl CourseVideoHandle {
         Ok(body)
     }
 
-    fn get_media_path(&self, text: &str) -> anyhow::Result<MediaPath> {
+    fn get_media_path(text: &str) -> anyhow::Result<MediaPath> {
         let sub = serde_json::from_str::<SubInfo>(text).context("parse sub info failed")?;
 
         #[derive(Debug, serde::Deserialize)]
@@ -203,7 +203,11 @@ impl CourseVideoHandle {
             return Ok(MediaPath::M3u8(url));
         }
 
-        if url.ends_with(".mp4") {
+        if url::Url::parse(&url)
+            .context("parse media URL failed")?
+            .path()
+            .ends_with(".mp4")
+        {
             return Ok(MediaPath::Mp4(url));
         }
 
@@ -217,33 +221,43 @@ impl CourseVideoHandle {
         Ok(rbody)
     }
 
-    async fn _get(&self) -> anyhow::Result<(String, bytes::Bytes)> {
+    async fn _get(&self) -> anyhow::Result<MediaPath> {
         let loc = self.get_iframe_url().await?;
-        loop {
-            let info = self.get_sub_info(&loc).await?;
-            let media = self.get_media_path(&info)?;
-            match media {
-                MediaPath::M3u8(pl_url) => {
-                    let pl_raw = self.get_m3u8_playlist(&pl_url).await?;
-                    break Ok((pl_url, pl_raw));
-                }
-                MediaPath::Mp4(url) => {
-                    log::warn!("mp4 ({url}) not supported yet, try again...");
-                    compio::time::sleep(std::time::Duration::from_secs(1)).await;
-                }
-            }
-        }
+        let info = self.get_sub_info(&loc).await?;
+        Self::get_media_path(&info)
     }
 
     #[cfg(feature = "m3u8-rs")]
-    pub async fn get(&self) -> anyhow::Result<CourseVideo> {
-        let (pl_url, pl_raw) = self._get().await.with_context(|| {
+    pub async fn get(&self) -> anyhow::Result<CourseVideoSource> {
+        let media = self._get().await.with_context(|| {
             format!(
                 "get course video for {} {}",
                 self.course.title(),
                 self.meta().title()
             )
         })?;
+
+        let pl_url = match media {
+            MediaPath::M3u8(url) => url,
+            MediaPath::Mp4(url) => {
+                let response = self
+                    .client
+                    .get_by_uri(&url)
+                    .await
+                    .context("get MP4 source")?;
+                anyhow::ensure!(
+                    response.status() == http::StatusCode::OK,
+                    "get MP4 source returned {}",
+                    response.status()
+                );
+                return Ok(CourseVideoSource::Mp4 {
+                    course_name: self.course.name().to_owned(),
+                    title: self.meta().title().to_owned(),
+                    response,
+                });
+            }
+        };
+        let pl_raw = self.get_m3u8_playlist(&pl_url).await?;
 
         let pl_raw = pl_raw.to_vec();
         let (_, pl) = m3u8_rs::parse_playlist(&pl_raw)
@@ -254,21 +268,32 @@ impl CourseVideoHandle {
             m3u8_rs::Playlist::MasterPlaylist(_) => {
                 anyhow::bail!("master playlist not supported")
             }
-            m3u8_rs::Playlist::MediaPlaylist(pl) => Ok(CourseVideo {
+            m3u8_rs::Playlist::MediaPlaylist(pl) => Ok(CourseVideoSource::Hls(CourseVideo {
                 client: self.client.clone(),
                 course: self.course.clone(),
                 meta: self.meta.clone(),
                 pl_url: pl_url.into_url().context("parse pl_url failed")?,
                 pl_raw: pl_raw.into(),
                 pl,
-            }),
+            })),
         }
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum MediaPath {
     M3u8(String),
     Mp4(String),
+}
+
+/// An HLS recording or a direct MP4 response ready to stream to disk.
+pub enum CourseVideoSource {
+    Hls(CourseVideo),
+    Mp4 {
+        course_name: String,
+        title: String,
+        response: cyper::Response,
+    },
 }
 
 #[derive(Debug)]
@@ -442,5 +467,47 @@ impl CourseVideo {
             }
             r => unimplemented!("m3u8 key: {:?}", r),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn playback_info(is_m3u8: &str, contents: &str) -> String {
+        serde_json::json!({"list": [{"sub_content": serde_json::json!({
+            "save_playback": {"is_m3u8": is_m3u8, "contents": contents}
+        }).to_string()}]})
+        .to_string()
+    }
+
+    #[test]
+    fn identifies_hls_from_playback_flag() {
+        let url = "https://example.invalid/video.m3u8";
+        let info = playback_info("yes", url);
+        assert_eq!(
+            CourseVideoHandle::get_media_path(&info).unwrap(),
+            MediaPath::M3u8(url.into())
+        );
+    }
+
+    #[test]
+    fn identifies_direct_mp4_with_query_parameters() {
+        for url in [
+            "https://example.invalid/video.mp4",
+            "https://example.invalid/video.mp4?token=test",
+        ] {
+            let info = playback_info("no", url);
+            assert_eq!(
+                CourseVideoHandle::get_media_path(&info).unwrap(),
+                MediaPath::Mp4(url.into())
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_unsupported_media() {
+        let info = playback_info("no", "https://example.invalid/video.webm");
+        assert!(CourseVideoHandle::get_media_path(&info).is_err());
     }
 }
