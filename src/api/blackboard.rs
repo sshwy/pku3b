@@ -6,6 +6,11 @@ use serde::Deserialize;
 pub use video::{CourseVideo, CourseVideoSource};
 
 impl Client {
+    /// 已保存的教学网会话是否仍然有效。只访问教学网，不访问 IAAA。
+    pub async fn blackboard_session_valid(&self) -> bool {
+        self.0.http_client.bb_homepage().await.is_ok()
+    }
+
     pub async fn blackboard(
         &self,
         username: &str,

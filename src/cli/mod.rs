@@ -193,10 +193,14 @@ async fn load_blackboard(
         .await
         .context("read config file")?;
 
-    let otp_code = if client
-        .bb_login_require_otp(&cfg.username)
-        .await
-        .context("check if OTP is required")?
+    // 会话有效时不会登录，也就不必向 IAAA 查询是否需要 OTP：
+    // IAAA 按 IP 限频（E21），每条命令多一次查询都会累积
+    let session_ok = !force && client.blackboard_session_valid().await;
+    let otp_code = if !session_ok
+        && client
+            .bb_login_require_otp(&cfg.username)
+            .await
+            .context("check if OTP is required")?
         && otp_code.is_empty()
     {
         inquire::Text::new("请输入手机令牌（OTP）码: ").prompt()?
