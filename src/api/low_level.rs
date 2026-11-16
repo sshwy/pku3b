@@ -54,7 +54,6 @@ impl LowLevelClient {
         self.http_client.save_set_cookies(path).await
     }
 
-    #[cfg(feature = "thesislib")]
     fn encrypt_password(pubkey: &str, password: &str) -> anyhow::Result<String> {
         use base64::{Engine as _, engine::general_purpose};
         use pkcs8::DecodePublicKey;
@@ -228,7 +227,6 @@ DQIDAQAB
 "#;
 
     #[test]
-    #[cfg(feature = "thesislib")]
     fn encrypt_password_outputs_256b_ciphertext_base64() {
         let enc = LowLevelClient::encrypt_password(HAR_PEM_PUBLIC_KEY, "123123123123").unwrap();
 
