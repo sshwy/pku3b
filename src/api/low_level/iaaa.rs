@@ -2,7 +2,6 @@ use super::*;
 
 pub const IAAA_IS_MOBILE_AUTHEN: &str = "https://iaaa.pku.edu.cn/iaaa/isMobileAuthen.do";
 pub const IAAA_OAUTH_LOGIN: &str = "https://iaaa.pku.edu.cn/iaaa/oauthlogin.do";
-#[cfg(feature = "thesislib")]
 pub const IAAA_PUBKEY: &str = "https://iaaa.pku.edu.cn/iaaa/getPublicKey.do";
 
 /// OAuth login error codes:
@@ -46,6 +45,7 @@ impl AuthenData {
 impl LowLevelClient {
     /// 向 [`IAAA_OAUTH_LOGIN`] 发送登录请求，并返回 token
     ///
+    /// - `password`: 明文密码；提交前按网页端做法用 IAAA 公钥 RSA 加密（IAAA 已不接受明文）
     /// - `otp_code`: 手机令牌码，空串表示不提供
     pub async fn iaaa_oauth_login(
         &self,
@@ -55,13 +55,16 @@ impl LowLevelClient {
         otp_code: &str,
         redir: &str,
     ) -> anyhow::Result<String> {
+        // 与网页登录页一致（JSEncrypt，RSA PKCS#1 v1.5）：明文密码会被 IAAA 以 E01 拒绝
+        let pubkey = self.iaaa_public_key().await?;
+        let password = Self::encrypt_password(&pubkey, password)?;
         let res = self
             .http_client
             .post(IAAA_OAUTH_LOGIN)?
             .form(&[
                 ("appid", appid),
                 ("userName", username),
-                ("password", password),
+                ("password", password.as_str()),
                 ("randCode", ""),
                 ("smsCode", ""),
                 ("otpCode", otp_code),
@@ -125,7 +128,6 @@ impl LowLevelClient {
         Ok(data)
     }
 
-    #[cfg(feature = "thesislib")]
     pub async fn iaaa_public_key(&self) -> anyhow::Result<String> {
         let res = self.get_by_uri(IAAA_PUBKEY).await?;
         anyhow::ensure!(res.status().is_success(), "error status {}", res.status());

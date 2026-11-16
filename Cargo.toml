@@ -16,7 +16,7 @@ build = "build.rs"
 [dependencies]
 aes = { version = "0.8", optional = true }
 anyhow = { version = "1.0", default-features = false }
-base64 = { version = "0.22", optional = true }
+base64 = "0.22"
 bytes = { version = "1.10", default-features = false }
 cbc = { version = "0.1.2", optional = true, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
@@ -59,10 +59,10 @@ memchr = "2.7"
 percent-encoding = "2.3.2"
 rand = { version = "0.9", features = ["thread_rng"], default-features = false }
 regex = "1.11.1"
-pkcs8 = { version = "0.10", optional = true, default-features = false, features = [
+pkcs8 = { version = "0.10", default-features = false, features = [
     "pem",
 ] }
-rsa = { version = "0.9", optional = true, features = ["pem"] }
+rsa = { version = "0.9", features = ["pem"] }
 scraper = { version = "0.23", default-features = false }
 serde = { version = "1.0", features = [
     "serde_derive",
@@ -89,7 +89,7 @@ video-download = ["m3u8-rs", "aes", "cbc"]
 
 # support for auto elective
 autoelect = ["ttshitu"]
-ttshitu = ["dep:image", "dep:base64"]
+ttshitu = ["dep:image"]
 bark = ["dep:urlencoding"]
 
 # store secrets in the OS keyring instead of cfg.toml
@@ -104,7 +104,7 @@ keyring = [
 pdf = ["dep:lopdf", "dep:image"]
 
 # support for thesis.lib.pku.edu.cn login (JSEncrypt-compatible RSA)
-thesislib = ["dep:rsa", "dep:pkcs8", "dep:base64"]
+thesislib = []
 thesislib-pdf = ["thesislib", "pdf"]
 
 [profile.release]
