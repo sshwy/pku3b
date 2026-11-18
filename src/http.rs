@@ -9,6 +9,18 @@ use cyper::{Body, IntoUrl, Response};
 use http::{HeaderName, HeaderValue};
 use serde::Serialize;
 
+/// Format a URL for logs without user credentials, query parameters or fragments.
+pub(crate) fn log_url(url: &str) -> String {
+    let Ok(mut url) = url.into_url() else {
+        return "[invalid URL]".to_owned();
+    };
+    let _ = url.set_username("");
+    let _ = url.set_password(None);
+    url.set_query(None);
+    url.set_fragment(None);
+    url.to_string()
+}
+
 #[derive(Debug, Clone)]
 /// A `cyper` client with a shared, persistable cookie store.
 ///
@@ -150,7 +162,7 @@ impl RequestBuilder {
             if !cookie_value.is_empty()
                 && let Ok(v) = HeaderValue::from_str(&cookie_value)
             {
-                log::trace!("override cookie for {url}: {cookie_value}");
+                log::trace!("override cookies for {}", log_url(url.as_str()));
                 req.headers_mut().insert(http::header::COOKIE, v);
             }
         }
@@ -162,7 +174,7 @@ impl RequestBuilder {
             {
                 let v = v.to_owned();
                 if let Ok(c) = cookie_store::Cookie::parse(v, &url) {
-                    log::trace!("set cookie for {url}: {:?}", c);
+                    log::trace!("record response cookie for {}", log_url(url.as_str()));
                     let _ = self.cookie_store.write().unwrap().insert(c, &url);
                 }
             }
@@ -174,6 +186,101 @@ impl RequestBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn log_url_omits_credentials_query_and_fragment() {
+        assert_eq!(
+            log_url("https://user:password@example.com/sso?token=secret#secret"),
+            "https://example.com/sso"
+        );
+        assert_eq!(log_url("not a URL?token=secret"), "[invalid URL]");
+    }
+
+    struct TestLogger;
+
+    thread_local! {
+        static MESSAGES: std::cell::RefCell<Vec<String>> = const {
+            std::cell::RefCell::new(Vec::new())
+        };
+    }
+
+    impl log::Log for TestLogger {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.target().starts_with("pku3b::")
+        }
+
+        fn log(&self, record: &log::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                MESSAGES.with(|messages| messages.borrow_mut().push(record.args().to_string()));
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    #[compio::test]
+    async fn cookie_round_trip_does_not_log_secrets() {
+        use std::io::{Read, Write};
+        static LOGGER: TestLogger = TestLogger;
+        static INIT: std::sync::Once = std::sync::Once::new();
+        INIT.call_once(|| {
+            log::set_logger(&LOGGER).unwrap();
+            log::set_max_level(log::LevelFilter::Trace);
+        });
+        MESSAGES.with(|messages| messages.borrow_mut().clear());
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for i in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let mut buf = [0; 1024];
+                while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    request.extend_from_slice(&buf[..n]);
+                }
+                requests.push(String::from_utf8(request).unwrap());
+                let cookie = if i == 0 {
+                    "Set-Cookie: session=synthetic-cookie-secret; Path=/; HttpOnly\r\n"
+                } else {
+                    ""
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n{cookie}\r\n"
+                )
+                .unwrap();
+            }
+            requests
+        });
+
+        let client = Client::from_cyper(cyper::Client::builder().no_proxy().build().unwrap());
+        for _ in 0..2 {
+            client
+                .get(format!("http://{addr}/sso?token=synthetic-token-secret"))
+                .unwrap()
+                .send()
+                .await
+                .unwrap();
+        }
+        let requests = server.join().unwrap();
+        assert!(requests[1].contains("session=synthetic-cookie-secret"));
+        assert!(requests[1].contains("token=synthetic-token-secret"));
+        MESSAGES.with(|messages| {
+            let logs = messages.borrow().join("\n");
+            assert!(logs.contains("record response cookie"));
+            assert!(logs.contains("override cookies"));
+            assert!(logs.contains("/sso"));
+            assert!(!logs.contains("synthetic-cookie-secret"));
+            assert!(!logs.contains("synthetic-token-secret"));
+        });
+    }
 
     fn test_cookie_path() -> (std::path::PathBuf, std::path::PathBuf) {
         let base = std::env::temp_dir().join(format!(
