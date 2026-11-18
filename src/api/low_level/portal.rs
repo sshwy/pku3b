@@ -35,7 +35,7 @@ impl LowLevelClient {
             .iaaa_oauth_login(PORTAL_APP_ID, username, password, otp_code, PORTAL_REDIR)
             .await?;
 
-        log::debug!("iaaa oauth token for portal {username}: {token}");
+        log::debug!("IAAA OAuth login for portal succeeded");
 
         // 门户的 SSO 登录 - 跟随重定向
         let _res = self

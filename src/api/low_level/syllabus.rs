@@ -17,7 +17,7 @@ impl LowLevelClient {
             .iaaa_oauth_login("syllabus", username, password, "", OAUTH_REDIR)
             .await?;
 
-        log::debug!("iaaa oauth token for {username}: {token}");
+        log::debug!("IAAA OAuth login succeeded");
 
         let mut rng = rand::rng();
         let _rand: f64 = rng.sample(rand::distr::Open01);
@@ -91,7 +91,7 @@ impl LowLevelClient {
             .iaaa_oauth_login("syllabus", username, password, "", OAUTH_REDIR)
             .await?;
 
-        log::debug!("iaaa oauth token for {username}: {token}");
+        log::debug!("IAAA OAuth login succeeded");
 
         let mut rng = rand::rng();
         let _rand: f64 = rng.sample(rand::distr::Open01);
@@ -124,7 +124,10 @@ impl LowLevelClient {
 
         // Server may return either a redirect chain or a direct 200 after dual-degree selection.
         while let Ok(url) = extract_redirect_url(&res) {
-            log::debug!("dual degree sso redirected to {url}");
+            log::debug!(
+                "dual degree sso redirected to {}",
+                crate::http::log_url(url)
+            );
             res = self.get_by_uri(url).await?;
         }
 
