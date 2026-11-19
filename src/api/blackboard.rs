@@ -1431,6 +1431,10 @@ impl CourseAssignment {
 
         let map = self.get_submit_formfields().await?;
         log::trace!("map: {map:#?}");
+        anyhow::ensure!(
+            map.contains_key("attempt_id"),
+            "教学网未提供新的提交入口，该作业可能不允许再次提交或已关闭提交"
+        );
 
         macro_rules! add_field_from_map {
             ($body:ident, $name:expr) => {
