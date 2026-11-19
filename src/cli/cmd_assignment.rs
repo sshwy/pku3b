@@ -85,7 +85,16 @@ pub async fn run(cmd: CommandAssignment, ctx: &CommandCtx<'_>) -> anyhow::Result
             .await?
         }
         AssignmentCommands::Submit { id, path, all, yes } => {
-            submit(ctx, id.as_deref(), path.as_deref(), all, yes, cmd.otp_code).await?
+            submit(
+                ctx,
+                id.as_deref(),
+                path.as_deref(),
+                cmd.force,
+                all,
+                yes,
+                cmd.otp_code,
+            )
+            .await?
         }
     }
     Ok(())
@@ -330,12 +339,13 @@ pub async fn submit(
     ctx: &CommandCtx<'_>,
     id: Option<&str>,
     path: Option<&std::path::Path>,
+    force: bool,
     all: bool,
     yes: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
     // 按 ID 查找时包含已完成的作业，以便在截止前重新提交
-    let items = fetch_assignments(ctx, false, true, true, otp_code).await?;
+    let items = fetch_assignments(ctx, force, all || id.is_some(), true, otp_code).await?;
 
     let (c, _, a) = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {
@@ -343,10 +353,6 @@ pub async fn submit(
             None => anyhow::bail!("assignment with id {} not found", id),
         },
         None => {
-            let items: Vec<_> = items
-                .into_iter()
-                .filter(|(_, _, a)| all || a.last_attempt().is_none())
-                .collect();
             if items.is_empty() && !all {
                 anyhow::bail!("没有未完成的作业；如需重新提交已完成的作业，请加上 -a/--all");
             }
@@ -385,9 +391,8 @@ pub async fn submit(
         anyhow::bail!("file not found: {:?}", path);
     }
 
-    if let Some(att) = a.last_attempt()
-        && !yes
-    {
+    // 作业列表有缓存，刚提交过的作业在缓存里可能仍显示未提交，这里重新获取
+    if !yes && let Some(att) = a.fetch_current_attempt().await? {
         use std::io::IsTerminal as _;
         anyhow::ensure!(
             std::io::stdin().is_terminal(),
