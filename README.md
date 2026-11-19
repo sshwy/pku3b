@@ -327,6 +327,7 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - 📂 交互式下载作业附件: `pku3b a down`: ID 请在作业列表中查看
 - 📤 提交作业: `pku3b a sb <ID> <PATH>`: PATH 为文件路径，可以是各种文件，例如 pdf、zip、txt 等等
 - 📤 交互式提交作业: `pku3b a sb`: 会在当前工作目录中寻找要提交的作业
+- 📤 重新提交已完成的作业: `pku3b a sb <ID> <PATH>` 或交互式 `pku3b a sb -a`: 需要教学网允许多次尝试，提交前会要求确认（加 `-y` 跳过确认）
 - 📅 查看个人课表: `pku3b coursetable` 或 `pku3b ct`
 - 📅 查看个人课表（原始JSON）: `pku3b coursetable --raw`
 - 📊 查看当前学期成绩: `pku3b grades` 或 `pku3b g`
