@@ -8,34 +8,30 @@ pub use video::{CourseVideo, CourseVideoSource};
 impl Client {
     /// 已保存的教学网会话是否仍然有效。只访问教学网，不访问 IAAA。
     pub async fn blackboard_session_valid(&self) -> bool {
-        self.0.http_client.bb_homepage().await.is_ok()
+        match self.0.http_client.bb_homepage().await {
+            Ok(_) => {
+                log::info!("reuse saved login session");
+                true
+            }
+            Err(e) => {
+                if let Err(e) = e.downcast::<BlackboardUnautherizedError>() {
+                    log::error!("error during preflight: {e}");
+                }
+                false
+            }
+        }
     }
 
+    /// `need_login` 为 false 时直接复用已保存的会话（调用方应已用
+    /// [`Self::blackboard_session_valid`] 确认有效），否则重新登录。
     pub async fn blackboard(
         &self,
         username: &str,
         password: &str,
         otp_code: &str,
-        force: bool,
+        need_login: bool,
     ) -> anyhow::Result<Blackboard> {
         let c = &self.0.http_client;
-        let need_login = if force {
-            true
-        } else {
-            match c.bb_homepage().await {
-                Ok(_) => {
-                    log::info!("reuse saved login session");
-                    false
-                }
-                Err(e) => {
-                    if let Err(e) = e.downcast::<BlackboardUnautherizedError>() {
-                        log::error!("error during preflight: {e}");
-                    }
-                    true
-                }
-            }
-        };
-
         if need_login {
             c.bb_login(username, password, otp_code).await?;
 

@@ -39,6 +39,7 @@ impl std::fmt::Display for BlackboardUnautherizedError {
 impl LowLevelClient {
     pub async fn bb_login_require_otp(&self, username: &str) -> anyhow::Result<bool> {
         let data = self.iaaa_is_mobile_authen("blackboard", username).await?;
+        log::debug!("blackboard login context: {data:?}");
         Ok(data.authen_mode == "OTP")
     }
 
@@ -49,14 +50,8 @@ impl LowLevelClient {
         password: &str,
         otp_code: &str,
     ) -> anyhow::Result<()> {
-        let data = self.iaaa_is_mobile_authen("blackboard", username).await?;
-
-        if data.is_no() {
-            log::info!("unprotected login is allowed");
-        } else {
-            log::warn!("unsupported login context: {data:?}")
-        }
-
+        // 是否需要 OTP 已由调用方经 [`Self::bb_login_require_otp`] 查询过，
+        // 这里不再重复请求 isMobileAuthen（IAAA 按 IP 限频）
         let token = self
             .iaaa_oauth_login("blackboard", username, password, otp_code, OAUTH_REDIR)
             .await?;

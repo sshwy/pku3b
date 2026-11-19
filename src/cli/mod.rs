@@ -195,8 +195,8 @@ async fn load_blackboard(
 
     // 会话有效时不会登录，也就不必向 IAAA 查询是否需要 OTP：
     // IAAA 按 IP 限频（E21），每条命令多一次查询都会累积
-    let session_ok = !force && client.blackboard_session_valid().await;
-    let otp_code = if !session_ok
+    let need_login = force || !client.blackboard_session_valid().await;
+    let otp_code = if need_login
         && client
             .bb_login_require_otp(&cfg.username)
             .await
@@ -210,7 +210,7 @@ async fn load_blackboard(
 
     sp.set_message("logging in to blackboard...");
     let blackboard = client
-        .blackboard(&cfg.username, &cfg.password, &otp_code, force)
+        .blackboard(&cfg.username, &cfg.password, &otp_code, need_login)
         .await
         .context("login to blackboard")?;
 
