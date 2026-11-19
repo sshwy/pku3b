@@ -36,6 +36,19 @@ pub struct AuthenData {
     pub success: bool,
 }
 
+/// 解析 [`IAAA_IS_MOBILE_AUTHEN`] 的响应。IAAA 出错时（如 E21 限频）响应中只有
+/// `errors`，此时返回 [`OAuthLoginError`]，而不是报缺少字段。
+fn parse_authen_data(rbody: &str) -> anyhow::Result<AuthenData> {
+    #[derive(serde::Deserialize)]
+    struct ErrorResponse {
+        errors: OAuthLoginError,
+    }
+    if let Ok(res) = serde_json::from_str::<ErrorResponse>(rbody) {
+        return Err(res.errors.into());
+    }
+    serde_json::from_str(rbody).context("fail to parse response")
+}
+
 impl LowLevelClient {
     /// 向 [`IAAA_OAUTH_LOGIN`] 发送登录请求，并返回 token
     ///
@@ -118,8 +131,7 @@ impl LowLevelClient {
             .await?;
 
         let rbody = res.text().await?;
-        let data: AuthenData = serde_json::from_str(&rbody).context("fail to parse response")?;
-        Ok(data)
+        parse_authen_data(&rbody)
     }
 
     pub async fn iaaa_public_key(&self) -> anyhow::Result<String> {
@@ -136,5 +148,27 @@ impl LowLevelClient {
         anyhow::ensure!(data.success, "get pubkey failed");
 
         Ok(data.key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_authen_data_reports_iaaa_error() {
+        // isMobileAuthen.do 在 IP 被限频时的响应 (#87)
+        let body = r#"{"success":false,"errors":{"code":"E21","msg":"Too many attempts. Please sign in after a half hour."}}"#;
+        let err = parse_authen_data(body).unwrap_err();
+        let err = err.downcast::<OAuthLoginError>().unwrap();
+        assert_eq!(err.code, "E21");
+        assert!(err.msg.contains("Too many attempts"));
+    }
+
+    #[test]
+    fn parse_authen_data_accepts_normal_response() {
+        let body = r#"{"authenMode":"否","bzAuthMode":"","isBind":true,"isMobileAuthen":false,"isUnuAuth":true,"mobileMask":"","success":true}"#;
+        let data = parse_authen_data(body).unwrap();
+        assert_eq!(data.authen_mode, "否");
     }
 }
