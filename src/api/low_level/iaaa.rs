@@ -36,12 +36,6 @@ pub struct AuthenData {
     pub success: bool,
 }
 
-impl AuthenData {
-    pub fn is_no(&self) -> bool {
-        self.authen_mode == "否"
-    }
-}
-
 impl LowLevelClient {
     /// 向 [`IAAA_OAUTH_LOGIN`] 发送登录请求，并返回 token
     ///

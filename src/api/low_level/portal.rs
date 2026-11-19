@@ -13,6 +13,7 @@ pub const PORTAL_MY_COURSE_TABLE_INFO: &str =
 impl LowLevelClient {
     pub async fn portal_login_require_otp(&self, username: &str) -> anyhow::Result<bool> {
         let data = self.iaaa_is_mobile_authen(PORTAL_APP_ID, username).await?;
+        log::debug!("portal login context: {data:?}");
         Ok(data.authen_mode == "OTP")
     }
 
@@ -23,14 +24,8 @@ impl LowLevelClient {
         password: &str,
         otp_code: &str,
     ) -> anyhow::Result<()> {
-        let data = self.iaaa_is_mobile_authen(PORTAL_APP_ID, username).await?;
-
-        if data.is_no() {
-            log::info!("unprotected login is allowed");
-        } else {
-            log::warn!("unsupported login context: {data:?}")
-        }
-
+        // 是否需要 OTP 已由调用方经 [`Self::portal_login_require_otp`] 查询过，
+        // 这里不再重复请求 isMobileAuthen（IAAA 按 IP 限频）
         let token = self
             .iaaa_oauth_login(PORTAL_APP_ID, username, password, otp_code, PORTAL_REDIR)
             .await?;
