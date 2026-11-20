@@ -265,7 +265,10 @@ impl LowLevelClient {
 mod tests {
     use super::*;
 
+    /// 需要设置 `PKU3B_TEST_USERNAME` / `PKU3B_TEST_PASSWORD` 并连接真实选课网，
+    /// 用 `cargo test -- --ignored` 手动运行
     #[compio::test]
+    #[ignore = "requires a real PKU account (PKU3B_TEST_USERNAME / PKU3B_TEST_PASSWORD)"]
     async fn test_sb_login() {
         env_logger::builder()
             .filter_module("selectors::matching", log::LevelFilter::Info)

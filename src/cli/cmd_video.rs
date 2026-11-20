@@ -98,8 +98,13 @@ mod tests {
         let body = body.to_vec();
         let server = std::thread::spawn(move || {
             let (mut socket, _) = listener.accept().unwrap();
-            let mut request = [0; 1024];
-            socket.read(&mut request).unwrap();
+            let mut request = Vec::new();
+            let mut buf = [0; 1024];
+            while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = socket.read(&mut buf).unwrap();
+                assert!(n > 0, "client closed before sending complete headers");
+                request.extend_from_slice(&buf[..n]);
+            }
             write!(
                 socket,
                 "HTTP/1.1 {status}\r\nContent-Length: {advertised}\r\nConnection: close\r\n\r\n"
