@@ -98,7 +98,7 @@ impl LowLevelClient {
             .context("fail to parse response")
             .inspect_err(|e| {
                 log::debug!("{e}");
-                log::debug!("response body: {rbody}")
+                log::debug!("IAAA OAuth response could not be decoded")
             })?;
         anyhow::ensure!(data.success, "oauth login not success: {:?}", data);
 

@@ -56,7 +56,7 @@ impl LowLevelClient {
             .iaaa_oauth_login("blackboard", username, password, otp_code, OAUTH_REDIR)
             .await?;
 
-        log::debug!("iaaa oauth token for {username}: {token}");
+        log::debug!("IAAA OAuth login succeeded");
 
         let mut rng = rand::rng();
 
@@ -72,7 +72,7 @@ impl LowLevelClient {
 
         // It seems that multiple redirections are possible during sso login.
         while let Ok(url) = extract_redirect_url(&res) {
-            log::debug!("sso login redirected to {url}");
+            log::debug!("sso login redirected to {}", crate::http::log_url(url));
             res = self.get_by_uri(url).await?;
         }
 
@@ -293,7 +293,7 @@ impl LowLevelClient {
         let re = regex::Regex::new(r#"document.location = '(.*?)';"#).unwrap();
         let caps = re.captures(&body).unwrap();
         let loc = caps.get(1).unwrap().as_str();
-        log::debug!("redirected to {loc}");
+        log::debug!("redirected to {}", crate::http::log_url(loc));
 
         let res = self.get_by_uri(loc).await?;
         let loc = extract_redirect_url(&res)?;
