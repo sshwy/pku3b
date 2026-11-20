@@ -1387,6 +1387,17 @@ impl CourseAssignment {
         self.data.attempt.as_deref()
     }
 
+    /// 不经缓存，重新获取当前尝试（[`Self::last_attempt`] 可能来自过期的缓存）
+    pub async fn fetch_current_attempt(&self) -> anyhow::Result<Option<String>> {
+        CourseAssignmentHandle {
+            client: self.client.clone(),
+            course: self.course.clone(),
+            content: self.content.clone(),
+        }
+        ._get_current_attempt()
+        .await
+    }
+
     pub async fn get_submit_formfields(&self) -> anyhow::Result<HashMap<String, String>> {
         let dom = self
             .client
@@ -1431,6 +1442,10 @@ impl CourseAssignment {
 
         let map = self.get_submit_formfields().await?;
         log::trace!("map: {map:#?}");
+        anyhow::ensure!(
+            map.contains_key("attempt_id"),
+            "教学网未提供新的提交入口，该作业可能不允许再次提交或已关闭提交"
+        );
 
         macro_rules! add_field_from_map {
             ($body:ident, $name:expr) => {

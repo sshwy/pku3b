@@ -50,12 +50,20 @@ enum AssignmentCommands {
     /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
     ///
     /// 如果没有指定文件路径，则会启用交互式模式，列出当前工作目录下所有文件供用户选择
+    ///
+    /// 已提交过的作业可以再次提交（需教学网允许多次尝试），提交前会要求确认
     #[command(visible_alias("sb"))]
     Submit {
-        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list` 查看)
+        /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list -a` 查看)
         id: Option<String>,
         /// 提交文件路径
         path: Option<std::path::PathBuf>,
+        /// 交互式选择时也列出已完成的作业
+        #[arg(short, long, default_value = "false")]
+        all: bool,
+        /// 再次提交已提交过的作业时不再确认
+        #[arg(short, long, default_value = "false")]
+        yes: bool,
     },
 }
 
@@ -76,8 +84,17 @@ pub async fn run(cmd: CommandAssignment, ctx: &CommandCtx<'_>) -> anyhow::Result
             )
             .await?
         }
-        AssignmentCommands::Submit { id, path } => {
-            submit(ctx, id.as_deref(), path.as_deref(), cmd.otp_code).await?
+        AssignmentCommands::Submit { id, path, all, yes } => {
+            submit(
+                ctx,
+                id.as_deref(),
+                path.as_deref(),
+                cmd.force,
+                all,
+                yes,
+                cmd.otp_code,
+            )
+            .await?
         }
     }
     Ok(())
@@ -322,16 +339,25 @@ pub async fn submit(
     ctx: &CommandCtx<'_>,
     id: Option<&str>,
     path: Option<&std::path::Path>,
+    force: bool,
+    all: bool,
+    yes: bool,
     otp_code: String,
 ) -> anyhow::Result<()> {
-    let items = fetch_assignments(ctx, false, false, true, otp_code).await?;
+    // 按 ID 查找时包含已完成的作业，以便在截止前重新提交
+    let items = fetch_assignments(ctx, force, all || id.is_some(), true, otp_code).await?;
 
     let (c, _, a) = match id {
         Some(id) => match items.into_iter().find(|x| x.1 == id) {
             Some(r) => r,
             None => anyhow::bail!("assignment with id {} not found", id),
         },
-        None => select_assignment(items).await?,
+        None => {
+            if items.is_empty() && !all {
+                anyhow::bail!("没有未完成的作业；如需重新提交已完成的作业，请加上 -a/--all");
+            }
+            select_assignment(items).await?
+        }
     };
 
     let path = match path {
@@ -363,6 +389,24 @@ pub async fn submit(
 
     if !path.exists() {
         anyhow::bail!("file not found: {:?}", path);
+    }
+
+    // 作业列表有缓存，刚提交过的作业在缓存里可能仍显示未提交，这里重新获取
+    if !yes && let Some(att) = a.fetch_current_attempt().await? {
+        use std::io::IsTerminal as _;
+        anyhow::ensure!(
+            std::io::stdin().is_terminal(),
+            "该作业已提交过（{att}），再次提交会新增一次尝试；如确认提交，请加上 -y/--yes"
+        );
+        let confirmed = inquire::Confirm::new(&format!(
+            "该作业已提交过（{att}），再次提交会新增一次尝试，确认提交吗？"
+        ))
+        .with_default(false)
+        .prompt()?;
+        if !confirmed {
+            println!("已取消提交");
+            return Ok(());
+        }
     }
 
     let sp = ctx.spinner();
