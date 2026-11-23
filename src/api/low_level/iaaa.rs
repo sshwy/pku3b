@@ -49,6 +49,24 @@ fn parse_authen_data(rbody: &str) -> anyhow::Result<AuthenData> {
     serde_json::from_str(rbody).context("fail to parse response")
 }
 
+/// 解析 [`IAAA_OAUTH_LOGIN`] 的响应并返回 token。登录失败（密码错误、令牌错误、
+/// E21 限频等）时响应带 `errors`，此时返回 [`OAuthLoginError`]。
+fn parse_oauth_login(rbody: &str) -> anyhow::Result<String> {
+    #[derive(serde::Deserialize, Debug)]
+    struct OAuthLoginData {
+        success: bool,
+        token: Option<String>,
+        errors: Option<OAuthLoginError>,
+    }
+    let data: OAuthLoginData = serde_json::from_str(rbody).context("fail to parse response")?;
+    if let Some(err) = data.errors {
+        return Err(err.into());
+    }
+    anyhow::ensure!(data.success, "oauth login not success");
+
+    data.token.context("token not found")
+}
+
 impl LowLevelClient {
     /// 向 [`IAAA_OAUTH_LOGIN`] 发送登录请求，并返回 token
     ///
@@ -87,26 +105,10 @@ impl LowLevelClient {
         );
 
         let rbody = res.text().await?;
-
-        #[derive(serde::Deserialize, Debug)]
-        struct OAuthLoginData {
-            success: bool,
-            token: Option<String>,
-            errors: Option<OAuthLoginError>,
-        }
-        let data: OAuthLoginData = serde_json::from_str(&rbody)
-            .context("fail to parse response")
-            .inspect_err(|e| {
-                log::debug!("{e}");
-                log::debug!("response body: {rbody}")
-            })?;
-        anyhow::ensure!(data.success, "oauth login not success: {:?}", data);
-
-        if let Some(err) = data.errors {
-            return Err(err.into());
-        }
-
-        data.token.context("token not found")
+        parse_oauth_login(&rbody).inspect_err(|e| {
+            log::debug!("{e}");
+            log::debug!("response body: {rbody}")
+        })
     }
 
     pub async fn iaaa_is_mobile_authen(
@@ -163,6 +165,27 @@ mod tests {
         let err = err.downcast::<OAuthLoginError>().unwrap();
         assert_eq!(err.code, "E21");
         assert!(err.msg.contains("Too many attempts"));
+    }
+
+    #[test]
+    fn parse_oauth_login_reports_iaaa_error() {
+        // 密码错误、令牌错误、限频时 success=false 且带 errors
+        let body = r#"{"success":false,"errors":{"code":"E05","msg":"OTP code incorrect"}}"#;
+        let err = parse_oauth_login(body).unwrap_err();
+        let err = err.downcast::<OAuthLoginError>().unwrap();
+        assert_eq!(err.code, "E05");
+    }
+
+    #[test]
+    fn parse_oauth_login_returns_token() {
+        let body = r#"{"success":true,"token":"abc"}"#;
+        assert_eq!(parse_oauth_login(body).unwrap(), "abc");
+    }
+
+    #[test]
+    fn parse_oauth_login_rejects_failure_without_errors() {
+        let body = r#"{"success":false}"#;
+        assert!(parse_oauth_login(body).is_err());
     }
 
     #[test]
