@@ -394,7 +394,8 @@ impl SyllabusBaseCourseData {
 fn status_is_full(status: &str) -> anyhow::Result<bool> {
     let tokens = status.split('/').collect::<Vec<_>>();
     match tokens.as_slice() {
-        [limit, selected] => {
+        // 「限数/已选」或「限数/已选/候补」
+        [limit, selected] | [limit, selected, _] => {
             let limit: usize = limit.trim().parse()?;
             let selected: usize = selected.trim().parse()?;
             Ok(selected >= limit)
@@ -439,5 +440,13 @@ mod tests {
         assert!(status_is_full(" 30/ 30").unwrap());
         assert!(status_is_full("30 / 35 ").unwrap());
         assert!(status_is_full("invalid").is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "autoelect")]
+    fn test_status_is_full_with_waitlist() {
+        // 表头为「限数/已选/候补」时
+        assert!(!status_is_full("30 / 25 / 0").unwrap());
+        assert!(status_is_full("30 / 30 / 5").unwrap());
     }
 }
