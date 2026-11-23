@@ -49,6 +49,8 @@ enum AssignmentCommands {
     ///
     /// 如果没有指定作业 ID，则会启用交互式模式，列出所有作业供用户选择
     ///
+    /// 可以指定多个文件，它们会在同一次尝试中一起提交
+    ///
     /// 如果没有指定文件路径，则会启用交互式模式，列出当前工作目录下所有文件供用户选择
     ///
     /// 已提交过的作业可以再次提交（需教学网允许多次尝试），提交前会要求确认
@@ -56,8 +58,8 @@ enum AssignmentCommands {
     Submit {
         /// 作业 ID (形如 `f4f30444c7485d49`, 可通过 `pku3b assignment list -a` 查看)
         id: Option<String>,
-        /// 提交文件路径
-        path: Option<std::path::PathBuf>,
+        /// 提交文件路径（可指定多个）
+        paths: Vec<std::path::PathBuf>,
         /// 交互式选择时也列出已完成的作业
         #[arg(short, long, default_value = "false")]
         all: bool,
@@ -84,18 +86,12 @@ pub async fn run(cmd: CommandAssignment, ctx: &CommandCtx<'_>) -> anyhow::Result
             )
             .await?
         }
-        AssignmentCommands::Submit { id, path, all, yes } => {
-            submit(
-                ctx,
-                id.as_deref(),
-                path.as_deref(),
-                cmd.force,
-                all,
-                yes,
-                cmd.otp_code,
-            )
-            .await?
-        }
+        AssignmentCommands::Submit {
+            id,
+            paths,
+            all,
+            yes,
+        } => submit(ctx, id.as_deref(), paths, cmd.force, all, yes, cmd.otp_code).await?,
     }
     Ok(())
 }
@@ -338,7 +334,7 @@ async fn download_data(
 pub async fn submit(
     ctx: &CommandCtx<'_>,
     id: Option<&str>,
-    path: Option<&std::path::Path>,
+    mut paths: Vec<std::path::PathBuf>,
     force: bool,
     all: bool,
     yes: bool,
@@ -360,35 +356,43 @@ pub async fn submit(
         }
     };
 
-    let path = match path {
-        Some(path) => path.to_owned(),
-        None => {
-            // list the current dir and use inquire::Select to choose a file
+    if paths.is_empty() {
+        // list the current dir and use inquire::MultiSelect to choose files
 
-            let mut options = Vec::new();
-            // fill options with files in the current dir
-            let entries = std::fs::read_dir(".")?;
-            for entry in entries {
-                let Ok(entry) = entry else {
-                    continue;
-                };
-                let path = entry.path();
-                if path.is_file() {
-                    options.push(path.to_str().unwrap().to_owned());
-                }
+        let mut options = Vec::new();
+        // fill options with files in the current dir
+        let entries = std::fs::read_dir(".")?;
+        for entry in entries {
+            let Ok(entry) = entry else {
+                continue;
+            };
+            let path = entry.path();
+            if path.is_file() {
+                options.push(path.to_str().unwrap().to_owned());
             }
-
-            if options.is_empty() {
-                anyhow::bail!("no files found in current directory");
-            }
-            let s = inquire::Select::new("请选择要提交的文件", options).prompt()?;
-
-            s.into()
         }
-    };
 
-    if !path.exists() {
-        anyhow::bail!("file not found: {:?}", path);
+        if options.is_empty() {
+            anyhow::bail!("no files found in current directory");
+        }
+        let selected = inquire::MultiSelect::new("请选择要提交的文件", options)
+            .with_help_message("空格勾选（可多选），回车确认")
+            .with_validator(|a: &[inquire::list_option::ListOption<&String>]| {
+                Ok(if a.is_empty() {
+                    inquire::validator::Validation::Invalid("请至少用空格勾选一个文件".into())
+                } else {
+                    inquire::validator::Validation::Valid
+                })
+            })
+            .prompt()?;
+
+        paths = selected.into_iter().map(Into::into).collect();
+    }
+
+    for path in &paths {
+        if !path.exists() {
+            anyhow::bail!("file not found: {:?}", path);
+        }
     }
 
     // 作业列表有缓存，刚提交过的作业在缓存里可能仍显示未提交，这里重新获取
@@ -410,16 +414,20 @@ pub async fn submit(
     }
 
     let sp = ctx.spinner();
+    let display = paths
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join("、");
     sp.set_message("submit file...");
-    a.submit_file(path.as_path())
+    a.submit_files(&paths.iter().map(|p| p.as_path()).collect::<Vec<_>>())
         .await
-        .with_context(|| format!("submit {:?} to {:?}", path.display(), a.title()))?;
+        .with_context(|| format!("submit {display:?} to {:?}", a.title()))?;
 
     ctx.remove_spinner(sp);
 
     println!(
-        "成功将 {GR}{H2}{}{H2:#}{GR:#} 提交至 {MG}{H1}{} {}{H1:#}{MG:#} 课程作业",
-        path.display(),
+        "成功将 {GR}{H2}{display}{H2:#}{GR:#} 提交至 {MG}{H1}{} {}{H1:#}{MG:#} 课程作业",
         c.meta().name(),
         a.title()
     );

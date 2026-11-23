@@ -1423,22 +1423,32 @@ impl CourseAssignment {
         Ok(submitformfields)
     }
 
-    pub async fn submit_file(&self, path: &std::path::Path) -> anyhow::Result<()> {
-        log::info!("submitting file: {}", path.display());
+    /// 在同一次尝试中提交一个或多个文件
+    pub async fn submit_files(&self, paths: &[&std::path::Path]) -> anyhow::Result<()> {
+        anyhow::ensure!(!paths.is_empty(), "no file to submit");
 
-        let ext = path
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-        let content_type = get_mime_type(&ext);
-        log::info!("content type: {content_type}");
+        // (文件名, Content-Type)，与 readers 一一对应
+        let mut files = Vec::with_capacity(paths.len());
+        let mut readers = Vec::with_capacity(paths.len());
+        for path in paths {
+            log::info!("submitting file: {}", path.display());
 
-        let filename = path
-            .file_name()
-            .context("file name not found")?
-            .to_string_lossy()
-            .to_string();
+            let ext = path
+                .extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let content_type = get_mime_type(&ext).to_owned();
+            log::info!("content type: {content_type}");
+
+            let filename = path
+                .file_name()
+                .context("file name not found")?
+                .to_string_lossy()
+                .to_string();
+            readers.push(std::fs::File::open(path)?);
+            files.push((filename, content_type));
+        }
 
         let map = self.get_submit_formfields().await?;
         log::trace!("map: {map:#?}");
@@ -1476,24 +1486,32 @@ impl CourseAssignment {
         add_field_from_map!(body, "student_commentstext_w");
         add_field_from_map!(body, "student_commentstype");
         add_field_from_map!(body, "textbox_prefix");
-        let body = body
+        let mut body = body
             .add_field("studentSubmission.text", b"")
             .add_field("student_commentstext", b"")
-            .add_field("dispatch", b"submit")
-            .add_field("newFile_artifactFileId", b"undefined")
-            .add_field("newFile_artifactType", b"undefined")
-            .add_field("newFile_artifactTypeResourceKey", b"undefined")
-            .add_field("newFile_attachmentType", b"L") // not sure
-            .add_field("newFile_fileId", b"new")
-            .add_field("newFile_linkTitle", filename.as_bytes())
-            .add_field("newFilefilePickerLastInput", b"dummyValue")
-            .add_file(
-                "newFile_LocalFile0",
-                &filename,
-                content_type,
-                std::fs::File::open(path)?,
-            )
-            .add_field("useless", b"");
+            .add_field("dispatch", b"submit");
+
+        // 与网页的文件选择器一致：每个文件在已附加文件表中占一行，各行的字段同名重复；
+        // 文件本体按行的顺序命名为 newFile_LocalFile0、newFile_LocalFile1……
+        for (filename, _) in &files {
+            body = body
+                .add_field("newFile_artifactFileId", b"undefined")
+                .add_field("newFile_artifactType", b"undefined")
+                .add_field("newFile_artifactTypeResourceKey", b"undefined")
+                .add_field("newFile_attachmentType", b"L") // local file
+                .add_field("newFile_fileId", b"new")
+                .add_field("newFile_linkTitle", filename.as_bytes());
+        }
+        body = body.add_field("newFilefilePickerLastInput", b"dummyValue");
+        let file_field_names = (0..files.len())
+            .map(|i| format!("newFile_LocalFile{i}"))
+            .collect::<Vec<_>>();
+        for (((filename, content_type), reader), name) in
+            files.iter().zip(readers).zip(&file_field_names)
+        {
+            body = body.add_file(name, filename, content_type, reader);
+        }
+        let body = body.add_field("useless", b"");
 
         let res = self.client.bb_course_assignment_uploaddata(body).await?;
 
