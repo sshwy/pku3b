@@ -3,7 +3,7 @@ use image::DynamicImage;
 use image::codecs::jpeg::JpegEncoder;
 use std::io::Cursor;
 
-const URL: &str = "http://api.ttshitu.com/base64";
+const URL: &str = "https://api.ttshitu.com/base64";
 
 #[derive(serde::Serialize, Debug)]
 struct RecognizeData {
