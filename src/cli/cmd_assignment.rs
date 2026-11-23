@@ -326,7 +326,7 @@ async fn download_data(
             "[{}/{tot}] downloading attachment '{name}'...",
             id + 1
         ));
-        a.download_attachment(uri, &dir.join(name))
+        a.download_attachment(uri, &dir.join(crate::filename::sanitize(name)))
             .await
             .with_context(|| format!("download attachment '{name}'"))?;
     }

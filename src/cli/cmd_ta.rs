@@ -576,6 +576,8 @@ async fn ta_hw_down(
             } else {
                 original_name
             };
+            // 文件名来自学生上传与作业标题
+            let dest_name = crate::filename::sanitize(&dest_name);
             let dest_path = dir.join(&dest_name);
 
             mp.set_message(format!(

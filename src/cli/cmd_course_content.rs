@@ -226,18 +226,18 @@ pub async fn download(
     }
 
     if matches!(ct.kind(), CourseContentKind::File) {
-        let dest = outdir.join(ct.title());
         let uri = c
             .client()
             .bb_course_content_file_uri(ct.ccid().course_id(), ct.ccid().content_id())
             .await?;
         log::info!("File: {uri}");
-        let filename = uri.rsplit_once('/').unwrap().1;
-        let filename = percent_encoding::percent_decode(filename.as_bytes())
-            .decode_utf8_lossy()
-            .to_string();
-        println!("Downloading file {filename} to {}", dest.display());
+        let filename = uri.rsplit_once('/').map_or(uri.as_str(), |(_, name)| name);
+        // 解码后可能含有 `/`（来自 `%2F`），需要清洗
+        let filename = crate::filename::sanitize(
+            &percent_encoding::percent_decode(filename.as_bytes()).decode_utf8_lossy(),
+        );
         let dest = outdir.join(&filename);
+        println!("Downloading file {filename} to {}", dest.display());
         c.client()
             .course_attachment_download(&uri, &dest, false)
             .await
@@ -257,7 +257,7 @@ pub async fn download(
         pb.tick();
 
         for (i, (name, uri)) in atts.iter().enumerate() {
-            let dest = outdir.join(name);
+            let dest = outdir.join(crate::filename::sanitize(name));
             pb.set_message(format!("[{}/{tot}] downloading '{name}'...", i + 1));
             log::info!("downloading attachment {name} to {}", dest.display());
             c.client()
