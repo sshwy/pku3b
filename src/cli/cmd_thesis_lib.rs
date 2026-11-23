@@ -45,14 +45,14 @@ pub async fn run(cmd: CommandThesisLib, ctx: &CommandCtx<'_>) -> anyhow::Result<
 }
 
 async fn search(ctx: &CommandCtx<'_>, keyword: String) -> anyhow::Result<()> {
-    let c = build_client(true).await?;
-
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let c = build_client(true, &cfg.username).await?;
 
     sp.set_message("logging in to thesis.lib.pku.edu.cn...");
     let c = c.thesis_lib(&cfg.username, &cfg.password).await?;
@@ -94,14 +94,14 @@ async fn download(
     #[cfg(not(feature = "thesislib-pdf"))]
     log::warn!("thesislib-pdf feature is not enabled, skipping pdf conversion");
 
-    let c = build_client(true).await?;
-
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let c = build_client(true, &cfg.username).await?;
 
     sp.set_message("logging in to thesis.lib.pku.edu.cn...");
     let c = c.thesis_lib(&cfg.username, &cfg.password).await?;

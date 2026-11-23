@@ -29,13 +29,13 @@ pub async fn run(cmd: CommandCourseTable, ctx: &CommandCtx<'_>) -> anyhow::Resul
         otp_code,
     } = cmd;
 
-    let client = build_client(!force).await?;
-
     let sp = ctx.spinner();
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let client = build_client(!force, &cfg.username).await?;
 
     sp.set_message("logging in to portal...");
 

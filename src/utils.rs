@@ -36,8 +36,21 @@ pub fn cache_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| projectdir().cache_dir().to_path_buf())
 }
 
-pub fn default_user_agent_data_path() -> std::path::PathBuf {
-    cache_dir().join("ua.json")
+/// 每个用户名各用一个 cookie 文件，避免改了配置里的用户名之后复用上一个账号的会话。
+///
+/// 用户名中小写字母、数字、`-`、`_` 以外的字节按 `%XX` 转义，保证不同用户名不会映射到同一个文件
+/// （大写字母也转义，因为 macOS、Windows 的文件系统默认不区分大小写）。
+pub fn user_agent_data_path(username: &str) -> std::path::PathBuf {
+    let mut name = String::from("ua-");
+    for b in username.bytes() {
+        if b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_' {
+            name.push(b as char);
+        } else {
+            name.push_str(&format!("%{b:02X}"));
+        }
+    }
+    name.push_str(".json");
+    cache_dir().join(name)
 }
 
 /// If the cache file exists and is not expired, return the deserialized content.
@@ -117,4 +130,26 @@ where
     let (_, r) = buf_try!(@try fs::write(path, r).await);
 
     Ok(r)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_agent_data_path_is_per_username() {
+        let file = |u: &str| {
+            user_agent_data_path(u)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        };
+        assert_eq!(file("2300012345"), "ua-2300012345.json");
+        // 不同用户名不能落到同一个文件，包括只差大小写或只差被转义的字符
+        assert_ne!(file("Abc"), file("abc"));
+        assert_ne!(file("a.b"), file("a_b"));
+        assert_ne!(file("a%2Eb"), file("a.b"));
+        assert_eq!(file("../x"), "ua-%2E%2E%2Fx.json");
+    }
 }

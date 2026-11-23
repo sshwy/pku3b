@@ -43,14 +43,14 @@ pub async fn run(cmd: CommandSyllabus, ctx: &CommandCtx<'_>) -> anyhow::Result<(
 }
 
 pub async fn show(ctx: &CommandCtx<'_>, dual: Option<DualDegree>) -> anyhow::Result<()> {
-    let c = build_client(false).await?;
-
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let c = build_client(false, &cfg.username).await?;
 
     sp.set_message("logging in to syllabus...");
     let sy = c.syllabus(&cfg.username, &cfg.password, dual).await?;
@@ -81,14 +81,14 @@ pub async fn set_autoelective(
     ctx: &CommandCtx<'_>,
     dual: Option<DualDegree>,
 ) -> anyhow::Result<()> {
-    let c = build_client(false).await?;
-
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let c = build_client(false, &cfg.username).await?;
 
     sp.set_message("logging in to syllabus...");
     let sy = c.syllabus(&cfg.username, &cfg.password, dual).await?;
@@ -227,14 +227,14 @@ pub async fn launch_autoelective(
     interval: u64,
     dual: Option<DualDegree>,
 ) -> anyhow::Result<std::convert::Infallible> {
-    let c = build_client(false).await?;
-
     let sp = ctx.spinner();
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let c = build_client(false, &cfg.username).await?;
 
     let Some(items) = cfg.auto_supplement else {
         anyhow::bail!("您还没有设置自动补退选课程");
