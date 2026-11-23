@@ -81,62 +81,71 @@ pub struct Blackboard {
     // token: String,
 }
 
+/// 从教学网主页解析课程列表，返回 `(course key, 标题, 是否当前学期)`。
+///
+/// 课程栏目里不是课程的链接（没有 `key=`）会被跳过，而不是让整个列表失败 (#51)。
+fn parse_courses(dom: &scraper::Html) -> anyhow::Result<Vec<(String, String, bool)>> {
+    let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
+    let portlet_sel = Selector::parse("div.portlet").unwrap();
+    let title_in_portlet_sel = Selector::parse("span.moduleTitle").unwrap();
+    let ul_sel = Selector::parse("ul.courseListing").unwrap();
+    let sel = Selector::parse("li a").unwrap();
+
+    // use regex to extract course key (of form key=_80052_1)
+    let to_key_text = |a: scraper::ElementRef<'_>| {
+        let text = a.text().collect::<String>();
+        let key = a
+            .value()
+            .attr("href")
+            .and_then(|href| re.captures(href))
+            .and_then(|s| s.get(1));
+        match key {
+            Some(key) => Some((key.as_str().to_owned(), text)),
+            None => {
+                log::warn!("skipping link without course key: {text}");
+                None
+            }
+        }
+    };
+
+    // the first one contains the courses in the current semester
+    // the second one contains the courses in the previous semester
+    let mut courses = Vec::new();
+
+    for portlet in dom.select(&portlet_sel) {
+        let Some(title) = portlet.select(&title_in_portlet_sel).next() else {
+            continue;
+        };
+        let title = title.text().collect::<String>();
+        log::info!("scanning portlet: {title}");
+
+        if !title.contains("课程") && !title.contains("Courses") {
+            continue;
+        }
+
+        let is_current = title.contains("当前") || title.contains("Current Semester Courses");
+        for ul in portlet.select(&ul_sel) {
+            let items = ul
+                .select(&sel)
+                .filter_map(to_key_text)
+                .map(|(k, t)| (k, t, is_current))
+                .collect::<Vec<_>>();
+            log::info!("found {} courses, is_current: {is_current}", items.len());
+            courses.extend(items);
+        }
+    }
+
+    if courses.is_empty() {
+        anyhow::bail!("courses not found");
+    }
+
+    Ok(courses)
+}
+
 impl Blackboard {
     async fn _get_courses(&self) -> anyhow::Result<Vec<(String, String, bool)>> {
         let dom = self.client.bb_homepage().await?;
-        let re = regex::Regex::new(r"key=([\d_]+),").unwrap();
-        let portlet_sel = Selector::parse("div.portlet").unwrap();
-        let title_in_portlet_sel = Selector::parse("span.moduleTitle").unwrap();
-        let ul_sel = Selector::parse("ul.courseListing").unwrap();
-        let sel = Selector::parse("li a").unwrap();
-
-        let to_key_text = |a: scraper::ElementRef<'_>| {
-            let href = a.value().attr("href").unwrap();
-            let text = a.text().collect::<String>();
-            // use regex to extract course key (of form key=_80052_1)
-
-            let key = re
-                .captures(href)
-                .and_then(|s| s.get(1))
-                .context("course key not found")?
-                .as_str()
-                .to_owned();
-
-            Ok((key, text))
-        };
-
-        // the first one contains the courses in the current semester
-        // the second one contains the courses in the previous semester
-        let mut courses = Vec::new();
-
-        for portlet in dom.select(&portlet_sel) {
-            let title = portlet.select(&title_in_portlet_sel).nth(0).unwrap();
-            let title = title.text().collect::<String>();
-            log::info!("scanning portlet: {title}");
-
-            if !title.contains("课程") && !title.contains("Courses") {
-                continue;
-            }
-
-            let is_current = title.contains("当前") || title.contains("Current Semester Courses");
-            for ul in portlet.select(&ul_sel) {
-                let items = ul
-                    .select(&sel)
-                    .map(to_key_text)
-                    .map_ok(|(k, t)| (k, t, is_current))
-                    .collect::<Vec<_>>();
-                log::info!("found {} courses, is_current: {is_current}", items.len());
-                courses.extend(items);
-            }
-        }
-
-        if courses.is_empty() {
-            anyhow::bail!("courses not found");
-        }
-
-        let courses = courses.into_iter().collect::<anyhow::Result<Vec<_>>>()?;
-
-        Ok(courses)
+        parse_courses(&dom)
     }
     pub async fn get_courses(&self, only_current: bool) -> anyhow::Result<Vec<CourseHandle>> {
         log::info!("fetching courses...");
@@ -1632,6 +1641,46 @@ pub fn get_mime_type(extension: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_courses_skips_links_without_course_key() {
+        // #51：课程栏目里出现不是课程的链接时，不应让整个课程列表失败
+        let html = r#"
+            <div class="portlet">
+              <span class="moduleTitle">当前学期课程</span>
+              <ul class="courseListing">
+                <li><a href="x?key=_80052_1, y">课程甲</a></li>
+                <li><a href="/webapps/blackboard/execute/announcement">课程公告</a></li>
+                <li><a>无链接</a></li>
+              </ul>
+            </div>
+            <div class="portlet">
+              <span class="moduleTitle">历史课程</span>
+              <ul class="courseListing">
+                <li><a href="x?key=_70001_1, y">课程乙</a></li>
+              </ul>
+            </div>
+            <div class="portlet"><span class="moduleTitle">我的组织</span></div>
+            <div class="portlet"></div>
+        "#;
+        let dom = scraper::Html::parse_document(html);
+
+        let courses = parse_courses(&dom).unwrap();
+
+        assert_eq!(
+            courses,
+            vec![
+                ("_80052_1".to_owned(), "课程甲".to_owned(), true),
+                ("_70001_1".to_owned(), "课程乙".to_owned(), false),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_courses_fails_when_no_course_found() {
+        let dom = scraper::Html::parse_document(r#"<div class="portlet"></div>"#);
+        assert!(parse_courses(&dom).is_err());
+    }
 
     #[test]
     fn test_get_mime_type() {
