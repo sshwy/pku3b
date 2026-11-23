@@ -1,0 +1,63 @@
+name: 问题反馈
+description: 命令报错、结果不对或程序崩溃
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先看看 README 的「常见问题」，并搜索一下已有的 issue。
+        **请不要贴出密码、token、cookie 等登录凭据。**
+  - type: input
+    id: version
+    attributes:
+      label: pku3b 版本
+      description: "`pku3b --version` 的第一行"
+      placeholder: pku3b 0.16.2
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      placeholder: macOS 26.1 (Apple Silicon) / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 安装方式
+      options:
+        - cargo install
+        - Homebrew
+        - Release 页面下载的二进制
+        - Windows 安装脚本
+        - 从源码构建
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: 网络环境
+      description: 部分校内服务在校外访问时行为不同
+      options:
+        - 校内网络
+        - 校外网络
+        - 校外 + 北大 VPN
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 问题描述
+      description: 执行了什么命令、看到了什么、期望看到什么。浏览器上做同样的操作是否正常？
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: 报错与日志
+      description: |
+        在命令前加 `RUST_LOG=info` 重新执行（Windows PowerShell 中先执行 `$env:RUST_LOG = 'info'`），把输出贴在这里。
+        `debug`、`trace` 级别的日志可能包含登录 token 与 cookie，贴出前请检查并删除。
+      render: text

@@ -1,0 +1,16 @@
+name: 功能建议
+description: 新功能或改进建议
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 想要什么功能
+      description: 想解决什么问题、希望怎么使用（比如期望的命令行用法）
+    validations:
+      required: true
+  - type: textarea
+    id: web
+    attributes:
+      label: 教学网上的对应操作
+      description: 如果是教学网或其它校内网站上已有的功能，请说明在网页上是怎么操作的，方便对照实现
