@@ -268,7 +268,10 @@ pub async fn download(
             response,
         } => {
             println!("下载课程回放：{} ({})", course_name, title);
-            let dest = outdir.join(format!("{}_{}.mp4", course_name, title));
+            let dest = outdir.join(crate::filename::sanitize(&format!(
+                "{}_{}.mp4",
+                course_name, title
+            )));
             let sp = ctx.spinner();
             sp.set_message("Downloading MP4 file...");
             let result = download_mp4(response, &dest).await;
@@ -302,7 +305,7 @@ pub async fn download(
     merge_segments(ctx, &merged, &paths).await?;
 
     let dest = format!("{}_{}.mp4", v.course_name(), v.meta().title());
-    let dest = outdir.join(&dest);
+    let dest = outdir.join(crate::filename::sanitize(&dest));
     log::info!("Merged segments to {}", merged.display());
     log::info!(
         r#"You may execute `ffmpeg -i "{}" -c copy "{}"` to convert it to mp4"#,
@@ -386,7 +389,9 @@ async fn download_segments(
     // faster than try_join_all
     for i in 0..tot {
         key = v.refresh_key(i, key);
-        let path = dir.join(&v.segment(i).uri).with_extension("ts");
+        let path = dir
+            .join(crate::filename::sanitize(&v.segment(i).uri))
+            .with_extension("ts");
 
         if !path.exists() {
             log::debug!("key: {key:?}");
