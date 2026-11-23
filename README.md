@@ -96,8 +96,10 @@ Options:
 如果你的电脑上恰好有 rust 工具链，那么建议你使用 cargo 安装最新版本。如果需要更新，只需再次执行这个命令：
 
 ```bash
-cargo install pku3b
+cargo install --locked pku3b
 ```
+
+`--locked` 会使用发布时锁定的依赖版本；不加它时 cargo 可能选用更新的依赖版本，导致编译失败（见 [#74](https://github.com/sshwy/pku3b/issues/74)）。
 
 #### Windows 🖥️
 
@@ -107,7 +109,7 @@ cargo install pku3b
 (Invoke-WebRequest -Uri "https://github.com/sshwy/pku3b" -Method Head).StatusCode
 ```
 
-为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b (当前最新版 `0.12.0`):
+为了保证你能够执行远程下载的批处理脚本，你需要暂时关闭【Windows 安全中心 > 病毒和威胁防护 > 管理设置 > 实时保护】，然后执行以下命令（直接复制全部文本粘贴至命令行）来安装指定版本的 pku3b（下面以 `0.16.2` 为例，请换成 [Release](https://github.com/sshwy/pku3b/releases) 页面上的最新版本号）:
 
 ```powershell
 Invoke-WebRequest `
@@ -115,16 +117,16 @@ Invoke-WebRequest `
   -OutFile "$env:TEMP\script.bat"; `
 Start-Process `
   -FilePath "$env:TEMP\script.bat" `
-  -ArgumentList "0.12.0" `
+  -ArgumentList "0.16.2" `
   -NoNewWindow -Wait
 ```
 
 安装过程大致如下:
 
 ```powershell
-Step 1: Downloading pku3b version 0.12.0...
+Step 1: Downloading pku3b version 0.16.2...
 Download complete.
-Step 2: Extracting pku3b version 0.12.0...
+Step 2: Extracting pku3b version 0.16.2...
 Extraction complete.
 Step 3: Moving pku3b.exe to C:\Users\Sshwy\AppData\Local\pku3b\bin...
 移动了         1 个文件。
@@ -192,7 +194,7 @@ PKU3B_CONFIG=./cfg.toml pku3b coursetable
 `keyring` 后端需要二进制在构建时启用 `keyring` feature。使用 cargo 安装时可以这样安装：
 
 ```bash
-cargo install pku3b --features keyring
+cargo install --locked pku3b --features keyring
 ```
 
 初始化配置后，执行以下命令即可把敏感信息迁移到系统 keyring，并在配置文件中清空对应明文字段：
@@ -356,6 +358,32 @@ pku3b 支持通过 [Bark](https://apps.apple.com/cn/app/bark-customed-notificati
 - ⚙️ 输出调试日志:
   - 在 Windows 上：设置终端环境变量（临时）`$env:RUST_LOG = 'info'`，那么在这个终端之后执行的 pku3b 命令都会输出调试日志。
   - 在 Linux/Mac 上：同样可以设置终端环境变量 `export RUST_LOG=info`；另外一个方法是在执行 pku3b 的命令前面加上 `RUST_LOG=info`，整个命令形如 `RUST_LOG=info pku3b [arguments...]`
+
+## 常见问题 ❓
+
+### 登录时报 `OAuth login error [E21]` / `Too many attempts`
+
+IAAA 对短时间内多次登录做了限频，请等待约半小时后再试。平时无需频繁加 `-f`：登录状态会保存在缓存目录中，有效期内不会重新登录。
+
+### 需要手机令牌（OTP）
+
+开启了手机令牌的账号，登录时会在命令行提示输入令牌码；也可以直接用 `--otp-code` 传入，例如 `pku3b a --otp-code 123456 ls`。
+
+### 作业或课程内容列表不是最新的
+
+作业、课程内容等列表会缓存 1 小时，加 `-f` 可强制刷新，例如 `pku3b a -f ls`。
+
+### TLS / 证书错误
+
+报错中含有 `certificate verify failed`、`bad certificate format`、`HandshakeFailure`、`unexpected EOF during handshake` 等字样时，通常是系统 TLS 环境的问题：
+
+- `pku3b` 使用操作系统自带的 TLS 实现（Windows 为 Schannel，macOS 为 Security.framework，Linux 为 OpenSSL）和系统证书库。教学网（`course.pku.edu.cn`）只支持 TLS 1.2 及较旧的 CBC 加密套件，因此不能换用 rustls。
+- Linux 上请先更新 `ca-certificates` 与 OpenSSL；使用代理或抓包软件时请先关闭再试。
+- 请不要通过关闭证书校验来绕过。若仍无法解决，请提交 issue，并附上系统版本、`pku3b --version` 的输出以及下面所说的日志。
+
+### 如何提供日志
+
+在命令前加上 `RUST_LOG=info`（Windows PowerShell 中先执行 `$env:RUST_LOG = 'info'`），即可输出调试日志。**`debug`、`trace` 级别的日志可能包含登录 token 与 cookie，公开贴出前请检查并删除。**
 
 ## Motivation 💡
 
