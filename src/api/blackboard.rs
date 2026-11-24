@@ -1015,14 +1015,8 @@ impl CourseContentStream {
         let mut all_contents = Vec::new();
         for dom in doms {
             let dom = dom?;
-            let selector = Selector::parse("#content_listContainer > li").unwrap();
-            let contents = dom
-                .select(&selector)
-                .filter_map(|li| {
-                    CourseContentData::from_element(li)
-                        .inspect_err(|e| log::warn!("CourseContentData::from_element error: {e}"))
-                        .ok()
-                })
+            let contents = parse_content_list(&dom)
+                .into_iter()
                 // filter out visited ids
                 .filter(|data| self.visited_ids.insert(data.id.to_owned()))
                 // add the rest new ids to probe_ids
@@ -1142,6 +1136,25 @@ impl CourseContent {
     }
 }
 
+/// 解析内容页（listContent.jsp）的条目列表。
+///
+/// 只取页面上第一个 `#content_listContainer` 的直接子 `li`：条目描述里可能粘贴了
+/// 教学网页面的 HTML，带有同 id 的嵌套列表，它们不是本页的条目 (#43)。
+fn parse_content_list(dom: &scraper::Html) -> Vec<CourseContentData> {
+    let selector = Selector::parse("#content_listContainer").unwrap();
+    dom.select(&selector)
+        .next()
+        .into_iter()
+        .flat_map(|ul| ul.child_elements())
+        .filter(|el| el.value().name() == "li")
+        .filter_map(|li| {
+            CourseContentData::from_element(li)
+                .inspect_err(|e| log::warn!("CourseContentData::from_element error: {e}"))
+                .ok()
+        })
+        .collect()
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum CourseContentKind {
     Document,
@@ -1151,6 +1164,8 @@ pub enum CourseContentKind {
     Audio,
     Folder,
     Quiz,
+    WebLink,
+    Image,
     Unknown,
 }
 
@@ -1218,6 +1233,8 @@ impl CourseContentData {
             Some("项目") => CourseContentKind::Document,
             Some("文件") => CourseContentKind::File,
             Some("测试") => CourseContentKind::Quiz,
+            Some("Web 链接") => CourseContentKind::WebLink,
+            Some("图像") => CourseContentKind::Image,
             alt => {
                 log::warn!("unknown content kind: {alt:?}");
                 CourseContentKind::Unknown
@@ -1230,10 +1247,12 @@ impl CourseContentData {
             .to_owned();
 
         let title = title_div.text().collect::<String>().trim().to_owned();
+        // 只有指向内容页的链接（文件夹）才需要继续展开；文件、作业等条目的标题
+        // 也是链接，但用它们的 id 请求内容页只会拿回所在文件夹的同一页 (#43)
         let has_link = title_div
             .select(&Selector::parse("a").unwrap())
-            .next()
-            .is_some();
+            .filter_map(|a| a.attr("href"))
+            .any(|href| href.contains("/webapps/blackboard/content/listContent"));
 
         let descriptions = detail_div
             .select(&Selector::parse("div.vtbegenerated > *").unwrap())
@@ -1680,6 +1699,89 @@ mod tests {
     fn parse_courses_fails_when_no_course_found() {
         let dom = scraper::Html::parse_document(r#"<div class="portlet"></div>"#);
         assert!(parse_courses(&dom).is_err());
+    }
+
+    fn content_li(alt: &str, id: &str, href: &str, details: &str) -> String {
+        format!(
+            r#"<li><img alt="{alt}"><div class="item" id="{id}"><h3><a href="{href}">{id}</a></h3></div><div class="details">{details}</div></li>"#
+        )
+    }
+
+    #[test]
+    fn parse_content_list_ignores_lists_pasted_into_descriptions() {
+        // #43：老师把教学网页面的 HTML 粘进了条目描述，描述里出现嵌套的
+        // `#content_listContainer`，其中的 `li`（实测多为空，也可能是完整的条目）
+        // 都不是本页的内容条目
+        let nested = format!(
+            r#"<div class="vtbegenerated"><ul id="content_listContainer"><li id="contentListItem:_8_1"></li>{}</ul></div>"#,
+            content_li("文件", "_9_1", "/bbcswebdav/pid-9/xid-9", "")
+        );
+        let html = format!(
+            r#"<ul class="contentList" id="content_listContainer">{}{}</ul>"#,
+            content_li("文件", "_1_1", "/bbcswebdav/pid-1/xid-1", &nested),
+            content_li(
+                "作业",
+                "_2_1",
+                "/webapps/assignment/uploadAssignment?content_id=_2_1",
+                ""
+            ),
+        );
+        let dom = scraper::Html::parse_document(&html);
+        let ids: Vec<_> = parse_content_list(&dom).into_iter().map(|c| c.id).collect();
+        assert_eq!(ids, ["_1_1", "_2_1"]);
+    }
+
+    #[test]
+    fn parse_content_list_follows_only_folder_links() {
+        // #43：文件、作业、Web 链接等条目的标题也是链接，但它们不是文件夹，
+        // 用它们的 id 去请求 listContent.jsp 只会拿回所在文件夹的同一页
+        let html = format!(
+            r#"<ul class="contentList" id="content_listContainer">{}{}{}{}</ul>"#,
+            content_li(
+                "内容文件夹",
+                "_1_1",
+                "/webapps/blackboard/content/listContent.jsp?content_id=_1_1",
+                ""
+            ),
+            content_li("文件", "_2_1", "/bbcswebdav/pid-2/xid-2", ""),
+            content_li(
+                "作业",
+                "_3_1",
+                "/webapps/assignment/uploadAssignment?content_id=_3_1",
+                ""
+            ),
+            content_li(
+                "Web 链接",
+                "_4_1",
+                "/webapps/bb-streammedia-hqy-bb_bb60/previewResource.action",
+                ""
+            ),
+        );
+        let dom = scraper::Html::parse_document(&html);
+        let followed: Vec<_> = parse_content_list(&dom)
+            .into_iter()
+            .filter(|c| c.has_link)
+            .map(|c| c.id)
+            .collect();
+        assert_eq!(followed, ["_1_1"]);
+    }
+
+    #[test]
+    fn parse_content_list_recognizes_web_link_and_image() {
+        let html = format!(
+            r#"<ul class="contentList" id="content_listContainer">{}{}</ul>"#,
+            content_li("Web 链接", "_1_1", "https://example.com/", ""),
+            content_li("图像", "_2_1", "/bbcswebdav/pid-2/xid-2", ""),
+        );
+        let dom = scraper::Html::parse_document(&html);
+        let kinds: Vec<_> = parse_content_list(&dom)
+            .into_iter()
+            .map(|c| c.kind)
+            .collect();
+        assert!(matches!(
+            kinds[..],
+            [CourseContentKind::WebLink, CourseContentKind::Image]
+        ));
     }
 
     #[test]
