@@ -38,9 +38,12 @@ impl Client {
             // Warm up both web and REST API sessions after login
             c.bb_homepage().await?;
 
+            // 登录已经成功，保存会话只是为了下次免登录，失败不应中断本次命令
             if let Some(path) = &self.0.cookie_restore_path {
-                c.save_set_cookies(path).await?;
-                log::info!("blackboard login session saved to {}", path.display());
+                match c.save_set_cookies(path).await {
+                    Ok(()) => log::info!("blackboard login session saved to {}", path.display()),
+                    Err(e) => log::warn!("failed to save blackboard login session: {e:#}"),
+                }
             }
         }
 

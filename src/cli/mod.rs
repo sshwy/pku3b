@@ -168,9 +168,9 @@ impl clap::ValueEnum for DualDegree {
     }
 }
 
-async fn build_client(enable_cache: bool) -> anyhow::Result<api::Client> {
+async fn build_client(enable_cache: bool, username: &str) -> anyhow::Result<api::Client> {
     let mut builder =
-        api::Client::builder().cookie_restore_path(Some(utils::default_user_agent_data_path()));
+        api::Client::builder().cookie_restore_path(Some(utils::user_agent_data_path(username)));
     if enable_cache {
         builder = builder
             .cache_ttl(Some(std::time::Duration::from_hours(1)))
@@ -185,13 +185,14 @@ async fn load_blackboard(
     force: bool,
 ) -> anyhow::Result<(Blackboard, AsyncSpinner)> {
     let sp = ctx.spinner();
-    let enable_cache = !force;
-    let client = build_client(enable_cache).await?;
 
     sp.set_message("reading config...");
     let cfg = config::read_cfg(&ctx.config_path)
         .await
         .context("read config file")?;
+
+    let enable_cache = !force;
+    let client = build_client(enable_cache, &cfg.username).await?;
 
     // 会话有效时不会登录，也就不必向 IAAA 查询是否需要 OTP：
     // IAAA 按 IP 限频（E21），每条命令多一次查询都会累积
