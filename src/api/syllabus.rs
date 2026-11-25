@@ -114,16 +114,13 @@ impl Syllabus {
     ) -> anyhow::Result<(usize, Vec<SyllabusBaseCourseData>)> {
         let dom = self.client.sb_supplycancelpage(&self.username).await?;
         let pagination_sel = Selector::parse("tr[align=\"right\"] > td:first-child").unwrap();
-        let re = regex::Regex::new(r"Page\s*\d+?\s*of\s*(\d+?)").unwrap();
 
         let td = dom
             .select(&pagination_sel)
             .nth(0)
             .context("table footer not found")?;
         let text = td.text().collect::<String>();
-        let m = re.captures(&text).context("page count not matched")?;
-
-        let total: usize = m.get(1).context("page count not found")?.as_str().parse()?;
+        let total = parse_page_count(&text)?;
 
         let table_sel = Selector::parse("table.datagrid").unwrap();
         let table = dom.select(&table_sel).nth(1).context("table not found")?;
@@ -429,6 +426,13 @@ pub enum DualDegree {
     Minor,
 }
 
+/// 从分页栏文字（如 `Page 1 of 12`）中取出总页数
+fn parse_page_count(text: &str) -> anyhow::Result<usize> {
+    let re = regex::Regex::new(r"Page\s*\d+\s*of\s*(\d+)").unwrap();
+    let m = re.captures(text).context("page count not matched")?;
+    Ok(m.get(1).context("page count not found")?.as_str().parse()?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -448,5 +452,13 @@ mod tests {
         // 表头为「限数/已选/候补」时
         assert!(!status_is_full("30 / 25 / 0").unwrap());
         assert!(status_is_full("30 / 30 / 5").unwrap());
+    }
+
+    #[test]
+    fn test_parse_page_count() {
+        assert_eq!(parse_page_count("Page 1 of 3").unwrap(), 3);
+        assert_eq!(parse_page_count("Page 1 of 12").unwrap(), 12);
+        assert_eq!(parse_page_count(" Page 10 of 25 ").unwrap(), 25);
+        assert!(parse_page_count("no pagination").is_err());
     }
 }
