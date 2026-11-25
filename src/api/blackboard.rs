@@ -1541,36 +1541,9 @@ impl CourseAssignment {
 
     /// Try to parse the deadline string into a NaiveDateTime.
     pub fn deadline(&self) -> Option<chrono::DateTime<chrono::Local>> {
-        let d = self.data.deadline.as_deref()?;
-        let re = regex::Regex::new(
-            r"(\d{4})年(\d{1,2})月(\d{1,2})日 星期. (上午|下午)(\d{1,2}):(\d{1,2})",
-        )
-        .unwrap();
-
-        if let Some(caps) = re.captures(d) {
-            let year: i32 = caps[1].parse().ok()?;
-            let month: u32 = caps[2].parse().ok()?;
-            let day: u32 = caps[3].parse().ok()?;
-            let mut hour: u32 = caps[5].parse().ok()?;
-            let minute: u32 = caps[6].parse().ok()?;
-
-            // Adjust for PM times
-            if &caps[4] == "下午" && hour < 12 {
-                hour += 12;
-            }
-
-            // Create NaiveDateTime
-            let naive_dt = chrono::NaiveDateTime::new(
-                chrono::NaiveDate::from_ymd_opt(year, month, day)?,
-                chrono::NaiveTime::from_hms_opt(hour, minute, 0)?,
-            );
-
-            let r = chrono::Local.from_local_datetime(&naive_dt).unwrap();
-
-            Some(r)
-        } else {
-            None
-        }
+        let naive_dt = parse_deadline(self.data.deadline.as_deref()?)?;
+        // `earliest` is None only for times skipped by a DST transition
+        chrono::Local.from_local_datetime(&naive_dt).earliest()
     }
 
     pub fn deadline_raw(&self) -> Option<&str> {
@@ -1655,6 +1628,32 @@ pub fn get_mime_type(extension: &str) -> &str {
         .get(extension)
         .copied()
         .unwrap_or("application/octet-stream")
+}
+
+/// 解析教学网的截止时间，如 `2026年11月25日 星期三 下午11:59`
+fn parse_deadline(d: &str) -> Option<chrono::NaiveDateTime> {
+    let re =
+        regex::Regex::new(r"(\d{4})年(\d{1,2})月(\d{1,2})日 星期. (上午|下午)(\d{1,2}):(\d{1,2})")
+            .unwrap();
+
+    let caps = re.captures(d)?;
+    let year: i32 = caps[1].parse().ok()?;
+    let month: u32 = caps[2].parse().ok()?;
+    let day: u32 = caps[3].parse().ok()?;
+    let mut hour: u32 = caps[5].parse().ok()?;
+    let minute: u32 = caps[6].parse().ok()?;
+
+    // 12-hour clock: 上午12 is midnight, 下午1-11 are 13-23
+    match (&caps[4], hour) {
+        ("上午", 12) => hour = 0,
+        ("下午", h) if h < 12 => hour += 12,
+        _ => {}
+    }
+
+    Some(chrono::NaiveDateTime::new(
+        chrono::NaiveDate::from_ymd_opt(year, month, day)?,
+        chrono::NaiveTime::from_hms_opt(hour, minute, 0)?,
+    ))
 }
 
 #[cfg(test)]
@@ -1806,5 +1805,27 @@ mod tests {
         let k2 = announcement_dedup_key("标题A", "正文内容", "发布时间10:00");
 
         assert_eq!(k1, k2);
+    }
+
+    #[test]
+    fn parses_twelve_hour_deadlines() {
+        let at = |d: &str| parse_deadline(d).map(|t| t.format("%Y-%m-%d %H:%M").to_string());
+        assert_eq!(
+            at("2026年11月25日 星期三 上午9:05").as_deref(),
+            Some("2026-11-25 09:05")
+        );
+        assert_eq!(
+            at("2026年11月25日 星期三 上午12:00").as_deref(),
+            Some("2026-11-25 00:00")
+        );
+        assert_eq!(
+            at("2026年11月25日 星期三 下午12:30").as_deref(),
+            Some("2026-11-25 12:30")
+        );
+        assert_eq!(
+            at("2026年11月25日 星期三 下午11:59").as_deref(),
+            Some("2026-11-25 23:59")
+        );
+        assert_eq!(at("无截止日期"), None);
     }
 }
