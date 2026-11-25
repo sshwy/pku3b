@@ -40,6 +40,16 @@ pub fn default_user_agent_data_path() -> std::path::PathBuf {
     cache_dir().join("ua.json")
 }
 
+fn cache_tmp_path(path: &std::path::Path) -> std::path::PathBuf {
+    static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    path.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        TMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ))
+}
+
 /// If the cache file exists and is not expired, return the deserialized content.
 /// Otherwise, execute the future, serialize the result to the cache file, and return the result.
 pub async fn with_cache<T, F>(
@@ -79,7 +89,9 @@ where
     let r = fut.await?;
     fs::create_dir_all(path.parent().unwrap()).await?;
     let buf = serde_json::to_vec(&r)?;
-    buf_try!(@try fs::write(path, buf).await);
+    let tmp_path = cache_tmp_path(path);
+    buf_try!(@try fs::write(&tmp_path, buf).await);
+    fs::rename(tmp_path, path).await?;
 
     Ok(r)
 }
@@ -114,7 +126,9 @@ where
 
     let r = fut.await?;
     fs::create_dir_all(path.parent().unwrap()).await?;
-    let (_, r) = buf_try!(@try fs::write(path, r).await);
+    let tmp_path = cache_tmp_path(path);
+    buf_try!(@try fs::write(&tmp_path, r.clone()).await);
+    fs::rename(tmp_path, path).await?;
 
     Ok(r)
 }
