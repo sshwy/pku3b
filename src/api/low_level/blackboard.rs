@@ -290,9 +290,7 @@ impl LowLevelClient {
             .await?;
 
         let body = res.text().await?;
-        let re = regex::Regex::new(r#"document.location = '(.*?)';"#).unwrap();
-        let caps = re.captures(&body).unwrap();
-        let loc = caps.get(1).unwrap().as_str();
+        let loc = extract_document_location(&body)?;
         log::debug!("redirected to {loc}");
 
         let res = self.get_by_uri(loc).await?;
@@ -485,5 +483,34 @@ impl LowLevelClient {
             res.status()
         );
         Ok(res.text().await?)
+    }
+}
+
+/// 取出文件条目页面里 `document.location = '...';` 跳转的目标地址
+fn extract_document_location(body: &str) -> anyhow::Result<&str> {
+    let re = regex::Regex::new(r#"document\.location = '(.*?)';"#).unwrap();
+    let caps = re
+        .captures(body)
+        .context("file redirect not found in page (the login session may have expired)")?;
+    Ok(caps.get(1).context("file redirect url not found")?.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_document_location() {
+        let body = "<script>document.location = '/bbcswebdav/pid-1/xid-2';</script>";
+        assert_eq!(
+            extract_document_location(body).unwrap(),
+            "/bbcswebdav/pid-1/xid-2"
+        );
+    }
+
+    #[test]
+    fn reports_missing_document_location() {
+        let body = "<html><body>登录已过期</body></html>";
+        assert!(extract_document_location(body).is_err());
     }
 }
