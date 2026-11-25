@@ -141,7 +141,7 @@ impl LowLevelClient {
                 .ok_or(anyhow::anyhow!("no redirectUrl in url {url}"))?;
             v.to_string()
         };
-        log::trace!("redirect_url: {redir_url}");
+        log::trace!("redirect_url: {}", crate::http::log_url(&redir_url));
 
         let token = self
             .iaaa_oauth_login("lib_sso", username, password, "", &redir_url)
