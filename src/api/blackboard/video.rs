@@ -446,9 +446,7 @@ impl CourseVideo {
             m3u8_rs::KeyMethod::AES128 => {
                 let uri = key.uri.as_ref().context("key uri not found")?;
                 let iv = if let Some(iv) = &key.iv {
-                    let iv = iv.to_ascii_uppercase();
-                    let hx = iv.strip_prefix("0x").context("iv not start with 0x")?;
-                    u128::from_str_radix(hx, 16).context("parse iv failed")?
+                    parse_iv(iv)?
                 } else {
                     seq
                 }
@@ -465,9 +463,22 @@ impl CourseVideo {
 
                 Ok(de.into())
             }
-            r => unimplemented!("m3u8 key: {:?}", r),
+            // An encryption method of NONE means that Media Segments are not
+            // encrypted.
+            m3u8_rs::KeyMethod::None => Ok(bytes),
+            r => anyhow::bail!("unsupported m3u8 key method: {r:?}"),
         }
     }
+}
+
+/// 解析 EXT-X-KEY 的 IV 属性（`0x` 或 `0X` 开头的十六进制数）
+#[cfg(feature = "video-download")]
+fn parse_iv(iv: &str) -> anyhow::Result<u128> {
+    let hx = iv
+        .strip_prefix("0x")
+        .or_else(|| iv.strip_prefix("0X"))
+        .context("iv not start with 0x")?;
+    u128::from_str_radix(hx, 16).context("parse iv failed")
 }
 
 #[cfg(test)]
@@ -509,5 +520,16 @@ mod tests {
     fn rejects_unsupported_media() {
         let info = playback_info("no", "https://example.invalid/video.webm");
         assert!(CourseVideoHandle::get_media_path(&info).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "video-download")]
+    fn parses_hex_iv() {
+        assert_eq!(parse_iv("0x00000000000000000000000000000001").unwrap(), 1);
+        assert_eq!(
+            parse_iv("0X0123456789abcdef0123456789ABCDEF").unwrap(),
+            0x0123456789abcdef0123456789abcdef
+        );
+        assert!(parse_iv("0123").is_err());
     }
 }
